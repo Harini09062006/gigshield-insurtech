@@ -1,99 +1,139 @@
-
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, Circle, Popup, useMap, Tooltip } from 'react-leaflet';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { Shield, Zap, AlertTriangle, CloudRain, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Zap, AlertTriangle, Wind, CloudRain, Droplets } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-
-// Leaflet Icon Fix
-const iconRetinaUrl = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png';
-const iconUrl = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png';
-const shadowUrl = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png';
-
-if (typeof window !== 'undefined') {
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl,
-    iconUrl,
-    shadowUrl,
-  });
-}
-
-const RISK_COLORS: Record<string, { fill: string; border: string; label: string; text: string }> = {
-  extreme: { fill: '#DC2626', border: '#991B1B', label: 'EXTREME DANGER', text: '#DC2626' },
-  high: { fill: '#F97316', border: '#C2410C', label: 'HIGH RISK', text: '#F97316' },
-  medium: { fill: '#FBBF24', border: '#D97706', label: 'MEDIUM RISK', text: '#D97706' },
-  low: { fill: '#4ADE80', border: '#16A34A', label: 'LOW RISK', text: '#16A34A' },
-  safe: { fill: '#22C55E', border: '#15803D', label: 'SAFE ZONE', text: '#22C55E' },
-};
-
-const SEED_DATA = [
-  { id: '1', zone: "South Mumbai", city: "Mumbai", lat: 18.9322, lng: 72.8264, risk_score: 85, risk_level: "extreme", rainfall_mm: 72, aqi: 210, reason: "Heavy flooding + high AQI", radius_km: 1.8 },
-  { id: '2', zone: "Kurla", city: "Mumbai", lat: 19.0726, lng: 72.8795, risk_score: 74, risk_level: "high", rainfall_mm: 58, aqi: 185, reason: "Waterlogging reported", radius_km: 1.5 },
-  { id: '3', zone: "Dharavi", city: "Mumbai", lat: 19.0401, lng: 72.8543, risk_score: 78, risk_level: "high", rainfall_mm: 63, aqi: 195, reason: "Road closures + heavy rain", radius_km: 1.2 },
-  { id: '4', zone: "Andheri", city: "Mumbai", lat: 19.1197, lng: 72.8469, risk_score: 52, risk_level: "medium", rainfall_mm: 38, aqi: 155, reason: "Moderate rainfall", radius_km: 2.0 },
-  { id: '5', zone: "Bandra", city: "Mumbai", lat: 19.0544, lng: 72.8405, risk_score: 48, risk_level: "medium", rainfall_mm: 34, aqi: 148, reason: "Slow traffic + rain", radius_km: 1.6 },
-  { id: '6', zone: "Dadar", city: "Mumbai", lat: 19.0178, lng: 72.8478, risk_score: 28, risk_level: "low", rainfall_mm: 18, aqi: 95, reason: "Light drizzle only", radius_km: 1.4 },
-  { id: '7', zone: "Powai", city: "Mumbai", lat: 19.1197, lng: 72.9050, risk_score: 22, risk_level: "low", rainfall_mm: 12, aqi: 88, reason: "Mostly clear", radius_km: 1.8 },
-  { id: '8', zone: "Thane", city: "Mumbai", lat: 19.2183, lng: 72.9781, risk_score: 10, risk_level: "safe", rainfall_mm: 5, aqi: 62, reason: "Clear skies", radius_km: 2.2 },
-  { id: '9', zone: "Borivali", city: "Mumbai", lat: 19.2307, lng: 72.8567, risk_score: 15, risk_level: "safe", rainfall_mm: 8, aqi: 70, reason: "No disruptions", radius_km: 2.0 },
-  { id: '10', zone: "Malad", city: "Mumbai", lat: 19.1871, lng: 72.8487, risk_score: 61, risk_level: "high", rainfall_mm: 55, aqi: 172, reason: "Flooding near subway", radius_km: 1.6 }
-];
-
-function MapController({ searchQuery, zones }: { searchQuery: string; zones: any[] }) {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (!searchQuery) return;
-    const match = zones.find(z => z.zone.toLowerCase().includes(searchQuery.toLowerCase()));
-    if (match) {
-      map.flyTo([match.lat, match.lng], 14, { duration: 1.5 });
-    }
-  }, [searchQuery, zones, map]);
-
-  return null;
-}
 
 export default function MapComponent({ searchQuery }: { searchQuery: string }) {
-  const db = useFirestore();
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const circlesRef = useRef<L.LayerGroup | null>(null);
+  const [lastUpdated] = useState<Date>(new Date());
 
-  const zonesQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "disruption_zones"), where("city", "==", "Mumbai"));
-  }, [db]);
+  const zones = [
+    { name: "South Mumbai", lat: 18.9322, lng: 72.8264, risk: "extreme", score: 85, color: "#DC2626", dark: "#991B1B", radius: 2000, info: "Heavy flooding + high AQI" },
+    { name: "Kurla", lat: 19.0726, lng: 72.8795, risk: "high", score: 74, color: "#F97316", dark: "#C2410C", radius: 1800, info: "Waterlogging reported" },
+    { name: "Dharavi", lat: 19.0401, lng: 72.8543, risk: "high", score: 78, color: "#F97316", dark: "#C2410C", radius: 1600, info: "Road closures + heavy rain" },
+    { name: "Malad", lat: 19.1871, lng: 72.8487, risk: "high", score: 65, color: "#F97316", dark: "#C2410C", radius: 1700, info: "Flooding near subway" },
+    { name: "Andheri", lat: 19.1197, lng: 72.8469, risk: "medium", score: 52, color: "#FBBF24", dark: "#D97706", radius: 1800, info: "Moderate rainfall" },
+    { name: "Bandra", lat: 19.0544, lng: 72.8405, risk: "medium", score: 48, color: "#FBBF24", dark: "#D97706", radius: 1500, info: "Slow traffic + rain" },
+    { name: "Dadar", lat: 19.0178, lng: 72.8478, risk: "low", score: 28, color: "#4ADE80", dark: "#16A34A", radius: 1400, info: "Light drizzle only" },
+    { name: "Powai", lat: 19.1197, lng: 72.9050, risk: "low", score: 22, color: "#4ADE80", dark: "#16A34A", radius: 1600, info: "Mostly clear" },
+    { name: "Borivali", lat: 19.2307, lng: 72.8567, risk: "safe", score: 10, color: "#22C55E", dark: "#15803D", radius: 1800, info: "No disruptions" },
+    { name: "Thane", lat: 19.2183, lng: 72.9781, risk: "safe", score: 12, color: "#22C55E", dark: "#15803D", radius: 2000, info: "Clear skies" },
+  ];
 
-  const { data: dbZones, isLoading } = useCollection(zonesQuery);
-
-  const zones = useMemo(() => {
-    const raw = (dbZones && dbZones.length > 0) ? dbZones : SEED_DATA;
-    if (!searchQuery) return raw;
-    return raw.map(z => ({
-      ...z,
-      opacity: z.zone.toLowerCase().includes(searchQuery.toLowerCase()) ? 1 : 0.2
-    }));
-  }, [dbZones, searchQuery]);
-
+  // Initialize Map
   useEffect(() => {
-    if (!isLoading) setLastUpdated(new Date());
-  }, [dbZones, isLoading]);
+    if (mapInstanceRef.current) return;
+    if (!mapContainerRef.current) return;
 
-  const stats = useMemo(() => {
-    const counts = { extreme: 0, high: 0, medium: 0, safe: 0 };
-    zones.forEach(z => {
-      if (counts[z.risk_level as keyof typeof counts] !== undefined) {
-        counts[z.risk_level as keyof typeof counts]++;
-      } else if (z.risk_level === 'low') {
-        counts.safe++;
+    const map = L.map(mapContainerRef.current, {
+      center: [19.0760, 72.8777],
+      zoom: 11,
+      minZoom: 10,
+      maxZoom: 16,
+      zoomControl: true,
+      maxBounds: [
+        [18.85, 72.70],
+        [19.35, 73.10]
+      ],
+      maxBoundsViscosity: 1.0
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(map);
+
+    mapInstanceRef.current = map;
+    circlesRef.current = L.layerGroup().addTo(map);
+
+    // Initial render of zones
+    renderZones(zones, '');
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Handle Search and Filtering
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    renderZones(zones, searchQuery);
+
+    if (searchQuery) {
+      const match = zones.find(z => z.name.toLowerCase().includes(searchQuery.toLowerCase()));
+      if (match) {
+        mapInstanceRef.current.flyTo([match.lat, match.lng], 14, { duration: 1.5 });
+      }
+    } else {
+      mapInstanceRef.current.setView([19.0760, 72.8777], 11);
+    }
+  }, [searchQuery]);
+
+  function renderZones(data: any[], filter: string) {
+    if (!circlesRef.current || !mapInstanceRef.current) return;
+    circlesRef.current.clearLayers();
+
+    data.forEach(zone => {
+      const isMatch = filter === '' || zone.name.toLowerCase().includes(filter.toLowerCase());
+      const opacity = filter === '' || isMatch ? 0.55 : 0.15;
+      const weight = isMatch && filter !== '' ? 4 : 2;
+      const borderColor = isMatch && filter !== '' ? '#FFFFFF' : zone.dark;
+
+      const circle = L.circle([zone.lat, zone.lng], {
+        radius: zone.radius,
+        fillColor: zone.color,
+        fillOpacity: opacity,
+        color: borderColor,
+        weight: weight,
+      });
+
+      circle.bindPopup(`
+        <div style="min-width:200px;font-family:Inter,sans-serif;padding:4px">
+          <div style="font-weight:700;font-size:15px;color:#1A1A2E;margin-bottom:6px">
+            ${zone.name}
+          </div>
+          <div style="display:inline-block;padding:2px 10px;border-radius:99px;background:${zone.color}22;color:${zone.dark};font-weight:600;font-size:12px;margin-bottom:8px;border:1px solid ${zone.color}44">
+            ${zone.risk.toUpperCase()}
+          </div>
+          <div style="font-size:13px;color:#64748B;margin-bottom:8px;line-height:1.4">${zone.info}</div>
+          <div style="font-size:13px;color:#1A1A2E;padding-top:8px;border-top:1px solid #E2E8F0">
+            Risk Score: <b style="color:${zone.dark}">${zone.score}/100</b>
+          </div>
+          <button style="width:100%;margin-top:12px;background:#6C47FF;color:white;border:none;padding:8px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">GET COVERED</button>
+        </div>
+      `);
+
+      circle.addTo(circlesRef.current!);
+
+      // Add Pulse Ring for High/Extreme
+      if (zone.risk === 'extreme' || zone.risk === 'high') {
+        const pulse = L.circle([zone.lat, zone.lng], {
+          radius: zone.radius * 1.5,
+          fillColor: zone.color,
+          fillOpacity: filter === '' || isMatch ? 0.08 : 0.02,
+          color: zone.color,
+          weight: 1,
+          dashArray: '6 4',
+        });
+        pulse.addTo(circlesRef.current!);
       }
     });
-    return counts;
-  }, [zones]);
+  }
+
+  const stats = {
+    extreme: zones.filter(z => z.risk === 'extreme').length,
+    high: zones.filter(z => z.risk === 'high').length,
+    medium: zones.filter(z => z.risk === 'medium').length,
+    safe: zones.filter(z => z.risk === 'safe' || z.risk === 'low').length,
+  };
 
   return (
     <div className="w-full h-full flex flex-col gap-4">
@@ -113,144 +153,57 @@ export default function MapComponent({ searchQuery }: { searchQuery: string }) {
         </Badge>
       </div>
 
-      <div className="relative flex-1 min-h-[500px] w-full rounded-card overflow-hidden shadow-card border border-border bg-white">
-        <MapContainer 
-          center={[19.0760, 72.8777]} 
-          zoom={12} 
-          style={{ height: '100%', width: '100%' }}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <MapController searchQuery={searchQuery} zones={zones} />
-          
-          {zones.map((zone) => {
-            const colors = RISK_COLORS[zone.risk_level] || RISK_COLORS.safe;
-            const isMatching = searchQuery && zone.zone.toLowerCase().includes(searchQuery.toLowerCase());
-            
-            return (
-              <div key={zone.id}>
-                {/* Pulse Ring for Extreme/High */}
-                {(zone.risk_level === 'extreme' || zone.risk_level === 'high') && (
-                  <Circle
-                    center={[zone.lat, zone.lng]}
-                    radius={zone.radius_km * 1400}
-                    pathOptions={{
-                      fillColor: colors.fill,
-                      color: colors.fill,
-                      fillOpacity: 0.2,
-                      stroke: false,
-                      className: 'pulse-ring'
-                    }}
-                  />
-                )}
-                
-                {/* Main Danger Circle */}
-                <Circle
-                  center={[zone.lat, zone.lng]}
-                  radius={zone.radius_km * 1000}
-                  pathOptions={{
-                    fillColor: colors.fill,
-                    color: isMatching ? '#FFFFFF' : colors.border,
-                    fillOpacity: zone.opacity ?? (colors as any).opacity ?? 0.5,
-                    weight: isMatching ? 4 : 2,
-                  }}
-                >
-                  <Tooltip permanent={false} direction="center" className="bg-transparent border-none shadow-none">
-                    <Badge className="bg-white text-heading font-bold shadow-sm border-l-4" style={{ borderLeftColor: colors.fill }}>
-                      {zone.zone}
-                    </Badge>
-                  </Tooltip>
-                  
-                  <Popup minWidth={260} className="custom-popup">
-                    <div className="p-1 space-y-4">
-                      <div className="flex items-center justify-between border-b pb-2">
-                        <h3 className="font-headline font-bold text-lg text-heading">{zone.zone}</h3>
-                        <Badge style={{ backgroundColor: colors.fill, color: '#FFF' }}>{zone.risk_level.toUpperCase()}</Badge>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex justify-between text-xs font-bold text-body">
-                            <span>Rainfall</span>
-                            <span>{zone.rainfall_mm}mm</span>
-                          </div>
-                          <Progress value={Math.min(100, zone.rainfall_mm)} className="h-1.5 bg-muted" />
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="flex items-center gap-2">
-                            <Wind className="h-4 w-4 text-primary" />
-                            <div>
-                              <p className="text-[10px] text-muted font-bold uppercase">AQI</p>
-                              <p className="text-xs font-bold text-heading">{zone.aqi}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Droplets className="h-4 w-4 text-primary" />
-                            <div>
-                              <p className="text-[10px] text-muted font-bold uppercase">Risk Score</p>
-                              <p className="text-xs font-bold text-heading">{zone.risk_score}/100</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-2 bg-muted/30 rounded-md border border-border/50 text-xs text-body leading-relaxed">
-                        {zone.reason}
-                      </div>
-
-                      <div className="flex gap-2">
-                        <button className="flex-1 py-2 bg-primary text-white rounded-btn text-xs font-bold shadow-btn">Get Covered</button>
-                        <button className="flex-1 py-2 bg-white border border-primary text-primary rounded-btn text-xs font-bold">View Claim</button>
-                      </div>
-                    </div>
-                  </Popup>
-                </Circle>
-              </div>
-            );
-          })}
-        </MapContainer>
+      <div className="relative flex-1 w-full rounded-card overflow-hidden shadow-card border border-border bg-white" style={{ minHeight: '520px', height: 'calc(100vh - 160px)', zIndex: 1 }}>
+        <div ref={mapContainerRef} className="w-full h-full" />
 
         {/* Map Legend */}
         <div className="absolute bottom-6 left-6 z-[1000] bg-white/95 backdrop-blur-sm p-4 rounded-card border border-border shadow-lg min-w-[180px]">
           <h4 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Risk Level Guide</h4>
           <div className="space-y-2">
-            {Object.entries(RISK_COLORS).map(([level, colors]) => (
-              <div key={level} className="flex items-center gap-3 text-xs font-medium text-heading">
-                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: colors.fill }} />
-                <span className="capitalize">{level} Risk</span>
-              </div>
-            ))}
+            <div className="flex items-center gap-3 text-xs font-medium text-heading">
+              <div className="h-3 w-3 rounded-full bg-[#DC2626]" />
+              <span>Extreme Danger</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs font-medium text-heading">
+              <div className="h-3 w-3 rounded-full bg-[#F97316]" />
+              <span>High Risk</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs font-medium text-heading">
+              <div className="h-3 w-3 rounded-full bg-[#FBBF24]" />
+              <span>Medium Risk</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs font-medium text-heading">
+              <div className="h-3 w-3 rounded-full bg-[#4ADE80]" />
+              <span>Low Risk</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs font-medium text-heading">
+              <div className="h-3 w-3 rounded-full bg-[#22C55E]" />
+              <span>Safe Zone</span>
+            </div>
           </div>
         </div>
 
         {/* Sync Info */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-white/90 backdrop-blur-sm px-4 py-1 rounded-full border border-border shadow-sm text-[10px] font-mono text-muted uppercase tracking-widest">
-          Sync Status: {isLoading ? 'Updating...' : `Updated ${lastUpdated.toLocaleTimeString()}`}
+          Sync Status: LIVE • Updated {lastUpdated.toLocaleTimeString()}
         </div>
       </div>
 
       <style jsx global>{`
-        @keyframes pulse-ring {
-          0% { transform: scale(1); opacity: 0.6; }
-          100% { transform: scale(1.6); opacity: 0; }
+        .leaflet-container {
+          background: #f8fafc;
         }
-        .pulse-ring {
-          animation: pulse-ring 2s ease-out infinite;
-          transform-origin: center;
-        }
-        .custom-popup .leaflet-popup-content-wrapper {
+        .leaflet-popup-content-wrapper {
           border-radius: 12px;
           padding: 0;
           overflow: hidden;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
-        .custom-popup .leaflet-popup-content {
+        .leaflet-popup-content {
           margin: 12px;
         }
-        .custom-popup .leaflet-popup-tip {
-          background: #FFF;
+        .leaflet-popup-tip {
+          background: white;
         }
       `}</style>
     </div>
