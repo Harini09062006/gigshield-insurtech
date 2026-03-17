@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
@@ -37,15 +38,17 @@ export default function WorkerOverview() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
+    // Ownership filter is REQUIRED for the list rule to pass
     return query(
       collection(db, "claims"),
       where("userId", "==", user.uid),
-      limit(5)
+      limit(10)
     );
   }, [db, user]);
 
   const { data: rawClaims, isLoading: isClaimsLoading } = useCollection(claimsQuery);
 
+  // In-memory sort to avoid requiring complex composite indexes immediately
   const claims = useMemo(() => {
     if (!rawClaims) return null;
     return [...rawClaims].sort((a, b) => {
@@ -175,6 +178,17 @@ export default function WorkerOverview() {
                 </tbody>
               </table>
             </div>
+
+            <section className="space-y-4 pt-4">
+              <h2 className="text-xl font-headline font-bold text-heading">Network Stability</h2>
+              <div className="aspect-video bg-muted/30 rounded-card flex items-center justify-center border border-dashed border-border relative overflow-hidden group cursor-pointer">
+                <MapIcon className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
+                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute bottom-4 left-4 right-4 bg-white/80 backdrop-blur-sm p-3 rounded-lg border border-border text-xs text-body shadow-sm">
+                  3 active clusters detected in your primary zones. Stability is moderate.
+                </div>
+              </div>
+            </section>
           </section>
 
           <aside className="space-y-6">
@@ -187,7 +201,7 @@ export default function WorkerOverview() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-body leading-relaxed">
-                  {isDnaLoading ? "Analyzing DNA..." : dna ? `Your Income DNA shows high performance in ${dna.high_activity_days[0]}. Maintain this consistency.` : "Run your first DNA analysis to get personalized strategy."}
+                  {isDnaLoading ? "Analyzing DNA..." : dna ? `Your Income DNA shows high performance in ${dna.high_activity_days[0] || 'weekdays'}. Maintain this consistency.` : "Run your first DNA analysis to get personalized strategy."}
                 </p>
                 <Link href="/worker/income-dna">
                   <Button variant="outline" className="w-full border-primary text-primary hover:bg-white rounded-btn font-bold">

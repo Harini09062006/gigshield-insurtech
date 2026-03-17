@@ -1,23 +1,35 @@
+
 "use client";
 
+import { useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info, AlertTriangle, Zap, Loader2 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, limit } from "firebase/firestore";
+import { collection, query, limit } from "firebase/firestore";
 
 export function DisruptionAlerts() {
   const db = useFirestore();
   
   const disruptionsQuery = useMemoFirebase(() => {
     if (!db) return null;
+    // Removed orderBy to avoid missing index errors and permission issues
     return query(
       collection(db, "disruptionEvents"),
-      orderBy("timestamp", "desc"),
       limit(3)
     );
   }, [db]);
 
-  const { data: disruptions, isLoading } = useCollection(disruptionsQuery);
+  const { data: rawDisruptions, isLoading } = useCollection(disruptionsQuery);
+
+  // In-memory sort by timestamp if available
+  const disruptions = useMemo(() => {
+    if (!rawDisruptions) return null;
+    return [...rawDisruptions].sort((a, b) => {
+      const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [rawDisruptions]);
 
   return (
     <div className="space-y-4">
