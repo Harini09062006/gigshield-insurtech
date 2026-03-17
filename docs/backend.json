@@ -1,117 +1,523 @@
-
 {
   "entities": {
-    "UserProfile": {
-      "title": "UserProfile",
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
       "type": "object",
-      "description": "User account details including role and registration date.",
+      "description": "Represents a user of the GigShield Protection system, either a gig worker or an administrator. Stores essential profile and policy-related information.",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "role": { "type": "string", "enum": ["worker", "admin"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity. This corresponds to the Firebase Authentication UID."
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the user."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The user's phone number, used for authentication and contact. Stored as a string for international compatibility.",
+          "format": "tel"
+        },
+        "platform": {
+          "type": "string",
+          "description": "The delivery platform the gig worker is primarily active on.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "state": {
+          "type": "string",
+          "description": "The Indian state where the user primarily works."
+        },
+        "city": {
+          "type": "string",
+          "description": "The primary city where the user works within their state."
+        },
+        "avgHourlyEarnings": {
+          "type": "number",
+          "description": "The user's average hourly earnings in Indian Rupees (₹), used as a base for Income DNA calculations."
+        },
+        "planId": {
+          "type": "string",
+          "description": "Reference to the InsurancePlan entity that the user is currently subscribed to. (Relationship: InsurancePlan 1:N User)"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user within the system, determining access levels.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was created.",
+          "format": "date-time"
+        },
+        "planActivatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user's current insurance plan was activated.",
+          "format": "date-time"
+        }
       },
-      "required": ["id", "email", "role"]
+      "required": [
+        "id",
+        "name",
+        "phone",
+        "platform",
+        "state",
+        "city",
+        "avgHourlyEarnings",
+        "planId",
+        "role",
+        "createdAt",
+        "planActivatedAt"
+      ]
     },
-    "IncomeDna": {
-      "title": "IncomeDna",
+    "InsurancePlan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InsurancePlan",
       "type": "object",
-      "description": "AI-generated income profile for a worker.",
+      "description": "Defines the various insurance plans available to users, including their benefits and pricing.",
       "properties": {
-        "userId": { "type": "string" },
-        "peak_earning_hours": { "type": "array", "items": { "type": "string" } },
-        "high_activity_days": { "type": "array", "items": { "type": "string" } },
-        "expected_weekly_earnings": { "type": "number" },
-        "avg_earnings_by_window": { "type": "array", "items": { "type": "object" } },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "UserPlan": {
-      "title": "UserPlan",
-      "type": "object",
-      "description": "The insurance plan currently active for a user.",
-      "properties": {
-        "userId": { "type": "string" },
-        "planId": { "type": "string" },
-        "planName": { "type": "string" },
-        "weekly_premium": { "type": "number" },
-        "maxPayout": { "type": "number" },
-        "startedAt": { "type": "string", "format": "date-time" },
-        "is_active": { "type": "boolean" }
-      }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the InsurancePlan entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the insurance plan (e.g., 'Basic Shield', 'Pro Shield', 'Max Shield')."
+        },
+        "weeklyPremium": {
+          "type": "number",
+          "description": "The weekly premium cost for the plan in Indian Rupees (₹)."
+        },
+        "maxPayout": {
+          "type": "number",
+          "description": "The maximum payout amount per single event allowed by this plan in Indian Rupees (₹)."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of what the plan covers."
+        },
+        "features": {
+          "type": "array",
+          "description": "A list of key benefits or features included in the plan.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indicates if the insurance plan is currently active and available for selection."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "weeklyPremium",
+        "maxPayout",
+        "description",
+        "features",
+        "isActive"
+      ]
     },
     "Claim": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Claim",
       "type": "object",
-      "description": "Insurance claim filed by a worker.",
+      "description": "Records details of an income disruption claim made by a worker, including the cause, calculated loss, and compensation.",
       "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "time_slot": { "type": "string" },
-        "description": { "type": "string" },
-        "claim_amount": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "DisruptionZone": {
-      "title": "DisruptionZone",
-      "type": "object",
-      "description": "Real-time geographical disruption data for the heatmap.",
-      "properties": {
-        "id": { "type": "string" },
-        "zone": { "type": "string" },
-        "city": { "type": "string" },
-        "lat": { "type": "number" },
-        "lng": { "type": "number" },
-        "risk_score": { "type": "number" },
-        "risk_level": { "type": "string", "enum": ["safe", "low", "medium", "high", "extreme"] },
-        "rainfall_mm": { "type": "number" },
-        "aqi": { "type": "number" },
-        "reason": { "type": "string" },
-        "radius_km": { "type": "number" }
-      }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Claim entity."
+        },
+        "workerId": {
+          "type": "string",
+          "description": "Reference to the User entity who made the claim. (Relationship: User 1:N Claim)"
+        },
+        "claimNumber": {
+          "type": "string",
+          "description": "A human-readable, unique claim number (e.g., #00001)."
+        },
+        "triggerType": {
+          "type": "string",
+          "description": "The type of event that triggered the claim (e.g., 'rainfall', 'aqi', 'flood')."
+        },
+        "triggerDescription": {
+          "type": "string",
+          "description": "A description of the specific event that triggered the claim (e.g., 'Severe Rain in Mumbai')."
+        },
+        "dnaTimeSlot": {
+          "type": "string",
+          "description": "The time slot during which the income disruption occurred, derived from Income DNA (e.g., 'Morning', 'Evening')."
+        },
+        "registeredRate": {
+          "type": "number",
+          "description": "The base hourly earning rate (avgHourlyEarnings) used for this claim calculation."
+        },
+        "timeMultiplier": {
+          "type": "number",
+          "description": "The multiplier applied to the base rate for the specific time slot."
+        },
+        "dnaHourlyRate": {
+          "type": "number",
+          "description": "The calculated DNA-adjusted hourly earning rate for the time slot of the disruption (registeredRate × timeMultiplier)."
+        },
+        "hoursLost": {
+          "type": "number",
+          "description": "The estimated number of hours of income lost due to the disruption."
+        },
+        "incomeLoss": {
+          "type": "number",
+          "description": "The total estimated income loss based on DNA hourly rate and hours lost."
+        },
+        "compensation": {
+          "type": "number",
+          "description": "The final compensation amount paid to the worker, capped by the plan's maximum payout."
+        },
+        "planMaxPayout": {
+          "type": "number",
+          "description": "The maximum payout limit of the insurance plan at the time of the claim."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the claim (e.g., 'pending', 'paid', 'approved', 'transferred')."
+        },
+        "fraudCheck": {
+          "type": "array",
+          "description": "An array of fraud detection checks performed for the claim.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the claim was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "workerId",
+        "claimNumber",
+        "triggerType",
+        "triggerDescription",
+        "dnaTimeSlot",
+        "registeredRate",
+        "timeMultiplier",
+        "dnaHourlyRate",
+        "hoursLost",
+        "incomeLoss",
+        "compensation",
+        "planMaxPayout",
+        "status",
+        "fraudCheck",
+        "createdAt"
+      ]
     },
     "WeatherEvent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "WeatherEvent",
       "type": "object",
-      "description": "Severe weather alerts impacting work.",
+      "description": "Stores details about a specific weather event that could potentially trigger insurance claims.",
       "properties": {
-        "city": { "type": "string" },
-        "severity": { "type": "string" },
-        "description": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" }
-      }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the WeatherEvent entity."
+        },
+        "city": {
+          "type": "string",
+          "description": "The city where the weather event occurred."
+        },
+        "rainfallMm": {
+          "type": "number",
+          "description": "The amount of rainfall recorded in millimeters."
+        },
+        "aqi": {
+          "type": "number",
+          "description": "The Air Quality Index (AQI) recorded during the event."
+        },
+        "floodAlert": {
+          "type": "boolean",
+          "description": "Indicates if a flood alert was active during the event."
+        },
+        "severity": {
+          "type": "string",
+          "description": "The assessed severity of the weather event (e.g., 'moderate', 'severe', 'extreme')."
+        },
+        "triggeredAt": {
+          "type": "string",
+          "description": "Timestamp when the weather event was detected or triggered.",
+          "format": "date-time"
+        },
+        "isSimulated": {
+          "type": "boolean",
+          "description": "Indicates if this weather event was simulated for testing or demonstration purposes."
+        }
+      },
+      "required": [
+        "id",
+        "city",
+        "rainfallMm",
+        "aqi",
+        "floodAlert",
+        "severity",
+        "triggeredAt",
+        "isSimulated"
+      ]
+    },
+    "DisruptionZone": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DisruptionZone",
+      "type": "object",
+      "description": "Represents a geographical zone identified as experiencing a collective disruption event.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DisruptionZone entity."
+        },
+        "zoneName": {
+          "type": "string",
+          "description": "A descriptive name for the disruption zone."
+        },
+        "city": {
+          "type": "string",
+          "description": "The city where the disruption zone is located."
+        },
+        "lat": {
+          "type": "number",
+          "description": "The latitude coordinate of the center of the disruption zone."
+        },
+        "lng": {
+          "type": "number",
+          "description": "The longitude coordinate of the center of the disruption zone."
+        },
+        "riskLevel": {
+          "type": "string",
+          "description": "The assessed risk level of the disruption in this zone (e.g., 'LOW', 'MEDIUM', 'HIGH', 'EXTREME')."
+        },
+        "riskScore": {
+          "type": "number",
+          "description": "A numerical score representing the intensity or impact of the disruption."
+        },
+        "radiusKm": {
+          "type": "number",
+          "description": "The radius of the disruption zone in kilometers."
+        },
+        "rainfallMm": {
+          "type": "number",
+          "description": "The amount of rainfall (in mm) contributing to the disruption, if applicable."
+        },
+        "aqi": {
+          "type": "number",
+          "description": "The Air Quality Index contributing to the disruption, if applicable."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The primary reason for the disruption (e.g., 'heavy rain', 'high AQI', 'workers offline')."
+        }
+      },
+      "required": [
+        "id",
+        "zoneName",
+        "city",
+        "lat",
+        "lng",
+        "riskLevel",
+        "riskScore",
+        "radiusKm",
+        "reason"
+      ]
+    },
+    "IncomeDNA": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "IncomeDNA",
+      "type": "object",
+      "description": "Stores the personalized income profile and earning patterns for a specific gig worker, generated by AI analysis.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the IncomeDNA entity, which is the user ID (UID) of the associated worker. (Relationship: User 1:1 IncomeDNA)"
+        },
+        "baseRate": {
+          "type": "number",
+          "description": "The worker's average hourly earnings, serving as the base rate for DNA calculations."
+        },
+        "morningRate": {
+          "type": "number",
+          "description": "The calculated average hourly earning rate during the morning time slot (6-10 AM)."
+        },
+        "afternoonRate": {
+          "type": "number",
+          "description": "The calculated average hourly earning rate during the afternoon time slot (12-4 PM)."
+        },
+        "eveningRate": {
+          "type": "number",
+          "description": "The calculated average hourly earning rate during the evening time slot (5-9 PM)."
+        },
+        "nightRate": {
+          "type": "number",
+          "description": "The calculated average hourly earning rate during the night time slot (9 PM-12 AM)."
+        },
+        "weeklyEarnings": {
+          "type": "number",
+          "description": "The estimated expected weekly earnings based on the worker's Income DNA."
+        },
+        "recommendedPlan": {
+          "type": "string",
+          "description": "The name of the insurance plan recommended for the worker based on their income profile."
+        },
+        "bestDays": {
+          "type": "array",
+          "description": "An array representing the estimated daily earnings for each day of the week.",
+          "items": {
+            "type": "number"
+          }
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the Income DNA profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "baseRate",
+        "morningRate",
+        "afternoonRate",
+        "eveningRate",
+        "nightRate",
+        "weeklyEarnings",
+        "recommendedPlan",
+        "bestDays",
+        "updatedAt"
+      ]
     }
   },
   "auth": {
-    "providers": ["password"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/userProfiles/{userId}": {
-      "schema": "#/backend/entities/UserProfile",
-      "description": "User profile document."
-    },
-    "/income_dna/{userId}": {
-      "schema": "#/backend/entities/IncomeDna",
-      "description": "Worker income DNA profile."
-    },
-    "/user_plans/{userId}": {
-      "schema": "#/backend/entities/UserPlan",
-      "description": "Active insurance plan for the user."
-    },
-    "/claims/{claimId}": {
-      "schema": "#/backend/entities/Claim",
-      "description": "Insurance claims."
-    },
-    "/disruption_zones/{zoneId}": {
-      "schema": "#/backend/entities/DisruptionZone",
-      "description": "Real-time danger zones for delivery workers."
-    },
-    "/weather_events/{eventId}": {
-      "schema": "#/backend/entities/WeatherEvent",
-      "description": "Severe weather alerts."
-    }
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores individual user profiles. The 'role' field has been removed and segregated into a separate 'roles_admin' collection for improved authorization independence. `avgHourlyEarnings` and `planActivatedAt` are critical for the auto-renewal and income DNA engines."
+        }
+      },
+      {
+        "path": "/roles_admin/{adminId}",
+        "definition": {
+          "entityName": "AdminRole",
+          "schema": {
+            "$ref": "#/backend/entities/AdminRole"
+          },
+          "description": "Dedicated collection to identify system administrators. The presence of a document with a user's UID as its ID grants 'admin' privileges. This structure enables authorization-independent role checks using `exists()` in security rules, eliminating hierarchical dependencies.",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "The Firebase Authentication UID of the user with administrative privileges."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/insurance_plans/{planId}",
+        "definition": {
+          "entityName": "InsurancePlan",
+          "schema": {
+            "$ref": "#/backend/entities/InsurancePlan"
+          },
+          "description": "Defines the various insurance plans available. These documents are publicly readable, facilitating plan display for all users, but writable only by administrators to maintain data integrity.",
+          "params": [
+            {
+              "name": "planId",
+              "description": "Unique identifier for an insurance plan (e.g., 'basic_shield', 'pro_shield')."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/weather_events/{eventId}",
+        "definition": {
+          "entityName": "WeatherEvent",
+          "schema": {
+            "$ref": "#/backend/entities/WeatherEvent"
+          },
+          "description": "Records details of specific weather occurrences that can trigger parametric claims. Readable by authenticated users for risk assessment and heatmap data, writable only by administrators or automated backend services.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "Unique identifier for a specific weather event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/disruption_zones/{zoneId}",
+        "definition": {
+          "entityName": "DisruptionZone",
+          "schema": {
+            "$ref": "#/backend/entities/DisruptionZone"
+          },
+          "description": "Identifies geographical areas experiencing collective disruptions, used for the interactive heatmap. Readable by authenticated users, writable only by administrators or automated backend services.",
+          "params": [
+            {
+              "name": "zoneId",
+              "description": "Unique identifier for a disruption zone."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/claims/{claimId}",
+        "definition": {
+          "entityName": "Claim",
+          "schema": {
+            "$ref": "#/backend/entities/Claim"
+          },
+          "description": "Stores individual insurance claims made by a worker. Placed as a subcollection under `/users/{userId}` to enforce strong, path-based ownership. Includes denormalized 'workerId' for referential integrity and potential collection group queries, and 'planMaxPayout' for claim auditability.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Authentication UID of the user who owns this claim."
+            },
+            {
+              "name": "claimId",
+              "description": "Unique identifier for a specific claim document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/income_dna/{dnaId}",
+        "definition": {
+          "entityName": "IncomeDNA",
+          "schema": {
+            "$ref": "#/backend/entities/IncomeDNA"
+          },
+          "description": "Holds the personalized Income DNA profile for each worker, generated by AI. Placed as a subcollection under `/users/{userId}` to ensure strict ownership. The 'id' field is implicitly the document ID or a fixed identifier (e.g., 'profile').",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Authentication UID of the user whose Income DNA profile this is."
+            },
+            {
+              "name": "dnaId",
+              "description": "Unique identifier for the Income DNA profile document. For 1:1, often the same as userId or a fixed string like 'profile'."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure prioritizes Authorization Independence and Structural Segregation to ensure secure, scalable, and easily debuggable security rules. The core design principles mandate avoiding `get()` calls in security rules for authorization checks. To achieve this, the `role` field has been removed from the `users/{userId}` document and a new top-level collection, `/roles_admin/{adminId}`, has been introduced. An administrator's role is now determined by the *existence* of a document in `/roles_admin/{request.auth.uid}`, enabling efficient `exists()` checks instead of `get()` calls, which significantly enhances atomic operations and rule debuggability.\n\n**Authorization Independence via Denormalization:**\n*   **Roles:** The explicit `/roles_admin/{adminId}` collection is the primary mechanism for authorization independence for administrative roles. Rules can now check `exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))` without relying on fetching the user's full document, thus avoiding hierarchical dependencies for global roles. This is a critical improvement over the provided `isAdmin()` function's use of `get()`.\n*   **User-Owned Data:** `Claim` and `IncomeDNA` entities, which are intrinsically tied to a specific user, have been moved into subcollections under their respective user documents: `/users/{userId}/claims/{claimId}` and `/users/{userId}/income_dna/{dnaId}`. This path-based ownership makes authorization rules extremely simple and robust (e.g., `request.auth.uid == userId`). The `workerId` field in `Claim` and `id` field in `IncomeDNA` are preserved within the documents for data integrity and easier indexing/collection group queries, acting as denormalized references to the parent user.\n\n**Structural Segregation & QAPs (Query as a Policy):**\n*   **Homogeneous Security Posture:** Each collection is designed to hold documents with the same security requirements. For example, `/insurance_plans` are publicly readable, while `/weather_events` and `/disruption_zones` are readable by any authenticated user but writable only by administrators. This segregation ensures that a `list` operation on any collection implicitly adheres to its security posture without requiring complex filtering logic within the rules themselves, fully supporting the QAPs principle.\n*   **QAPs for User-Specific Data:** By placing `claims` and `income_dna` under `users/{userId}`, a user can only query (list) documents within their own `/users/$(request.auth.uid)/claims` or `/users/$(request.auth.uid)/income_dna` paths. This makes it impossible for a user to inadvertently or maliciously query another user's private data, as the query path itself enforces the security policy. Administrators can still access specific user data by targeting the respective user's path (e.g., `/users/{anyUserId}/claims`)."
   }
 }
