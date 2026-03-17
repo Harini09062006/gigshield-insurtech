@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "UserProfile": {
@@ -54,29 +53,56 @@
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
         "createdAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "DisruptionEvent": {
+      "title": "DisruptionEvent",
+      "type": "object",
+      "description": "Details about a detected collective work disruption.",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "workersAffectedCount": { "type": "number" },
+        "aiSuggestion": { "type": "string" }
+      }
     }
   },
   "auth": {
     "providers": ["password"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/userProfiles/{userId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/UserProfile" } }
+    "/userProfiles/{userId}": {
+      "schema": "#/backend/entities/UserProfile",
+      "description": "User profile document."
+    },
+    "/income_dna/{userId}": {
+      "schema": "#/backend/entities/IncomeDna",
+      "description": "Worker income DNA profile."
+    },
+    "/user_plans/{userId}": {
+      "schema": "#/backend/entities/UserPlan",
+      "description": "Active insurance plan for the user."
+    },
+    "/claims/{claimId}": {
+      "schema": "#/backend/entities/Claim",
+      "description": "Insurance claims."
+    },
+    "/disruptionEvents/{eventId}": {
+      "schema": "#/backend/entities/DisruptionEvent",
+      "description": "Global disruption alerts."
+    },
+    "/insurance_plans/{planId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "costPerWeek": { "type": "number" },
+          "maxPayout": { "type": "number" },
+          "description": { "type": "string" }
+        }
       },
-      {
-        "path": "/income_dna/{userId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/IncomeDna" } }
-      },
-      {
-        "path": "/user_plans/{userId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/UserPlan" } }
-      },
-      {
-        "path": "/claims/{claimId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/Claim" } }
-      }
-    ]
+      "description": "Available insurance plans."
+    }
   }
 }
