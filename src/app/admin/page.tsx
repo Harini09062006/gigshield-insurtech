@@ -43,7 +43,7 @@ export default function AdminDashboard() {
             <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center">
               <Shield className="h-6 w-6 text-white" />
             </div>
-            <span className="text-xl font-headline font-bold text-heading">GigGuard<span className="text-primary text-sm ml-1 font-normal tracking-wider">ADMIN</span></span>
+            <span className="text-xl font-headline font-bold text-heading">GigShield<span className="text-primary text-sm ml-1 font-normal tracking-wider">ADMIN</span></span>
           </div>
         </div>
         <nav className="flex-1 p-4 space-y-2">

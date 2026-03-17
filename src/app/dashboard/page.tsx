@@ -65,8 +65,8 @@ export default function WorkerDashboard() {
       const dnaRate = baseRate * multiplier;
       const hoursLost = 4;
       const incomeLoss = dnaRate * hoursLost;
-      const planCap = profile.plan_id === 'max' ? 25 : profile.plan_id === 'pro' ? 12 : 5;
-      const compensation = Math.min(incomeLoss, planCap * 20); // Simplified scaling for demo
+      const planCap = profile.plan_id === 'max' ? 500 : profile.plan_id === 'pro' ? 240 : 100;
+      const compensation = Math.min(incomeLoss, planCap);
 
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
@@ -122,9 +122,8 @@ export default function WorkerDashboard() {
           <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center shadow-btn">
             <Shield className="h-6 w-6 text-white" />
           </div>
-          <span className="text-2xl font-headline font-bold">
-            <span className="text-primary">Gig</span>
-            <span className="text-heading">Shield</span>
+          <span className="text-2xl font-headline font-bold text-heading">
+            Gig<span className="text-primary">Shield</span>
           </span>
         </Link>
         <div className="flex items-center gap-4">
@@ -164,7 +163,7 @@ export default function WorkerDashboard() {
             className="bg-primary hover:bg-primary-hover text-white font-bold shadow-btn rounded-btn h-11 px-6"
           >
             {isSimulating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Zap className="mr-2 h-4 w-4 fill-current" />}
-            🌧 Simulate Severe Weather
+            Simulate Severe Weather
           </Button>
         </header>
 
@@ -180,7 +179,7 @@ export default function WorkerDashboard() {
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <div className="bg-white/10 p-2 rounded-lg">
                   <p className="text-[10px] uppercase opacity-60">Max Payout</p>
-                  <p className="text-sm font-bold">₹{profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5}</p>
+                  <p className="text-sm font-bold">₹{profile?.plan_id === 'max' ? 500 : profile?.plan_id === 'pro' ? 240 : 100}</p>
                 </div>
                 <div className="bg-white/10 p-2 rounded-lg">
                   <p className="text-[10px] uppercase opacity-60">Weekly Premium</p>
@@ -259,12 +258,12 @@ export default function WorkerDashboard() {
             </div>
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Insurance Coverage</p>
-              <p className="text-2xl font-bold text-success">₹{profile?.plan_id === 'max' ? 25 * 20 : 240}</p>
+              <p className="text-2xl font-bold text-success">₹{profile?.plan_id === 'max' ? 500 : profile?.plan_id === 'pro' ? 240 : 100}</p>
               <p className="text-[10px] text-body">Capped by {profile?.plan_id || 'Pro'} Shield limit</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Remaining Risk</p>
-              <p className="text-2xl font-bold text-danger">₹{Math.max(0, Math.round(currentDnaRate * 6) - 240)}</p>
+              <p className="text-2xl font-bold text-danger">₹{Math.max(0, Math.round(currentDnaRate * 6) - (profile?.plan_id === 'max' ? 500 : profile?.plan_id === 'pro' ? 240 : 100))}</p>
               <p className="text-[10px] text-body">Consider upgrading plan</p>
             </div>
           </CardContent>
@@ -319,47 +318,6 @@ export default function WorkerDashboard() {
               ))}
             </div>
           </div>
-        </section>
-
-        <section className="grid gap-6 md:grid-cols-2">
-          <Card className="bg-white border-border shadow-card rounded-card p-6">
-            <CardTitle className="text-lg font-bold mb-6">Peak Earning Hours</CardTitle>
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={hourlyChartData}>
-                  <defs>
-                    <linearGradient id="colorEarning" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E6FF" />
-                  <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
-                  <YAxis hide />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="earning" stroke="#6C47FF" strokeWidth={3} fillOpacity={1} fill="url(#colorEarning)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-
-          <Card className="bg-white border-border shadow-card rounded-card p-6">
-            <CardTitle className="text-lg font-bold mb-6">Best Working Days</CardTitle>
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyChartData} layout="vertical">
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="day" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#1A1A2E', fontWeight: 700 }} />
-                  <Tooltip />
-                  <Bar dataKey="earning" radius={[0, 4, 4, 0]}>
-                    {weeklyChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index > 4 ? '#F59E0B' : '#6C47FF'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
         </section>
       </main>
 

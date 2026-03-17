@@ -74,9 +74,8 @@ export default function SupportPage() {
           <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center shadow-btn">
             <Shield className="h-6 w-6 text-white" />
           </div>
-          <span className="text-2xl font-headline font-bold">
-            <span className="text-primary">Gig</span>
-            <span className="text-heading">Shield</span>
+          <span className="text-2xl font-headline font-bold text-heading">
+            Gig<span className="text-primary">Shield</span>
           </span>
         </Link>
         <div className="flex items-center gap-4">
