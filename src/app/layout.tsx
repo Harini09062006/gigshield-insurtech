@@ -4,7 +4,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'GigGuard AI - Income Protection',
+  title: 'GigShield Protection - AI Income Security',
   description: 'AI-Powered Income Protection for Gig Workers',
 };
 
