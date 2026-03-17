@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -64,7 +65,20 @@
         "latitude": { "type": "number" },
         "longitude": { "type": "number" },
         "workersAffectedCount": { "type": "number" },
+        "intensity": { "type": "number" },
+        "riskLevel": { "type": "string", "enum": ["low", "medium", "high", "extreme"] },
         "aiSuggestion": { "type": "string" }
+      }
+    },
+    "WeatherEvent": {
+      "title": "WeatherEvent",
+      "type": "object",
+      "description": "Severe weather alerts impacting work.",
+      "properties": {
+        "city": { "type": "string" },
+        "severity": { "type": "string" },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
       }
     }
   },
@@ -92,17 +106,9 @@
       "schema": "#/backend/entities/DisruptionEvent",
       "description": "Global disruption alerts."
     },
-    "/insurance_plans/{planId}": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "name": { "type": "string" },
-          "costPerWeek": { "type": "number" },
-          "maxPayout": { "type": "number" },
-          "description": { "type": "string" }
-        }
-      },
-      "description": "Available insurance plans."
+    "/weather_events/{eventId}": {
+      "schema": "#/backend/entities/WeatherEvent",
+      "description": "Severe weather alerts."
     }
   }
 }
