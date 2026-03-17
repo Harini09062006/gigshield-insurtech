@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, query, orderBy, limit, where } from "firebase/firestore";
+import { doc, collection, query, limit, where } from "firebase/firestore";
 import { Shield, Zap, TrendingUp, AlertCircle, ChevronRight, FileText, Map as MapIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMemo } from "react";
 
 export default function WorkerOverview() {
   const { user } = useUser();
@@ -25,15 +26,25 @@ export default function WorkerOverview() {
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     // Explicitly filter by userId to satisfy Firestore Security Rules
+    // We remove orderBy for now to avoid potential composite index/permission issues during setup
     return query(
       collection(db, "claims"),
       where("userId", "==", user.uid),
-      orderBy("createdAt", "desc"),
-      limit(5)
+      limit(10)
     );
   }, [db, user]);
 
-  const { data: claims, isLoading: isClaimsLoading } = useCollection(claimsQuery);
+  const { data: rawClaims, isLoading: isClaimsLoading } = useCollection(claimsQuery);
+
+  // Sort claims in memory to provide the expected UI without requiring complex composite indexes immediately
+  const claims = useMemo(() => {
+    if (!rawClaims) return null;
+    return [...rawClaims].sort((a, b) => {
+      const dateA = a.createdAt?.seconds || 0;
+      const dateB = b.createdAt?.seconds || 0;
+      return dateB - dateA;
+    }).slice(0, 5);
+  }, [rawClaims]);
 
   const container = {
     hidden: { opacity: 0 },

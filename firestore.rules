@@ -66,7 +66,7 @@ service cloud.firestore {
 
     /**
      * @description Rules for claims. Allows users to manage their own claims.
-     * Denormalized 'userId' field is used for query authorization.
+     * For 'list' operations (queries), the query MUST filter by userId == request.auth.uid.
      */
     match /claims/{claimId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());

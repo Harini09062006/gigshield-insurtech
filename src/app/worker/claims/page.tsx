@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, addDoc, serverTimestamp, query, orderBy, where } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where } from "firebase/firestore";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,14 +26,24 @@ export default function WorkerClaims() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
+    // We remove orderBy for now to avoid potential composite index/permission issues
     return query(
       collection(db, "claims"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      where("userId", "==", user.uid)
     );
   }, [db, user]);
 
-  const { data: claims, isLoading: isClaimsLoading } = useCollection(claimsQuery);
+  const { data: rawClaims, isLoading: isClaimsLoading } = useCollection(claimsQuery);
+
+  // Sort claims in memory to ensure ownership-based read rules are satisfied without complex indexes
+  const claims = useMemo(() => {
+    if (!rawClaims) return null;
+    return [...rawClaims].sort((a, b) => {
+      const dateA = a.createdAt?.seconds || 0;
+      const dateB = b.createdAt?.seconds || 0;
+      return dateB - dateA;
+    });
+  }, [rawClaims]);
 
   const calculateEstimate = (slot: string) => {
     const rates: Record<string, number> = {
@@ -205,7 +215,7 @@ export default function WorkerClaims() {
                         </div>
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {format(new Date(claim.createdAt?.seconds * 1000 || Date.now()), "MMM dd, HH:mm")}
+                          {claim.createdAt?.seconds ? format(new Date(claim.createdAt.seconds * 1000), "MMM dd, HH:mm") : "Recently filed"}
                         </p>
                       </div>
                     </div>
