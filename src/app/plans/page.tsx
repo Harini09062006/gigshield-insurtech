@@ -1,0 +1,180 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Shield, Check, Zap, Loader2, IndianRupee } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { useUser, useFirestore } from "@/firebase";
+import { doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+
+const PLANS = [
+  {
+    id: "basic",
+    name: "Basic Shield",
+    description: "Basic cover for heavy rain and minor floods.",
+    price: 1,
+    maxPayout: 5,
+    features: ["Up to ₹5 payout per event", "Covers Heavy Rain & Floods", "Covers Severe AQI (Pollution)"]
+  },
+  {
+    id: "pro",
+    name: "Pro Shield",
+    description: "Extensive cover for all extreme weather disruptions.",
+    price: 1,
+    maxPayout: 12,
+    features: ["Up to ₹12 payout per event", "Covers Heavy Rain & Floods", "Covers Severe AQI (Pollution)"],
+    recommended: true
+  },
+  {
+    id: "max",
+    name: "Max Shield",
+    description: "Premium parametric cover with fastest payouts.",
+    price: 2,
+    maxPayout: 25,
+    features: ["Up to ₹25 payout per event", "Covers Heavy Rain & Floods", "Covers Severe AQI (Pollution)"]
+  }
+];
+
+export default function PlansPage() {
+  const { user, isUserLoading } = useUser();
+  const db = useFirestore();
+  const router = useRouter();
+  const { toast } = useToast();
+  
+  const [selectedPlan, setSelectedPlan] = useState<string | null>("pro");
+  const [hourlyEarnings, setHourlyEarnings] = useState("60");
+  const [loading, setLoading] = useState(false);
+
+  const handleActivate = async () => {
+    if (!user || !selectedPlan) return;
+    setLoading(true);
+    try {
+      const plan = PLANS.find(p => p.id === selectedPlan);
+      
+      await updateDoc(doc(db, "users", user.uid), {
+        plan_id: selectedPlan,
+        avg_hourly_earnings: Number(hourlyEarnings),
+        plan_activated_at: serverTimestamp(),
+      });
+
+      await setDoc(doc(db, "income_dna", user.uid), {
+        base_rate: Number(hourlyEarnings),
+        morning_rate: Math.round(Number(hourlyEarnings) * 0.75),
+        afternoon_rate: Math.round(Number(hourlyEarnings) * 0.95),
+        evening_rate: Math.round(Number(hourlyEarnings) * 1.30),
+        night_rate: Math.round(Number(hourlyEarnings) * 0.85),
+        weekly_earnings: Number(hourlyEarnings) * 40,
+        recommended_plan: "Pro Shield",
+        updatedAt: serverTimestamp()
+      });
+
+      toast({ title: "Protection Activated", description: "You are now covered by GigShield." });
+      router.push("/dashboard");
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Activation Failed", description: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (isUserLoading) return null;
+
+  return (
+    <div className="min-h-screen bg-bg-page flex flex-col items-center py-10 px-4">
+      <div className="w-full max-w-6xl space-y-10">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 bg-primary rounded-2xl flex items-center justify-center shadow-btn">
+            <Shield className="h-7 w-7 text-white" />
+          </div>
+          <div className="flex items-center gap-6 text-[11px] font-bold uppercase tracking-widest text-muted">
+            <span className="text-primary flex items-center gap-2">① Basic Info</span>
+            <span className="text-primary flex items-center gap-2">② Choose Plan</span>
+            <span className="flex items-center gap-2">③ Done</span>
+          </div>
+          <Progress value={66} className="h-2 w-full bg-white border border-border" />
+        </div>
+
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-headline font-bold text-heading">Choose Your Protection</h1>
+          <p className="text-body max-w-lg mx-auto">Parametric coverage that pays out instantly during weather disruptions</p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-3">
+          {PLANS.map((plan) => (
+            <Card 
+              key={plan.id}
+              className={`relative cursor-pointer transition-all duration-300 border-2 rounded-card bg-white ${
+                selectedPlan === plan.id ? "border-primary shadow-lg" : "border-border hover:border-primary/50"
+              }`}
+              onClick={() => setSelectedPlan(plan.id)}
+            >
+              {plan.recommended && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full z-10">
+                  Recommended
+                </div>
+              )}
+              <CardHeader>
+                <CardTitle className="text-xl font-headline font-bold text-heading">{plan.name}</CardTitle>
+                <CardDescription className="text-xs text-body h-10">{plan.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="text-center py-5 bg-primary-light rounded-xl">
+                  <span className="text-3xl font-bold text-primary">₹{plan.price}</span>
+                  <span className="text-body font-medium">/week</span>
+                  <p className="text-[10px] text-primary/70 uppercase font-bold mt-1">Dynamic Risk Premium</p>
+                </div>
+                <ul className="space-y-3">
+                  {plan.features.map((f, i) => (
+                    <li key={i} className="flex items-start gap-2 text-[13px] text-heading font-medium">
+                      <Check className="h-4 w-4 text-success shrink-0 mt-0.5" /> {f}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  className={`w-full font-bold h-11 rounded-btn ${selectedPlan === plan.id ? "bg-primary text-white" : "variant-ghost border border-primary text-primary bg-white hover:bg-primary-light"}`}
+                >
+                  {selectedPlan === plan.id ? "Selected" : "Select Plan"}
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+
+        <Card className="max-w-md mx-auto border-border shadow-card bg-white rounded-card overflow-hidden">
+          <CardContent className="pt-8 space-y-6">
+            <div className="space-y-3 text-center">
+              <Label className="text-lg font-bold text-heading block">Avg. Hourly Earnings (₹)</Label>
+              <div className="relative">
+                <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
+                <Input 
+                  type="number" 
+                  value={hourlyEarnings}
+                  onChange={e => setHourlyEarnings(e.target.value)}
+                  className="h-14 pl-12 text-2xl font-bold rounded-btn text-center border-input focus:border-primary"
+                  placeholder="60"
+                />
+              </div>
+              <p className="text-xs text-muted leading-relaxed italic px-4">
+                Used to calculate parametric payouts based on hours lost during weather triggers.
+              </p>
+            </div>
+            <Button 
+              className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary-hover shadow-btn rounded-btn" 
+              onClick={handleActivate}
+              disabled={loading || !selectedPlan}
+            >
+              {loading ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <><Zap className="mr-2 h-5 w-5 fill-current" /> Get Protected →</>}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

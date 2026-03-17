@@ -8,29 +8,19 @@ service cloud.firestore {
       return request.auth.uid == uid; 
     }
     function isAdmin() {
-      return isAuth() && exists(/databases/$(database)/documents/admin_roles/$(request.auth.uid));
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     match /users/{uid} {
       allow read, write: if isOwner(uid) || isAdmin();
     }
     
-    match /admin_roles/{uid} {
-      allow read: if isAuth();
-      allow write: if false;
-    }
-
-    match /user_plans/{uid} {
-      allow read, write: if isOwner(uid) || isAdmin();
-    }
-
     match /claims/{id} {
       allow read: if isAuth() && (
         resource.data.worker_id == request.auth.uid 
         || isAdmin()
       );
-      allow create: if isAuth() && request.resource.data.worker_id == request.auth.uid;
-      allow update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /income_dna/{uid} {

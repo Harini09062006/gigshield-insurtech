@@ -4,7 +4,6 @@
 
 @layer base {
   :root {
-    /* Backgrounds */
     --background: 240 100% 97%; /* #EEEEFF */
     --foreground: 240 28% 15%; /* #1A1A2E */
 
@@ -42,7 +41,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body antialiased;
+    @apply bg-bg-page text-foreground font-body antialiased;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-headline text-heading font-bold;
@@ -55,9 +54,9 @@
   --bg-card-purple: #6C47FF;
   --bg-card-yellow: #FFFBEA;
   --bg-card-hover: #F5F3FF;
-  --primary-hex: #6C47FF;
-  --primary-hover-hex: #5535E8;
-  --primary-light-hex: #EDE9FF;
+  --primary: #6C47FF;
+  --primary-hover: #5535E8;
+  --primary-light: #EDE9FF;
   --text-heading: #1A1A2E;
   --text-body: #64748B;
   --text-white: #FFFFFF;
@@ -85,3 +84,10 @@
 .shadow-btn {
   box-shadow: var(--shadow-btn);
 }
+
+.bg-bg-page { background-color: var(--bg-page); }
+.text-heading { color: var(--text-heading); }
+.text-body { color: var(--text-body); }
+.bg-primary { background-color: var(--primary); }
+.text-primary { color: var(--primary); }
+.border-border { border-color: var(--border-hex); }
