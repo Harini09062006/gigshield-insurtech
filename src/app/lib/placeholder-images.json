@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-protection",
+      "description": "Abstract security and protection shield",
+      "imageUrl": "https://picsum.photos/seed/shield/1200/800",
+      "imageHint": "security shield"
+    },
+    {
+      "id": "worker-smiling",
+      "description": "Happy gig worker using a smartphone",
+      "imageUrl": "https://picsum.photos/seed/worker/600/400",
+      "imageHint": "worker smartphone"
+    }
+  ]
+}
