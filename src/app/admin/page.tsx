@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
@@ -17,21 +18,17 @@ export default function AdminDashboard() {
   const auth = useAuth();
   const router = useRouter();
   
-  const disruptionsQuery = useMemoFirebase(() => {
+  const zonesQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "disruptionEvents"), limit(10));
+    return query(collection(db, "disruption_zones"), limit(10));
   }, [db]);
 
-  const { data: rawDisruptions, isLoading } = useCollection(disruptionsQuery);
+  const { data: zones, isLoading } = useCollection(zonesQuery);
 
-  const disruptions = useMemo(() => {
-    if (!rawDisruptions) return null;
-    return [...rawDisruptions].sort((a, b) => {
-      const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-      const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-      return timeB - timeA;
-    });
-  }, [rawDisruptions]);
+  const sortedZones = useMemo(() => {
+    if (!zones) return null;
+    return [...zones].sort((a, b) => (b.risk_score || 0) - (a.risk_score || 0));
+  }, [zones]);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -39,11 +36,13 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
-      <aside className="w-64 border-r border-border/50 bg-card hidden md:flex flex-col">
+    <div className="flex h-screen w-full bg-bg-page overflow-hidden">
+      <aside className="w-64 border-r border-border bg-white hidden md:flex flex-col">
         <div className="p-6">
           <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-primary" />
+            <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center">
+              <Shield className="h-6 w-6 text-white" />
+            </div>
             <span className="text-xl font-headline font-bold text-heading">GigGuard<span className="text-primary text-sm ml-1 font-normal tracking-wider">ADMIN</span></span>
           </div>
         </div>
@@ -52,20 +51,20 @@ export default function AdminDashboard() {
             <LayoutDashboard className="h-4 w-4" /> Overview
           </Button>
           <Link href="/admin/users" className="block">
-            <Button variant="ghost" className="w-full justify-start gap-2 text-muted hover:text-primary font-bold">
+            <Button variant="ghost" className="w-full justify-start gap-2 text-body hover:text-primary font-bold">
               <Users className="h-4 w-4" /> Worker Directory
             </Button>
           </Link>
           <Link href="/admin/claims" className="block">
-            <Button variant="ghost" className="w-full justify-start gap-2 text-muted hover:text-primary font-bold">
+            <Button variant="ghost" className="w-full justify-start gap-2 text-body hover:text-primary font-bold">
               <Bell className="h-4 w-4" /> Manage Claims
             </Button>
           </Link>
-          <Button variant="ghost" className="w-full justify-start gap-2 text-muted hover:text-primary font-bold">
+          <Button variant="ghost" className="w-full justify-start gap-2 text-body hover:text-primary font-bold">
             <BarChart3 className="h-4 w-4" /> Analytics
           </Button>
         </nav>
-        <div className="p-6 border-t border-border/50">
+        <div className="p-6 border-t border-border">
           <Button 
             variant="ghost" 
             onClick={handleLogout}
@@ -85,7 +84,7 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-2">
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted" />
-              <Input placeholder="Search system..." className="pl-9 h-9 rounded-btn" />
+              <Input placeholder="Search system..." className="pl-9 h-9 rounded-btn bg-white border-border" />
             </div>
           </div>
         </header>
@@ -94,7 +93,7 @@ export default function AdminDashboard() {
 
         <section className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-headline font-bold text-heading">Live Disruption Events</h2>
+            <h2 className="text-xl font-headline font-bold text-heading">Live Disruption Zones</h2>
             <Link href="/heatmap">
               <Button size="sm" variant="link" className="text-primary font-bold">
                 View Live Map <MapIcon className="ml-2 h-4 w-4" />
@@ -106,35 +105,33 @@ export default function AdminDashboard() {
             <table className="w-full text-left text-sm">
               <thead className="bg-bg-page font-bold uppercase text-xs tracking-wider text-muted border-b border-border">
                 <tr>
-                  <th className="p-4">Location</th>
-                  <th className="p-4">Timestamp</th>
-                  <th className="p-4">Impact (Workers)</th>
-                  <th className="p-4">Status</th>
+                  <th className="p-4">Zone</th>
+                  <th className="p-4">City</th>
+                  <th className="p-4">Risk Level</th>
+                  <th className="p-4">Score</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {isLoading ? (
                   <tr><td colSpan={5} className="p-10 text-center text-muted">Loading live events...</td></tr>
-                ) : disruptions && disruptions.length > 0 ? (
-                  disruptions.map((event) => (
-                    <tr key={event.id} className="hover:bg-primary-light transition-colors">
-                      <td className="p-4 font-medium text-heading">{event.latitude.toFixed(4)}, {event.longitude.toFixed(4)}</td>
-                      <td className="p-4 text-body">
-                        {event.timestamp ? format(new Date(event.timestamp), "MMM dd, HH:mm") : "Real-time"}
-                      </td>
+                ) : sortedZones && sortedZones.length > 0 ? (
+                  sortedZones.map((zone) => (
+                    <tr key={zone.id} className="hover:bg-primary-light transition-colors">
+                      <td className="p-4 font-bold text-heading">{zone.zone_name || zone.zone}</td>
+                      <td className="p-4 text-body">{zone.city}</td>
                       <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-heading">{event.workersAffectedCount}</span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <Badge variant="outline" className="bg-info-bg text-info border-transparent font-semibold">
-                          ACTIVE MONITORING
+                        <Badge variant="outline" className={`capitalize font-bold ${
+                          zone.risk_level === 'extreme' ? 'bg-danger-bg text-danger border-danger' : 
+                          zone.risk_level === 'high' ? 'bg-orange-50 text-orange-600 border-orange-200' :
+                          'bg-success-bg text-success border-success'
+                        }`}>
+                          {zone.risk_level}
                         </Badge>
                       </td>
+                      <td className="p-4 font-mono font-bold text-heading">{zone.risk_score}/100</td>
                       <td className="p-4 text-right">
-                        <Button variant="ghost" size="sm" className="text-primary hover:bg-primary-light h-8 font-bold">Resolve</Button>
+                        <Button variant="ghost" size="sm" className="text-primary hover:bg-primary-light h-8 font-bold">Details</Button>
                       </td>
                     </tr>
                   ))

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -57,11 +58,9 @@ export default function LoginPage() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto-submit if all filled
     if (newOtp.every(digit => digit !== "") && newOtp.length === 4) {
       verifyOtp(newOtp.join(""));
     } else if (value !== "" && index < 3) {
-      // Focus next input
       const nextInput = document.getElementById(`otp-${index + 1}`);
       nextInput?.focus();
     }
@@ -77,7 +76,7 @@ export default function LoginPage() {
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (userDoc.exists()) {
         const role = userDoc.data().role;
-        router.push(role === "admin" ? "/admin" : "/dashboard");
+        router.push(role === "admin" ? "/admin" : "/worker/overview");
       } else {
         router.push("/register");
       }

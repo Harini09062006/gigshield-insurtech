@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Map as MapIcon, Bell, Users, BarChart3, LogOut, Search, Mail, Calendar } from "lucide-react";
+import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, Search, Mail, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,7 @@ export default function AdminUsers() {
   
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "userProfiles"), orderBy("createdAt", "desc"));
+    return query(collection(db, "users"), orderBy("created_at", "desc"));
   }, [db]);
 
   const { data: users, isLoading } = useCollection(usersQuery);
@@ -31,11 +32,13 @@ export default function AdminUsers() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-background overflow-hidden">
-        <Sidebar className="border-r border-border/50 bg-card">
+      <div className="flex h-screen w-full bg-bg-page overflow-hidden">
+        <Sidebar className="border-r border-border bg-white">
           <SidebarHeader className="p-6">
             <div className="flex items-center gap-2">
-              <Shield className="h-6 w-6 text-primary" />
+              <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
               <span className="text-xl font-headline font-bold">GigGuard<span className="text-primary">Admin</span></span>
             </div>
           </SidebarHeader>
@@ -71,8 +74,8 @@ export default function AdminUsers() {
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-6 border-t border-border/50">
-            <SidebarMenuButton onClick={handleLogout} className="text-destructive">
+          <SidebarFooter className="p-6 border-t border-border">
+            <SidebarMenuButton onClick={handleLogout} className="text-danger hover:bg-danger-bg font-bold">
               <LogOut className="h-4 w-4" />
               <span>Logout</span>
             </SidebarMenuButton>
@@ -88,7 +91,7 @@ export default function AdminUsers() {
             <div className="flex items-center gap-2">
               <div className="relative w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted" />
-                <Input placeholder="Search workers..." className="pl-9 h-9 rounded-btn" />
+                <Input placeholder="Search workers..." className="pl-9 h-9 rounded-btn bg-white border-border" />
               </div>
             </div>
           </header>
@@ -98,7 +101,7 @@ export default function AdminUsers() {
               <thead className="bg-bg-page font-bold uppercase text-xs tracking-wider text-muted border-b border-border">
                 <tr>
                   <th className="p-4">Worker</th>
-                  <th className="p-4">Email</th>
+                  <th className="p-4">Platform</th>
                   <th className="p-4">Role</th>
                   <th className="p-4">Joined</th>
                   <th className="p-4 text-right">Actions</th>
@@ -114,18 +117,16 @@ export default function AdminUsers() {
                 ) : users && users.length > 0 ? (
                   users.map((user) => (
                     <tr key={user.id} className="hover:bg-primary-light transition-colors">
-                      <td className="p-4 font-medium text-heading">{user.name || "Anonymous Worker"}</td>
-                      <td className="p-4 text-body flex items-center gap-2">
-                        <Mail className="h-3 w-3 text-primary" /> {user.email}
-                      </td>
+                      <td className="p-4 font-bold text-heading">{user.name || "Anonymous Worker"}</td>
+                      <td className="p-4 text-body font-medium">{user.platform || 'Not set'}</td>
                       <td className="p-4">
-                        <Badge variant="outline" className="capitalize border-primary text-primary bg-primary-light">
+                        <Badge variant="outline" className="capitalize border-primary text-primary bg-primary-light font-bold">
                           {user.role}
                         </Badge>
                       </td>
-                      <td className="p-4 text-body flex items-center gap-2">
-                        <Calendar className="h-3 w-3 text-primary" />
-                        {user.createdAt?.seconds ? format(new Date(user.createdAt.seconds * 1000), "MMM dd, yyyy") : "Recently"}
+                      <td className="p-4 text-body text-xs">
+                        <Calendar className="h-3 w-3 inline mr-1 text-primary" />
+                        {user.created_at?.seconds ? format(new Date(user.created_at.seconds * 1000), "MMM dd, yyyy") : "Recently"}
                       </td>
                       <td className="p-4 text-right">
                         <Button variant="ghost" size="sm" className="text-primary font-bold hover:bg-primary-light h-8">View DNA</Button>
