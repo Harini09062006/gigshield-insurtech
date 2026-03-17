@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { generateIncomeDNA, IncomeDNAOutput } from "@/ai/flows/income-dna-flow";
 import { MOCK_WORKER_PROFILE } from "@/lib/mock-data";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Map, Bell, User, LogOut, ChevronRight, IndianRupee } from "lucide-react";
+import { Shield, LayoutDashboard, Map, Bell, User, LogOut, ChevronRight, Loader2 } from "lucide-react";
 import { PolicyCard } from "@/components/dashboard/policy-card";
 import { IncomeDNACharts } from "@/components/dashboard/income-dna-charts";
 import { DisruptionAlerts } from "@/components/dashboard/disruption-alerts";
@@ -13,27 +12,66 @@ import { PlanRecommendation } from "@/components/dashboard/plan-recommendation";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
+import { doc, collection, Query, DocumentReference } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
 export default function WorkerDashboard() {
+  const { user, isUserLoading: isAuthLoading } = useUser();
+  const db = useFirestore();
+  const router = useRouter();
+  
+  const userProfileRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "userProfiles", user.uid);
+  }, [db, user]);
+
+  const { data: profile, isLoading: isProfileLoading } = useDoc(userProfileRef);
+
+  const policiesQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return collection(db, "userProfiles", user.uid, "policies");
+  }, [db, user]);
+
+  const { data: policies, isLoading: isPoliciesLoading } = useCollection(policiesQuery);
+
   const [dna, setDna] = useState<IncomeDNAOutput | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dnaLoading, setDnaLoading] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
+    
     async function loadDNA() {
+      setDnaLoading(true);
       try {
+        // In a real app, we'd check if DNA exists in Firestore first
+        // For this demo, we use the AI flow with mock entries if no real ones exist
         const result = await generateIncomeDNA({
-          workerId: MOCK_WORKER_PROFILE.id,
+          workerId: user.uid,
           workEntries: MOCK_WORKER_PROFILE.lastEarningSnapshot
         });
         setDna(result);
       } catch (error) {
         console.error(error);
       } finally {
-        setLoading(false);
+        setDnaLoading(false);
       }
     }
     loadDNA();
-  }, []);
+  }, [user]);
+
+  if (isAuthLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    router.push("/");
+    return null;
+  }
 
   return (
     <SidebarProvider>
@@ -89,7 +127,7 @@ export default function WorkerDashboard() {
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-headline font-bold">Worker Dashboard</h1>
-              <p className="text-muted-foreground">Welcome back, {MOCK_WORKER_PROFILE.name}</p>
+              <p className="text-muted-foreground">Welcome back, {profile?.email || user.email || 'Worker'}</p>
             </div>
             <div className="flex items-center gap-4 bg-muted/40 p-2 rounded-lg border border-border/50">
               <div className="text-right">
@@ -110,23 +148,43 @@ export default function WorkerDashboard() {
                     Manage Plan <ChevronRight className="h-4 w-4" />
                   </Link>
                 </div>
-                <PolicyCard 
-                  planId={MOCK_WORKER_PROFILE.currentPlanId}
-                  week={MOCK_WORKER_PROFILE.policyWeek}
-                  startDate={MOCK_WORKER_PROFILE.policyStartDate}
-                  autoRenew={MOCK_WORKER_PROFILE.autoRenew}
-                />
+                {isPoliciesLoading ? (
+                   <Skeleton className="h-[200px] w-full rounded-xl" />
+                ) : policies && policies.length > 0 ? (
+                  <div className="grid gap-4">
+                    {policies.map(p => (
+                      <PolicyCard 
+                        key={p.id}
+                        planName={p.planName}
+                        week={p.currentWeek}
+                        startDate={p.startDate}
+                        autoRenew={p.autoRenew}
+                        costPerWeek={p.weeklyPremium}
+                        maxPayout={p.maxPayout}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 bg-card/30 border border-dashed border-border/50 rounded-xl text-center">
+                    <p className="text-muted-foreground mb-4">No active policies found.</p>
+                    <Button variant="outline">Browse Protection Plans</Button>
+                  </div>
+                )}
               </section>
 
               <section className="space-y-4">
                 <h2 className="text-xl font-headline font-bold">Income DNA Insights</h2>
-                {loading ? (
+                {dnaLoading ? (
                   <div className="grid gap-6 md:grid-cols-2">
                     <Skeleton className="h-[250px] w-full rounded-xl" />
                     <Skeleton className="h-[250px] w-full rounded-xl" />
                   </div>
-                ) : dna && (
+                ) : dna ? (
                   <IncomeDNACharts data={dna} />
+                ) : (
+                  <div className="p-8 bg-card/30 border border-border/50 rounded-xl text-center">
+                    <p className="text-muted-foreground">Sign in or refresh to generate your Income DNA.</p>
+                  </div>
                 )}
               </section>
             </div>

@@ -1,21 +1,20 @@
-
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Calendar, RefreshCcw, IndianRupee } from "lucide-react";
-import { InsurancePlan, INSURANCE_PLANS } from "@/lib/mock-data";
 import { format, addDays } from "date-fns";
 
 interface PolicyCardProps {
-  planId: string;
+  planName: string;
   week: number;
   startDate: string;
   autoRenew: boolean;
+  costPerWeek: number;
+  maxPayout: number;
 }
 
-export function PolicyCard({ planId, week, startDate, autoRenew }: PolicyCardProps) {
-  const plan = INSURANCE_PLANS.find(p => p.id === planId) || INSURANCE_PLANS[0];
+export function PolicyCard({ planName, week, startDate, autoRenew, costPerWeek, maxPayout }: PolicyCardProps) {
   const nextRenewalDate = addDays(new Date(startDate), week * 7);
 
   return (
@@ -25,7 +24,7 @@ export function PolicyCard({ planId, week, startDate, autoRenew }: PolicyCardPro
         <div className="space-y-1">
           <CardTitle className="text-xl font-headline flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            {plan.name}
+            {planName}
           </CardTitle>
           <p className="text-sm text-muted-foreground">Active Protection Policy</p>
         </div>
@@ -42,7 +41,7 @@ export function PolicyCard({ planId, week, startDate, autoRenew }: PolicyCardPro
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Week Status</p>
-              <p className="text-sm font-semibold">Week {week} of 4</p>
+              <p className="text-sm font-semibold">Week {week}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -60,7 +59,7 @@ export function PolicyCard({ planId, week, startDate, autoRenew }: PolicyCardPro
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Renewal Amount</p>
-              <p className="text-sm font-semibold">₹{plan.costPerWeek}/week</p>
+              <p className="text-sm font-semibold">₹{costPerWeek}/week</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -69,7 +68,7 @@ export function PolicyCard({ planId, week, startDate, autoRenew }: PolicyCardPro
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Max Payout</p>
-              <p className="text-sm font-semibold">₹{plan.maxPayout}</p>
+              <p className="text-sm font-semibold">₹{maxPayout}</p>
             </div>
           </div>
         </div>

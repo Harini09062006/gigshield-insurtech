@@ -1,13 +1,33 @@
-
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Shield, ArrowRight, Zap, PieChart, Users, Map } from "lucide-react";
+import { Shield, ArrowRight, Zap, PieChart, Users, Map, Loader2 } from "lucide-react";
+import { useAuth, useUser } from "@/firebase";
+import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 
 export default function Home() {
-  const [role, setRole] = useState<"worker" | "admin">("worker");
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  const handleLogin = () => {
+    if (user) {
+      router.push("/dashboard");
+      return;
+    }
+    setIsSigningIn(true);
+    initiateAnonymousSignIn(auth);
+  };
+
+  useEffect(() => {
+    if (user && isSigningIn) {
+      router.push("/dashboard");
+    }
+  }, [user, isSigningIn, router]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -19,9 +39,13 @@ export default function Home() {
         <div className="flex items-center gap-4">
           <Link href="/heatmap" className="text-sm font-medium hover:text-primary transition-colors">Global Heatmap</Link>
           <Button variant="ghost" className="hidden sm:inline-flex">How it works</Button>
-          <Link href={role === "worker" ? "/dashboard" : "/admin"}>
-            <Button className="bg-primary text-primary-foreground font-bold">Login</Button>
-          </Link>
+          <Button 
+            onClick={handleLogin} 
+            disabled={isUserLoading || isSigningIn}
+            className="bg-primary text-primary-foreground font-bold"
+          >
+            {isUserLoading || isSigningIn ? <Loader2 className="h-4 w-4 animate-spin" /> : (user ? "Go to Dashboard" : "Login")}
+          </Button>
         </div>
       </header>
 
@@ -39,12 +63,15 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-            <Link href="/dashboard">
-              <Button size="lg" className="bg-primary text-primary-foreground h-12 px-8 font-bold text-lg">
-                Get Started as Worker
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
+            <Button 
+              size="lg" 
+              onClick={handleLogin}
+              disabled={isUserLoading || isSigningIn}
+              className="bg-primary text-primary-foreground h-12 px-8 font-bold text-lg"
+            >
+              Get Started as Worker
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
             <Link href="/admin">
               <Button size="lg" variant="outline" className="h-12 px-8 font-bold text-lg">
                 Admin Portal
