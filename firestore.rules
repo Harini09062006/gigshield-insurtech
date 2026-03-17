@@ -12,6 +12,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && 
+        exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -32,17 +33,12 @@ service cloud.firestore {
 
     match /claims/{claimId} {
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (request.query.limit <= 100 && (isAdmin() || (resource == null || resource.data.userId == request.auth.uid)));
+      allow list: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
-    match /insurance_plans/{planId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /disruptionEvents/{eventId} {
+    match /disruption_zones/{zoneId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
@@ -50,10 +46,6 @@ service cloud.firestore {
     match /weather_events/{eventId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
-    }
-
-    match /disruption_zones/{doc} {
-      allow read: if isSignedIn();
     }
 
     match /heatmap_data/{doc} {

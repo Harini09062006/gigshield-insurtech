@@ -55,19 +55,22 @@
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
-    "DisruptionEvent": {
-      "title": "DisruptionEvent",
+    "DisruptionZone": {
+      "title": "DisruptionZone",
       "type": "object",
-      "description": "Details about a detected collective work disruption.",
+      "description": "Real-time geographical disruption data for the heatmap.",
       "properties": {
         "id": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" },
-        "latitude": { "type": "number" },
-        "longitude": { "type": "number" },
-        "workersAffectedCount": { "type": "number" },
-        "intensity": { "type": "number" },
-        "riskLevel": { "type": "string", "enum": ["low", "medium", "high", "extreme"] },
-        "aiSuggestion": { "type": "string" }
+        "zone": { "type": "string" },
+        "city": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "risk_score": { "type": "number" },
+        "risk_level": { "type": "string", "enum": ["safe", "low", "medium", "high", "extreme"] },
+        "rainfall_mm": { "type": "number" },
+        "aqi": { "type": "number" },
+        "reason": { "type": "string" },
+        "radius_km": { "type": "number" }
       }
     },
     "WeatherEvent": {
@@ -102,9 +105,9 @@
       "schema": "#/backend/entities/Claim",
       "description": "Insurance claims."
     },
-    "/disruptionEvents/{eventId}": {
-      "schema": "#/backend/entities/DisruptionEvent",
-      "description": "Global disruption alerts."
+    "/disruption_zones/{zoneId}": {
+      "schema": "#/backend/entities/DisruptionZone",
+      "description": "Real-time danger zones for delivery workers."
     },
     "/weather_events/{eventId}": {
       "schema": "#/backend/entities/WeatherEvent",
