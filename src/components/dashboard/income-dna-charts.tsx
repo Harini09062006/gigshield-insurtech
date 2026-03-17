@@ -2,13 +2,20 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
-import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, Cell } from "recharts";
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { IncomeDNAOutput } from "@/ai/flows/income-dna-flow";
 
 interface IncomeDNAChartsProps {
   data: IncomeDNAOutput;
 }
+
+const chartConfig = {
+  earnings: {
+    label: "Earnings",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig;
 
 export function IncomeDNACharts({ data }: IncomeDNAChartsProps) {
   const chartData = data.avg_earnings_by_window.map(item => ({
@@ -25,18 +32,30 @@ export function IncomeDNACharts({ data }: IncomeDNAChartsProps) {
           <CardTitle className="text-lg font-headline">Earnings by Time Window</CardTitle>
         </CardHeader>
         <CardContent className="h-[250px]">
-          <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer config={chartConfig} className="h-full w-full">
             <BarChart data={chartData}>
-              <XAxis dataKey="time" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}`} />
-              <RechartsTooltip content={<ChartTooltipContent />} />
+              <XAxis 
+                dataKey="time" 
+                stroke="#888888" 
+                fontSize={12} 
+                tickLine={false} 
+                axisLine={false} 
+              />
+              <YAxis 
+                stroke="#888888" 
+                fontSize={12} 
+                tickLine={false} 
+                axisLine={false} 
+                tickFormatter={(value) => `₹${value}`} 
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey="earnings" radius={[4, 4, 0, 0]}>
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </CardContent>
       </Card>
 
