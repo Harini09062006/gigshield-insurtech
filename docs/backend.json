@@ -1,125 +1,81 @@
+
 {
   "entities": {
     "UserProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
       "type": "object",
-      "description": "Represents a user's profile within the application, linked to the authentication system but storing application-specific details like role.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the UserProfile entity. (Primary Key)"
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the user, used for communication and identification.",
-          "format": "email"
-        },
-        "role": {
-          "type": "string",
-          "description": "Role of the user in the application, determining access levels and dashboard views.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the user profile was initially created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the user profile was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "email",
-        "role",
-        "createdAt"
-      ]
-    },
-    "IncomeDna": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "IncomeDna",
-      "type": "object",
-      "description": "Stores the AI-generated income profile for a worker, providing insights into their earning patterns.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the IncomeDna entity. (Primary Key)"
-        },
-        "workerId": {
-          "type": "string",
-          "description": "Reference to the UserProfile of the worker this income DNA belongs to. (Relationship: UserProfile 1:1 IncomeDna)"
-        },
-        "highActivityDays": {
-          "type": "array",
-          "description": "A list of days of the week identified as high-activity and potentially high-earning days for the worker.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "expectedWeeklyEarnings": {
-          "type": "number",
-          "description": "The AI-predicted estimated weekly earnings for the worker."
-        },
-        "lastAnalyzedAt": {
-          "type": "string",
-          "description": "Timestamp indicating when this income DNA profile was last updated or analyzed by the AI.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "workerId",
-        "highActivityDays",
-        "expectedWeeklyEarnings",
-        "lastAnalyzedAt"
-      ]
-    },
-    "Claim": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Claim",
-      "type": "object",
-      "description": "Represents an insurance claim filed by a gig worker.",
+      "description": "User account details including role and registration date.",
       "properties": {
         "id": { "type": "string" },
-        "userId": { "type": "string", "description": "The UID of the worker filing the claim." },
-        "time_slot": { "type": "string", "enum": ["morning", "afternoon", "evening", "night"] },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["worker", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "IncomeDna": {
+      "title": "IncomeDna",
+      "type": "object",
+      "description": "AI-generated income profile for a worker.",
+      "properties": {
+        "userId": { "type": "string" },
+        "peak_earning_hours": { "type": "array", "items": { "type": "string" } },
+        "high_activity_days": { "type": "array", "items": { "type": "string" } },
+        "expected_weekly_earnings": { "type": "number" },
+        "avg_earnings_by_window": { "type": "array", "items": { "type": "object" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "UserPlan": {
+      "title": "UserPlan",
+      "type": "object",
+      "description": "The insurance plan currently active for a user.",
+      "properties": {
+        "userId": { "type": "string" },
+        "planId": { "type": "string" },
+        "planName": { "type": "string" },
+        "weekly_premium": { "type": "number" },
+        "maxPayout": { "type": "number" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "is_active": { "type": "boolean" }
+      }
+    },
+    "Claim": {
+      "title": "Claim",
+      "type": "object",
+      "description": "Insurance claim filed by a worker.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "time_slot": { "type": "string" },
         "description": { "type": "string" },
         "claim_amount": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "time_slot", "claim_amount", "status", "createdAt"]
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password"]
   },
   "firestore": {
     "structure": [
       {
         "path": "/userProfiles/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": { "$ref": "#/backend/entities/UserProfile" },
-          "description": "Stores individual user profiles."
-        }
+        "definition": { "schema": { "$ref": "#/backend/entities/UserProfile" } }
+      },
+      {
+        "path": "/income_dna/{userId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/IncomeDna" } }
+      },
+      {
+        "path": "/user_plans/{userId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/UserPlan" } }
       },
       {
         "path": "/claims/{claimId}",
-        "definition": {
-          "entityName": "Claim",
-          "schema": { "$ref": "#/backend/entities/Claim" },
-          "description": "Stores global claims, secured by a denormalized userId field."
-        }
+        "definition": { "schema": { "$ref": "#/backend/entities/Claim" } }
       }
     ]
   }

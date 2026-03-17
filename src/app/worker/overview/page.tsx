@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collection, query, limit, where } from "firebase/firestore";
-import { Shield, Zap, TrendingUp, AlertCircle, ChevronRight, FileText, Map as MapIcon } from "lucide-react";
+import { Shield, Zap, TrendingUp, AlertCircle, ChevronRight, FileText, Map as MapIcon, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,48 +11,37 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMemo, useState, useEffect } from "react";
-import { generateIncomeDNA, IncomeDNAOutput } from "@/ai/flows/income-dna-flow";
-import { MOCK_WORKER_PROFILE } from "@/lib/mock-data";
+import { useMemo } from "react";
 
 export default function WorkerOverview() {
   const { user } = useUser();
   const db = useFirestore();
-  const [dna, setDna] = useState<IncomeDNAOutput | null>(null);
-  const [dnaLoading, setDnaLoading] = useState(false);
 
   const profileRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, "userProfiles", user.uid);
   }, [db, user]);
 
-  const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
+  const dnaRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "income_dna", user.uid);
+  }, [db, user]);
 
-  useEffect(() => {
-    if (!user) return;
-    async function loadDNA() {
-      setDnaLoading(true);
-      try {
-        const result = await generateIncomeDNA({
-          workerId: user.uid,
-          workEntries: MOCK_WORKER_PROFILE.lastEarningSnapshot
-        });
-        setDna(result);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setDnaLoading(false);
-      }
-    }
-    loadDNA();
-  }, [user]);
+  const userPlanRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "user_plans", user.uid);
+  }, [db, user]);
+
+  const { data: profile } = useDoc(profileRef);
+  const { data: dna, isLoading: isDnaLoading } = useDoc(dnaRef);
+  const { data: activePlan, isLoading: isPlanLoading } = useDoc(userPlanRef);
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "claims"),
       where("userId", "==", user.uid),
-      limit(10)
+      limit(5)
     );
   }, [db, user]);
 
@@ -63,28 +53,18 @@ export default function WorkerOverview() {
       const dateA = a.createdAt?.seconds || 0;
       const dateB = b.createdAt?.seconds || 0;
       return dateB - dateA;
-    }).slice(0, 5);
+    });
   }, [rawClaims]);
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  };
+  const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
+  const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
   return (
     <div className="space-y-8 pb-10">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Good morning, {profile?.name?.split(' ')[0] || 'Worker'}</h1>
-          <p className="text-muted-foreground">Your GigShield protection status: <span className="text-primary font-bold">Active</span></p>
+          <p className="text-muted-foreground">Your GigShield protection status: <span className="text-primary font-bold">{activePlan ? 'Active' : 'No Active Plan'}</span></p>
         </div>
         <Link href="/worker/claims">
           <Button className="bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20">
@@ -93,12 +73,7 @@ export default function WorkerOverview() {
         </Link>
       </header>
 
-      <motion.div 
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
-      >
+      <motion.div variants={container} initial="hidden" animate="show" className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <motion.div variants={item}>
           <Card className="bg-card/50 border-border/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -119,8 +94,8 @@ export default function WorkerOverview() {
               <Shield className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">Pro Shield</div>
-              <p className="text-xs text-muted-foreground mt-1">₹25 / week premium</p>
+              <div className="text-2xl font-bold">{activePlan?.planName || "None"}</div>
+              <p className="text-xs text-muted-foreground mt-1">{activePlan ? `₹${activePlan.weekly_premium} / week` : 'Select a plan to start'}</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -166,7 +141,6 @@ export default function WorkerOverview() {
                 <tr>
                   <th className="p-4">Date</th>
                   <th className="p-4">Slot</th>
-                  <th className="p-4">Amount</th>
                   <th className="p-4 text-right">Status</th>
                 </tr>
               </thead>
@@ -174,7 +148,7 @@ export default function WorkerOverview() {
                 {isClaimsLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i}>
-                      <td colSpan={4} className="p-4"><Skeleton className="h-8 w-full" /></td>
+                      <td colSpan={3} className="p-4"><Skeleton className="h-8 w-full" /></td>
                     </tr>
                   ))
                 ) : claims && claims.length > 0 ? (
@@ -182,13 +156,8 @@ export default function WorkerOverview() {
                     <tr key={claim.id} className="hover:bg-muted/20 transition-colors">
                       <td className="p-4 text-muted-foreground">{claim.createdAt?.seconds ? format(new Date(claim.createdAt.seconds * 1000), "MMM dd, yyyy") : 'Recent'}</td>
                       <td className="p-4 capitalize">{claim.time_slot}</td>
-                      <td className="p-4 font-bold">₹{claim.claim_amount}</td>
                       <td className="p-4 text-right">
-                        <Badge variant="outline" className={
-                          claim.status === 'approved' ? "bg-green-400/10 text-green-400 border-green-400/20" :
-                          claim.status === 'pending' ? "bg-amber-400/10 text-amber-400 border-amber-400/20" :
-                          "bg-muted text-muted-foreground"
-                        }>
+                        <Badge variant="outline" className={claim.status === 'approved' ? "bg-green-400/10 text-green-400 border-green-400/20" : "bg-amber-400/10 text-amber-400 border-amber-400/20"}>
                           {claim.status}
                         </Badge>
                       </td>
@@ -196,9 +165,7 @@ export default function WorkerOverview() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="p-8 text-center text-muted-foreground">
-                      No claims filed yet.
-                    </td>
+                    <td colSpan={3} className="p-8 text-center text-muted-foreground">No claims filed yet.</td>
                   </tr>
                 )}
               </tbody>
@@ -216,30 +183,12 @@ export default function WorkerOverview() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-foreground/80 leading-relaxed">
-                {dnaLoading ? "Analyzing your DNA..." : dna ? (
-                  `Your Income DNA shows high performance in ${dna.high_activity_days[0]}. Maintain this consistency to lower your risk score.`
-                ) : "Update your profile to get personalized AI strategy."}
+                {isDnaLoading ? "Analyzing DNA..." : dna ? `Your Income DNA shows high performance in ${dna.high_activity_days[0]}. Maintain this consistency.` : "Run your first DNA analysis to get personalized strategy."}
               </p>
               <Link href="/worker/income-dna">
                 <Button variant="outline" className="w-full border-primary/20 hover:bg-primary/10">
                   Update Income DNA
                 </Button>
-              </Link>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg font-headline">Live Disruption Map</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="aspect-video bg-muted/30 rounded-lg flex items-center justify-center border border-dashed border-border/50 relative overflow-hidden group cursor-pointer">
-                <MapIcon className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
-                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              <p className="text-xs text-muted-foreground">3 clusters detected in Mumbai Central. High earning zones active in Navi Mumbai.</p>
-              <Link href="/heatmap">
-                <Button variant="link" className="p-0 h-auto text-primary font-bold">Open Global Heatmap →</Button>
               </Link>
             </CardContent>
           </Card>
