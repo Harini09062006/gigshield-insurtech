@@ -10,11 +10,15 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { generateIncomeDNA, IncomeDNAOutput } from "@/ai/flows/income-dna-flow";
+import { MOCK_WORKER_PROFILE } from "@/lib/mock-data";
 
 export default function WorkerOverview() {
   const { user } = useUser();
   const db = useFirestore();
+  const [dna, setDna] = useState<IncomeDNAOutput | null>(null);
+  const [dnaLoading, setDnaLoading] = useState(false);
 
   const profileRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -23,10 +27,27 @@ export default function WorkerOverview() {
 
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
+  useEffect(() => {
+    if (!user) return;
+    async function loadDNA() {
+      setDnaLoading(true);
+      try {
+        const result = await generateIncomeDNA({
+          workerId: user.uid,
+          workEntries: MOCK_WORKER_PROFILE.lastEarningSnapshot
+        });
+        setDna(result);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setDnaLoading(false);
+      }
+    }
+    loadDNA();
+  }, [user]);
+
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Explicitly filter by userId to satisfy Firestore Security Rules
-    // We remove orderBy for now to avoid potential composite index/permission issues during setup
     return query(
       collection(db, "claims"),
       where("userId", "==", user.uid),
@@ -36,7 +57,6 @@ export default function WorkerOverview() {
 
   const { data: rawClaims, isLoading: isClaimsLoading } = useCollection(claimsQuery);
 
-  // Sort claims in memory to provide the expected UI without requiring complex composite indexes immediately
   const claims = useMemo(() => {
     if (!rawClaims) return null;
     return [...rawClaims].sort((a, b) => {
@@ -50,9 +70,7 @@ export default function WorkerOverview() {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
+      transition: { staggerChildren: 0.1 }
     }
   };
 
@@ -84,12 +102,12 @@ export default function WorkerOverview() {
         <motion.div variants={item}>
           <Card className="bg-card/50 border-border/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Weekly Earnings</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Expected Weekly</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹4,250</div>
-              <p className="text-xs text-green-400 mt-1">+12% from last week</p>
+              <div className="text-2xl font-bold">₹{dna?.expected_weekly_earnings || "0"}</div>
+              <p className="text-xs text-green-400 mt-1">Based on DNA profile</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -198,8 +216,9 @@ export default function WorkerOverview() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-foreground/80 leading-relaxed">
-                Your Income DNA shows high performance in the <strong>Mumbai West</strong> zone during <strong>evening slots</strong>. 
-                Maintain this consistency to lower your risk score further.
+                {dnaLoading ? "Analyzing your DNA..." : dna ? (
+                  `Your Income DNA shows high performance in ${dna.high_activity_days[0]}. Maintain this consistency to lower your risk score.`
+                ) : "Update your profile to get personalized AI strategy."}
               </p>
               <Link href="/worker/income-dna">
                 <Button variant="outline" className="w-full border-primary/20 hover:bg-primary/10">
