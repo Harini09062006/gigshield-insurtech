@@ -1,0 +1,411 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user's profile within the application, linked to the authentication system but storing application-specific details like role.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity. (Primary Key)"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user, used for communication and identification.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user in the application, determining access levels and dashboard views.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was initially created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "role",
+        "createdAt"
+      ]
+    },
+    "IncomeDna": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "IncomeDna",
+      "type": "object",
+      "description": "Stores the AI-generated income profile for a worker, providing insights into their earning patterns.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the IncomeDna entity. (Primary Key)"
+        },
+        "workerId": {
+          "type": "string",
+          "description": "Reference to the UserProfile of the worker this income DNA belongs to. (Relationship: UserProfile 1:1 IncomeDna)"
+        },
+        "highActivityDays": {
+          "type": "array",
+          "description": "A list of days of the week identified as high-activity and potentially high-earning days for the worker.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expectedWeeklyEarnings": {
+          "type": "number",
+          "description": "The AI-predicted estimated weekly earnings for the worker."
+        },
+        "lastAnalyzedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when this income DNA profile was last updated or analyzed by the AI.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "workerId",
+        "highActivityDays",
+        "expectedWeeklyEarnings",
+        "lastAnalyzedAt"
+      ]
+    },
+    "PeakEarningHourDetail": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PeakEarningHourDetail",
+      "type": "object",
+      "description": "Details a specific peak earning hour range for a worker as identified by the AI-powered income profiling.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the PeakEarningHourDetail entity. (Primary Key)"
+        },
+        "incomeDnaId": {
+          "type": "string",
+          "description": "Reference to the associated IncomeDna profile. (Relationship: IncomeDna 1:N PeakEarningHourDetail)"
+        },
+        "hourRange": {
+          "type": "string",
+          "description": "A specific time range identified as a peak earning period (e.g., '09:00-12:00')."
+        },
+        "averageEarnings": {
+          "type": "number",
+          "description": "The average earnings achieved by the worker during this peak earning hour range."
+        }
+      },
+      "required": [
+        "id",
+        "incomeDnaId",
+        "hourRange",
+        "averageEarnings"
+      ]
+    },
+    "EarningsByTimeWindowDetail": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EarningsByTimeWindowDetail",
+      "type": "object",
+      "description": "Details a worker's average earnings within a specific time window, as part of their income DNA.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the EarningsByTimeWindowDetail entity. (Primary Key)"
+        },
+        "incomeDnaId": {
+          "type": "string",
+          "description": "Reference to the associated IncomeDna profile. (Relationship: IncomeDna 1:N EarningsByTimeWindowDetail)"
+        },
+        "timeWindow": {
+          "type": "string",
+          "description": "A defined time window (e.g., 'Morning', 'Afternoon', 'Evening') for earning analysis."
+        },
+        "averageEarnings": {
+          "type": "number",
+          "description": "The average earnings achieved by the worker during this specific time window."
+        }
+      },
+      "required": [
+        "id",
+        "incomeDnaId",
+        "timeWindow",
+        "averageEarnings"
+      ]
+    },
+    "Policy": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Policy",
+      "type": "object",
+      "description": "Manages individual worker's insurance policies, including plan details, renewal, and status.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Policy entity. (Primary Key)"
+        },
+        "workerId": {
+          "type": "string",
+          "description": "Reference to the UserProfile of the worker who owns this policy. (Relationship: UserProfile 1:N Policy)"
+        },
+        "planName": {
+          "type": "string",
+          "description": "Name of the insurance plan selected by the worker (e.g., Basic Shield, Pro Shield, Elite Shield).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "weeklyPremium": {
+          "type": "number",
+          "description": "The weekly premium amount (in ₹) for the selected policy plan."
+        },
+        "maxPayout": {
+          "type": "number",
+          "description": "The maximum compensation amount (in ₹) available for the selected policy plan."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The date and time when the policy became active.",
+          "format": "date-time"
+        },
+        "currentWeek": {
+          "type": "number",
+          "description": "The current week number of the policy's active period, starting from 1."
+        },
+        "nextRenewalDate": {
+          "type": "string",
+          "description": "The date and time when the policy is due for its next weekly auto-renewal.",
+          "format": "date-time"
+        },
+        "autoRenew": {
+          "type": "boolean",
+          "description": "Indicates whether the policy is currently set to automatically renew weekly."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the insurance policy (e.g., Active, Pending, Lapsed, Cancelled).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the policy record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the policy record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "workerId",
+        "planName",
+        "weeklyPremium",
+        "maxPayout",
+        "startDate",
+        "currentWeek",
+        "nextRenewalDate",
+        "autoRenew",
+        "status",
+        "createdAt"
+      ]
+    },
+    "DisruptionEvent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DisruptionEvent",
+      "type": "object",
+      "description": "Records details of a collective disruption event detected by the AI engine, affecting a cluster of workers.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DisruptionEvent entity. (Primary Key)"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp when the disruption event was detected.",
+          "format": "date-time"
+        },
+        "latitude": {
+          "type": "number",
+          "description": "Latitude coordinate of the center of the detected disruption area."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "Longitude coordinate of the center of the detected disruption area."
+        },
+        "workersAffectedCount": {
+          "type": "number",
+          "description": "The number of workers identified as being offline or affected within the disruption radius and timeframe."
+        },
+        "detectionRadiusKm": {
+          "type": "number",
+          "description": "The radius in kilometers used by the engine to detect worker clusters for this disruption event."
+        },
+        "detectionTimeWindowMinutes": {
+          "type": "number",
+          "description": "The time window in minutes used by the engine to identify workers going offline for this disruption event."
+        },
+        "estimatedEarningImpact": {
+          "type": "number",
+          "description": "Estimated financial impact on workers' earnings due to this disruption event (optional)."
+        },
+        "aiSuggestion": {
+          "type": "string",
+          "description": "AI-generated suggestion or insight related to the disruption event (optional)."
+        }
+      },
+      "required": [
+        "id",
+        "timestamp",
+        "latitude",
+        "longitude",
+        "workersAffectedCount",
+        "detectionRadiusKm",
+        "detectionTimeWindowMinutes"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/userProfiles/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores individual user profiles. The document's ID is the Firebase Authentication UID. Authorization relies on path-based ownership (`userId == request.auth.uid`).",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user, matching their Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/userProfiles/{userId}/incomeDna",
+        "definition": {
+          "entityName": "IncomeDna",
+          "schema": {
+            "$ref": "#/backend/entities/IncomeDna"
+          },
+          "description": "Stores the AI-generated income profile for a specific worker. This is a subcollection of a user profile, with a fixed document ID 'incomeDna'. It includes a denormalized `workerId` field for authorization independence, which must match the parent `userId` wildcard.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the worker/user, matching their Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/userProfiles/{userId}/incomeDna/peakEarningHours/{peakEarningHourId}",
+        "definition": {
+          "entityName": "PeakEarningHourDetail",
+          "schema": {
+            "$ref": "#/backend/entities/PeakEarningHourDetail"
+          },
+          "description": "Details specific peak earning hour ranges for a worker. These documents are a subcollection of a worker's Income DNA. Each document includes a denormalized `workerId` field for authorization independence, which must match the top-level `userId` wildcard.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the worker/user, matching their Firebase Authentication UID."
+            },
+            {
+              "name": "peakEarningHourId",
+              "description": "The unique ID for a specific peak earning hour detail."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/userProfiles/{userId}/incomeDna/earningsByTimeWindow/{earningsByTimeWindowId}",
+        "definition": {
+          "entityName": "EarningsByTimeWindowDetail",
+          "schema": {
+            "$ref": "#/backend/entities/EarningsByTimeWindowDetail"
+          },
+          "description": "Details a worker's average earnings within a specific time window. These documents are a subcollection of a worker's Income DNA. Each document includes a denormalized `workerId` field for authorization independence, which must match the top-level `userId` wildcard.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the worker/user, matching their Firebase Authentication UID."
+            },
+            {
+              "name": "earningsByTimeWindowId",
+              "description": "The unique ID for a specific earnings by time window detail."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/userProfiles/{userId}/policies/{policyId}",
+        "definition": {
+          "entityName": "Policy",
+          "schema": {
+            "$ref": "#/backend/entities/Policy"
+          },
+          "description": "Manages individual worker's insurance policies. These documents are subcollections of a user profile. Each document includes a denormalized `workerId` field for authorization independence, which must match the parent `userId` wildcard.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the worker/user, matching their Firebase Authentication UID."
+            },
+            {
+              "name": "policyId",
+              "description": "The unique ID of the insurance policy."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/disruptionEvents/{disruptionEventId}",
+        "definition": {
+          "entityName": "DisruptionEvent",
+          "schema": {
+            "$ref": "#/backend/entities/DisruptionEvent"
+          },
+          "description": "Records details of collective disruption events detected by the AI. These documents are globally readable by all authenticated users (for alerts) but only writable by users with admin privileges.",
+          "params": [
+            {
+              "name": "disruptionEventId",
+              "description": "The unique ID of the disruption event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admins/{adminId}",
+        "definition": {
+          "entityName": "AdminUser",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "A sentinel collection where the existence of a document signifies an admin user. The document's ID must match the Firebase Authentication UID of an admin. This is used for efficient authorization checks for global admin privileges, adhering to the 'Existence over Content' DBAC principle.",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "The unique ID of the admin user, matching their Firebase Authentication UID."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed with a strong emphasis on Authorization Independence, Clarity of Intent, and adherence to DBAC principles, ensuring robust and easily debuggable security rules.&#x20; For user-specific data, a hierarchical path-based ownership model is employed, starting with `/userProfiles/{userId}`. This immediately ties all nested data to a specific user, making ownership clear and rules simple (`userId == request.auth.uid`).\n\n**Authorization Independence via Denormalization (CRITICAL):** To eliminate hierarchical authorization dependencies (`get()` calls in rules) and enable atomic operations, key authorization attributes are denormalized. For instance, `IncomeDna` (a 1:1 relationship with `UserProfile`), `Policy` (1:N with `UserProfile`), `PeakEarningHourDetail` (1:N with `IncomeDna`), and `EarningsByTimeWindowDetail` (1:N with `IncomeDna`) all include a `workerId` field. This `workerId` within each document MUST match the `userId` in the parent path (`request.auth.uid == resource.data.workerId` and `resource.data.workerId == userId`). This allows direct authorization checks on the document itself, making rules simpler, more efficient, and preventing cascading failures from parent document `get()` calls.\n\n**DBAC and Global Roles:** For global roles like 'admin', the 'Existence over Content' strategy is utilized. Instead of performing a `get()` call on a `UserProfile` document to check its `role` field, a separate sentinel collection `/admins/{adminId}` is introduced. The mere existence of a document with `adminId = request.auth.uid` grants admin privileges. This is highly performant and avoids complex `get()` calls for frequent permission checks.\n\n**QAPs (Rules are not Filters):**\n\n1.  **User-Owned Data:** For collections like `/userProfiles/{userId}/policies` or `/userProfiles/{userId}/incomeDna/peakEarningHours`, list operations are inherently secure. The `userId` wildcard in the path ensures that a user can only query their own data (`userId == request.auth.uid`). The denormalized `workerId` within each document reinforces this, allowing rules to authorize reads without performing client-side filtering or complex server-side rule logic that acts as a filter.\n2.  **Global Data (e.g., `DisruptionEvent`):** The `/disruptionEvents` collection stores data that is generally accessible for all authenticated users (e.g., for showing alerts). A broad `allow read: if request.auth.uid != null;` rule for this collection enables clients to retrieve all events efficiently. Any subsequent filtering or relevance determination (e.g., based on a worker's location for displaying alerts) is handled client-side. This ensures that Firestore rules are not used as filters, adhering to the QAP principle and maintaining predictable query performance."
+  }
+}

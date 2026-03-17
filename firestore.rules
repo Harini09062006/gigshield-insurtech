@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * CORE PHILOSOPHY:
+     * This ruleset implements a robust, ownership-based security model designed for an AI-powered gig worker 
+     * insurance platform. It prioritizes "Authorization Independence" by using denormalized fields 
+     * (like 'workerId') to ensure that every document can be secured without expensive recursive lookups.
+     *
+     * DATA STRUCTURE:
+     * - /userProfiles/{userId}: Root user data, where userId matches the Firebase Auth UID.
+     * - /userProfiles/{userId}/incomeDna/...: Nested subcollections for worker-specific AI insights.
+     * - /userProfiles/{userId}/policies/{policyId}: Nested subcollections for insurance management.
+     * - /disruptionEvents/{eventId}: Global collection for AI-detected disruption alerts.
+     * - /admins/{adminId}: Sentinel collection used for high-performance role-based access control.
+     *
+     * KEY SECURITY DECISIONS:
+     * 1. Path-Based Ownership: All user data is nested under the user's UID to prevent cross-user access.
+     * 2. Denormalized Authorization: Sub-documents include a 'workerId' that must match the path and auth UID.
+     * 3. Sentinel Admins: Admin status is verified by the existence of a document in the '/admins' collection.
+     * 4. Public Alerts: Disruption events are readable by any authenticated worker but only writable by admins.
+     * 5. Immutability: Critical relational fields like 'workerId' are protected from modification after creation.
+     */
+
+    // --- Helper Functions ---
+
+    /** @description Checks if the user is authenticated. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the user's UID matches the provided ID. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Checks if the user is an owner and the document exists (for update/delete). */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    /** @description Checks if the user has a sentinel document in the admin collection. */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for user profile documents. Enforces self-management only.
+     * @path /userProfiles/{userId}
+     * @allow (get, list, create, update) if userId matches request.auth.uid.
+     * @deny (create) if the internal 'id' field does not match the UID.
+     * @principle Enforces path-based ownership and relational integrity for the root user entity.
+     */
+    match /userProfiles/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if false; // Profiles are typically deactivated, not deleted.
+    }
+
+    /**
+     * @description Rules for IncomeDna (AI profiling). Fixed document ID 'incomeDna'.
+     * @path /userProfiles/{userId}/incomeDna/incomeDna
+     * @allow (get, list, create, update) if user owns the parent path and workerId matches.
+     * @deny (update) if attempting to change the 'workerId'.
+     * @principle Denormalization for authorization; verifies the internal workerId matches the path owner.
+     */
+    match /userProfiles/{userId}/incomeDna/{dnaId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.workerId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.workerId == resource.data.workerId;
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Deeply nested peak earning details for AI profiling.
+       * @path /userProfiles/{userId}/incomeDna/incomeDna/peakEarningHours/{peakEarningHourId}
+       */
+      match /peakEarningHours/{peakEarningHourId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.workerId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.workerId == resource.data.workerId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Deeply nested time window earning details for AI profiling.
+       * @path /userProfiles/{userId}/incomeDna/incomeDna/earningsByTimeWindow/{id}
+       */
+      match /earningsByTimeWindow/{earningsByTimeWindowId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.workerId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.workerId == resource.data.workerId;
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+
+    /**
+     * @description Rules for worker insurance policies.
+     * @path /userProfiles/{userId}/policies/{policyId}
+     * @allow (get, list) if user owns the path.
+     * @deny (create) if workerId in data does not match the path UID.
+     * @principle Prevents a user from creating policies linked to other users' UIDs.
+     */
+    match /userProfiles/{userId}/policies/{policyId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.workerId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.workerId == resource.data.workerId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Global disruption events detected by AI.
+     * @path /disruptionEvents/{disruptionEventId}
+     * @allow (get, list) for any signed-in user to see alerts.
+     * @allow (create, update, delete) only for verified admins.
+     * @principle Public authenticated read with restricted admin-only write access.
+     */
+    match /disruptionEvents/{disruptionEventId} {
+      allow get, list: if isSignedIn();
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Sentinel collection for admin roles using "Existence over Content".
+     * @path /admins/{adminId}
+     * @allow (get) for any user to check their own or others' admin status.
+     * @deny (write) to all via the client. Admin status should be managed via Cloud Functions.
+     * @principle DBAC (Database-Based Access Control) using document existence as a permission token.
+     */
+    match /admins/{adminId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create, update, delete: if false; // System-managed only.
+    }
+  }
+}
