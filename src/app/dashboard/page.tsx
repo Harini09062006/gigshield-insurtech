@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
 import { doc, collection, query, limit, where, addDoc, serverTimestamp } from "firebase/firestore";
-import { Shield, Zap, AlertCircle, ChevronRight, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2 } from "lucide-react";
+import { Shield, Zap, AlertCircle, ChevronRight, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, TrendingUp, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { format } from "date-fns";
 import { useMemo, useState } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 
 export default function WorkerDashboard() {
@@ -69,7 +70,6 @@ export default function WorkerDashboard() {
     setIsSimulating(true);
     try {
       const claimIdNum = Math.floor(10000 + Math.random() * 90000);
-      const claimId = `CL-${claimIdNum}`;
       const claimNumber = `#${String(claimIdNum).padStart(5, '0')}`;
       
       const baseRate = profile.avg_hourly_earnings || 60;
@@ -78,8 +78,7 @@ export default function WorkerDashboard() {
       const hoursLost = 4;
       const incomeLoss = dnaRate * hoursLost;
       
-      // Calculate compensation based on plan
-      let planCap = 120; // Default fallback
+      let planCap = 120;
       if (profile.plan_id === 'max') planCap = 500;
       else if (profile.plan_id === 'pro') planCap = 240;
       else if (profile.plan_id === 'basic') planCap = 100;
@@ -124,16 +123,21 @@ export default function WorkerDashboard() {
   };
 
   const hourlyChartData = useMemo(() => [
-    { hour: '6am', earning: 40 }, { hour: '8am', earning: 45 }, { hour: '10am', earning: 55 },
-    { hour: '12pm', earning: 50 }, { hour: '2pm', earning: 52 }, { hour: '4pm', earning: 60 },
-    { hour: '6pm', earning: 85 }, { hour: '8pm', earning: 95 }, { hour: '10pm', earning: 65 },
-    { hour: '12am', earning: 45 }
+    { hour: '12 AM', evening: 0, lunch: 0, active: 40 },
+    { hour: '6 AM', evening: 0, lunch: 0, active: 45 },
+    { hour: '12 PM', evening: 0, lunch: 80, active: 50 },
+    { hour: '6 PM', evening: 95, lunch: 0, active: 60 },
+    { hour: '11 PM', evening: 40, lunch: 0, active: 45 },
   ], []);
 
-  const weeklyChartData = useMemo(() => [
-    { day: 'Mon', earning: 600 }, { day: 'Tue', earning: 550 }, { day: 'Wed', earning: 580 },
-    { day: 'Thu', earning: 620 }, { day: 'Fri', earning: 800 }, { day: 'Sat', earning: 1100 },
-    { day: 'Sun', earning: 950 }
+  const weeklyEarningsData = useMemo(() => [
+    { day: 'Mon', earning: 408, percentage: 65 },
+    { day: 'Tue', earning: 432, percentage: 68 },
+    { day: 'Wed', earning: 456, percentage: 72 },
+    { day: 'Thu', earning: 504, percentage: 78 },
+    { day: 'Fri', earning: 576, percentage: 85 },
+    { day: 'Sat', earning: 624, percentage: 95 },
+    { day: 'Sun', earning: 648, percentage: 100 },
   ], []);
 
   if (isUserLoading) return <div className="h-screen flex items-center justify-center bg-bg-page"><Loader2 className="animate-spin text-primary h-10 w-10" /></div>;
@@ -164,13 +168,8 @@ export default function WorkerDashboard() {
               <FileText className="h-6 w-6" />
             </Button>
           </Link>
-          <Link href="/heatmap">
-            <Button variant="ghost" size="icon" className={pathname === "/heatmap" ? "text-primary bg-primary-light" : "text-body"}>
-              <MapIcon className="h-6 w-6" />
-            </Button>
-          </Link>
-          <Button onClick={handleLogout} variant="ghost" size="icon" className="text-danger hover:bg-danger-bg">
-            <LogOut className="h-6 w-6" />
+          <Button onClick={handleLogout} variant="ghost" className="text-body font-bold gap-2">
+            <LogOut className="h-5 w-5" /> Switch
           </Button>
         </div>
       </header>
@@ -206,7 +205,7 @@ export default function WorkerDashboard() {
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <div className="bg-white/10 p-2 rounded-lg">
                   <p className="text-[10px] uppercase opacity-60">Max Payout</p>
-                  <p className="text-sm font-bold">₹{profile?.plan_id === 'max' ? 500 : profile?.plan_id === 'pro' ? 240 : 100}</p>
+                  <p className="text-sm font-bold">₹{profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5}</p>
                 </div>
                 <div className="bg-white/10 p-2 rounded-lg">
                   <p className="text-[10px] uppercase opacity-60">Weekly Premium</p>
@@ -285,26 +284,28 @@ export default function WorkerDashboard() {
             </div>
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Insurance Coverage</p>
-              <p className="text-2xl font-bold text-success">₹{profile?.plan_id === 'max' ? 500 : profile?.plan_id === 'pro' ? 240 : 100}</p>
+              <p className="text-2xl font-bold text-success">₹{profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5}</p>
               <p className="text-[10px] text-body">Capped by {profile?.plan_id || 'Pro'} Shield limit</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Remaining Risk</p>
-              <p className="text-2xl font-bold text-danger">₹{Math.max(0, Math.round(currentDnaRate * 6) - (profile?.plan_id === 'max' ? 500 : profile?.plan_id === 'pro' ? 240 : 100))}</p>
+              <p className="text-2xl font-bold text-danger">₹{Math.max(0, Math.round(currentDnaRate * 6) - (profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5))}</p>
               <p className="text-[10px] text-body">Consider upgrading plan</p>
             </div>
           </CardContent>
         </Card>
 
-        <section className="space-y-6">
-          <header className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-headline font-bold text-heading">Income DNA Profile</h2>
-              <Brain className="h-5 w-5 text-primary" />
+        {/* Updated Income DNA Profile Section */}
+        <section className="space-y-8">
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-headline font-bold text-heading">Income DNA Profile</h2>
+                <Brain className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-sm text-body">Your personalized earning pattern — used to calculate accurate payouts</p>
             </div>
-            <Link href="/support">
-              <Button variant="ghost" className="text-primary font-bold hover:bg-primary-light">AI Insights <ChevronRight className="ml-1 h-4 w-4" /></Button>
-            </Link>
+            <p className="text-xs text-muted font-mono uppercase tracking-widest">Updated Today</p>
           </header>
 
           <div className="grid gap-6 md:grid-cols-2">
@@ -317,39 +318,125 @@ export default function WorkerDashboard() {
               <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-bold text-muted uppercase mb-1">Recommended Plan</p>
-                  <p className="text-lg font-bold text-warning">{dna?.recommended_plan || "Pro Shield"}</p>
+                  <p className="text-lg font-bold text-warning">{dna?.recommended_plan || "Max Shield"}</p>
                 </div>
-                <Link href="/plans">
-                  <Button variant="outline" className="border-primary text-primary font-bold hover:bg-primary-light rounded-btn">Upgrade Plan</Button>
-                </Link>
+                <Button variant="outline" className="border-primary text-primary font-bold hover:bg-primary-light rounded-btn">
+                  Upgrade Plan
+                </Button>
               </div>
             </Card>
 
             <div className="grid grid-cols-2 gap-4">
               {[
-                { label: "Morning (6-10 AM)", rate: dna?.morning_rate || 45, mult: "0.75", icon: "🌅" },
-                { label: "Afternoon (12-4 PM)", rate: dna?.afternoon_rate || 57, mult: "0.95", icon: "☀" },
-                { label: "Evening (5-9 PM)", rate: dna?.evening_rate || 78, mult: "1.30", icon: "🌆" },
-                { label: "Night (9 PM-12 AM)", rate: dna?.night_rate || 51, mult: "0.85", icon: "🌙" }
+                { label: "Morning", time: "6-10 AM", rate: dna?.morning_rate || 45, mult: "0.75", icon: "🌅", color: "bg-warning" },
+                { label: "Afternoon", time: "12-4 PM", rate: dna?.afternoon_rate || 57, mult: "0.95", icon: "☀", color: "bg-orange-500" },
+                { label: "Evening", time: "5-9 PM", rate: dna?.evening_rate || 78, mult: "1.30", icon: "🌆", color: "bg-primary" },
+                { label: "Night", time: "9 PM-12 AM", rate: dna?.night_rate || 51, mult: "0.85", icon: "🌙", color: "bg-blue-500" }
               ].map((slot, i) => (
-                <Card key={i} className="bg-white border-border shadow-sm p-4 rounded-xl flex flex-col justify-between">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xl">{slot.icon}</span>
-                    <Badge className="bg-primary/10 text-primary text-[10px] font-bold border-none">{slot.mult}×</Badge>
-                  </div>
+                <Card key={i} className="bg-white border-border shadow-sm p-4 rounded-xl flex flex-col justify-between overflow-hidden relative">
                   <div>
-                    <p className="text-[10px] font-bold text-muted uppercase truncate">{slot.label}</p>
-                    <p className="text-xl font-bold text-heading">₹{slot.rate}/hr</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm">{slot.icon}</span>
+                      <p className="text-[11px] font-bold text-muted uppercase">{slot.label}</p>
+                    </div>
+                    <p className="text-[10px] text-body mb-2">{slot.time}</p>
+                    <p className="text-2xl font-bold text-heading">₹{slot.rate}/hr</p>
+                    <p className="text-[10px] font-bold text-primary">{slot.mult}x multiplier</p>
                   </div>
+                  <div className={`absolute bottom-0 left-0 h-1.5 w-full ${slot.color} opacity-80`} />
                 </Card>
               ))}
             </div>
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-2">
+            {/* Peak Earning Hours */}
+            <Card className="bg-white border-border shadow-card rounded-card p-6">
+              <CardTitle className="text-lg font-bold mb-8">Peak Earning Hours (24-Hour Profile)</CardTitle>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={hourlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#EDE9FF" stopOpacity={0.5}/>
+                        <stop offset="95%" stopColor="#EDE9FF" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E6FF" />
+                    <XAxis 
+                      dataKey="hour" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fill: '#94A3B8' }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis hide />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Area type="monotone" dataKey="evening" name="Evening peak" stroke="#6C47FF" strokeWidth={3} fillOpacity={1} fill="url(#colorEvening)" />
+                    <Area type="monotone" dataKey="lunch" name="Lunch peak" stroke="#F59E0B" strokeWidth={3} fillOpacity={1} fill="url(#colorLunch)" />
+                    <Area type="monotone" dataKey="active" name="Active hours" stroke="#D4CCFF" strokeWidth={2} fillOpacity={1} fill="url(#colorActive)" />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      align="left" 
+                      iconType="square" 
+                      wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Best Working Days */}
+            <Card className="bg-white border-border shadow-card rounded-card p-6">
+              <CardTitle className="text-lg font-bold mb-8">Best Working Days (Daily Earnings)</CardTitle>
+              <div className="space-y-5">
+                {weeklyEarningsData.map((data, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <span className="w-8 text-xs font-bold text-heading">{data.day}</span>
+                    <div className="flex-1 h-2 bg-primary-light rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${data.percentage}%` }}
+                        transition={{ duration: 1, delay: i * 0.1 }}
+                        className="h-full bg-primary rounded-full shadow-[0_0_8px_rgba(108,71,255,0.4)]"
+                      />
+                    </div>
+                    <span className="w-12 text-right text-xs font-bold text-heading">₹{data.earning}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        <section className="space-y-6">
+          <h2 className="text-2xl font-headline font-bold text-heading">Delivery Risk Map — {profile?.city || 'Mumbai'}</h2>
+          <div className="grid gap-4 md:grid-cols-4">
+            {[
+              { zone: "South Mumbai", risk: "HIGH", bg: "bg-[#FFF0F0] border-[#FECACA]", text: "text-[#DC2626]" },
+              { zone: "Andheri", risk: "MEDIUM", bg: "bg-[#FFFBEA] border-[#FDE68A]", text: "text-[#D97706]" },
+              { zone: "Bandra", risk: "MEDIUM", bg: "bg-[#FFFBEA] border-[#FDE68A]", text: "text-[#D97706]" },
+              { zone: "Dadar", risk: "LOW", bg: "bg-[#F0FDF4] border-[#BBF7D0]", text: "text-[#16A34A]" }
+            ].map((zone, i) => (
+              <Card key={i} className={`${zone.bg} p-4 rounded-xl border flex justify-between items-center`}>
+                <span className="font-bold text-heading">{zone.zone}</span>
+                <Badge className={`${zone.bg} ${zone.text} border-none font-bold text-[10px]`}>{zone.risk}</Badge>
+              </Card>
+            ))}
           </div>
         </section>
       </main>
 
       <Link href="/support">
-        <Button className="fixed bottom-6 right-6 h-14 px-6 rounded-full shadow-btn bg-primary hover:bg-primary-hover flex items-center gap-3">
+        <Button className="fixed bottom-6 right-6 h-14 px-6 rounded-full shadow-btn bg-primary hover:bg-primary-hover flex items-center gap-3 z-50">
           <Brain className="h-6 w-6 text-white" />
           <span className="font-bold">AI Support</span>
         </Button>
