@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, query, orderBy, limit } from "firebase/firestore";
+import { doc, collection, query, orderBy, limit, where } from "firebase/firestore";
 import { Shield, Zap, TrendingUp, AlertCircle, ChevronRight, FileText, Map as MapIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ export default function WorkerOverview() {
     if (!db || !user) return null;
     return query(
       collection(db, "claims"),
+      where("userId", "==", user.uid),
       orderBy("createdAt", "desc"),
       limit(5)
     );
