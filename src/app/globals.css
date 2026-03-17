@@ -1,35 +1,57 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 220 15% 12%;
-    --foreground: 210 20% 98%;
-    --card: 220 15% 15%;
-    --card-foreground: 210 20% 98%;
-    --popover: 220 15% 15%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 212 75% 64%;
-    --primary-foreground: 220 15% 10%;
-    --secondary: 191 70% 50%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 220 10% 25%;
-    --muted-foreground: 215 15% 75%;
-    --accent: 191 70% 50%;
-    --accent-foreground: 210 20% 98%;
+    /* Soft Lavender Page BG */
+    --background: 240 100% 97%;
+    --foreground: 240 28% 15%;
+
+    /* White Cards */
+    --card: 0 0% 100%;
+    --card-foreground: 240 28% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 28% 15%;
+
+    /* Electric Purple Primary */
+    --primary: 252 100% 64%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Light Purple Secondary/Accents */
+    --secondary: 252 100% 96%;
+    --secondary-foreground: 252 100% 64%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 9% 47%;
+
+    --accent: 252 100% 96%;
+    --accent-foreground: 252 100% 64%;
+
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 220 10% 25%;
-    --input: 220 10% 25%;
-    --ring: 212 75% 64%;
-    --radius: 0.75rem;
-    --chart-1: 212 75% 64%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Lavender Borders */
+    --border: 244 100% 95%;
+    --input: 215 14% 85%;
+    --ring: 252 100% 64%;
+
+    --radius: 1rem;
+
+    --chart-1: 252 100% 64%;
     --chart-2: 191 70% 50%;
     --chart-3: 160 60% 45%;
     --chart-4: 30 80% 55%;
     --chart-5: 280 65% 60%;
+
+    /* Custom Colors */
+    --success: 142 71% 45%;
+    --success-bg: 138 76% 97%;
+    --warning: 38 92% 50%;
+    --warning-bg: 48 100% 96%;
+    --danger: 0 84% 60%;
+    --danger-bg: 0 100% 97%;
   }
 }
 
@@ -41,6 +63,14 @@
     @apply bg-background text-foreground font-body;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-headline;
+    @apply font-headline text-foreground;
   }
+}
+
+.shadow-card {
+  box-shadow: 0 2px 12px rgba(108, 71, 255, 0.08);
+}
+
+.shadow-btn {
+  box-shadow: 0 4px 14px rgba(108, 71, 255, 0.3);
 }
