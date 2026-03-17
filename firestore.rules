@@ -1,137 +1,55 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    /**
-     * GIGSHIELD PROTECTION SECURITY RULES
-     * 
-     * Core Philosophy:
-     * This ruleset enforces a strict user-ownership model for worker data while providing
-     * global read access to insurance plans and disruption data. Administrative access is
-     * handled through a dedicated 'admin_roles' collection for high-performance authorization.
-     * 
-     * Data Structure:
-     * - /users/{userId}: Root profile for delivery workers.
-     * - /users/{userId}/income_dna/dna: Private earning patterns used for payout calculations.
-     * - /users/{userId}/claims/{claimId}: User-specific insurance claims triggered by weather events.
-     * - /insurance_plans: Publicly readable insurance product definitions.
-     * - /weather_events & /disruption_zones: Authenticated read access for realtime risk mapping.
-     * 
-     * Key Security Decisions:
-     * 1. Authorization Independence: Uses the 'admin_roles' collection to verify admin status
-     *    via exists() checks, avoiding heavy get() calls on the user profile.
-     * 2. Hierarchical Segregation: Claims and Income DNA are nested under the user path
-     *    to ensure QAP compliance (Rules are not filters), making list operations naturally secure.
-     * 3. Relational Integrity: Enforces that 'workerId' and 'id' fields within documents
-     *    match the authenticated user's UID and the document path.
-     * 4. Prototyping Flexibility: Logic enforces "who" can access data and "relational links,"
-     *    but does not restrict the specific data schema to allow for rapid UI iteration.
-     */
-
-    // --- HELPER FUNCTIONS ---
-
-    function isSignedIn() {
-      return request.auth != null;
+    function isAuth() { 
+      return request.auth != null; 
     }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    function isOwner(uid) { 
+      return request.auth.uid == uid; 
     }
-
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admin_roles/$(request.auth.uid));
+      return isAuth() && exists(/databases/$(database)/documents/admin_roles/$(request.auth.uid));
     }
-
-    // --- COLLECTION RULES ---
-
-    /**
-     * @description Rules for user profiles. Workers manage their own data; Admins have oversight.
-     * @path /users/{userId}
-     * @allow (create) If the authenticated UID matches the path and data ID.
-     * @deny (write) If attempting to modify another user's profile.
-     * @principle Path-based ownership and relational integrity.
-     */
-    match /users/{userId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
-      allow delete: if isAdmin();
+    
+    match /users/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
     }
-
-    /**
-     * @description Dedicated check for administrative privileges.
-     * @path /admin_roles/{userId}
-     * @allow (read) If the user is an admin.
-     * @deny (write) All client-side writes; managed via Admin SDK/Console.
-     * @principle Structural segregation of roles.
-     */
-    match /admin_roles/{userId} {
-      allow read: if isAdmin();
+    
+    match /admin_roles/{uid} {
+      allow read: if isAuth();
       allow write: if false;
     }
 
-    /**
-     * @description Personalized Income DNA profile used for parametric payout calculations.
-     * @path /users/{userId}/income_dna/dna
-     * @allow (read) Owner or Admin.
-     * @deny (write) Any user other than the owner or admin.
-     * @principle Restricts access to sensitive earning patterns.
-     */
-    match /users/{userId}/income_dna/dna {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isAdmin();
+    match /user_plans/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
     }
 
-    /**
-     * @description Insurance claims linked to specific weather events.
-     * @path /users/{userId}/claims/{claimId}
-     * @allow (list) Owner listing their own claim history.
-     * @deny (update) Workers cannot modify claims once submitted (enforces integrity).
-     * @principle Immutable records for financial transactions.
-     */
-    match /users/{userId}/claims/{claimId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.workerId == userId;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+    match /claims/{id} {
+      allow read: if isAuth() && (
+        resource.data.worker_id == request.auth.uid 
+        || isAdmin()
+      );
+      allow create: if isAuth() && request.resource.data.worker_id == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
 
-    /**
-     * @description Global definitions for insurance plans (Basic, Pro, Max).
-     * @path /insurance_plans/{planId}
-     * @allow (read) Public access for unauthenticated users to view pricing.
-     * @deny (write) Non-admin users.
-     * @principle Public read with admin-only writes.
-     */
-    match /insurance_plans/{planId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+    match /income_dna/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
     }
 
-    /**
-     * @description Data regarding specific weather triggers and event history.
-     * @path /weather_events/{eventId}
-     * @allow (read) All signed-in workers to see what triggered a claim.
-     * @deny (write) Client-side writes (usually managed by trigger engine).
-     * @principle Authenticated read access for transparency.
-     */
-    match /weather_events/{eventId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+    match /weather_events/{id} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
     }
 
-    /**
-     * @description Geographical risk zones for the live heatmap.
-     * @path /disruption_zones/{zoneId}
-     * @allow (read) All signed-in workers to view the risk map.
-     * @deny (write) Client-side modification of risk levels.
-     * @principle Shared access for realtime monitoring.
-     */
-    match /disruption_zones/{zoneId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+    match /disruption_zones/{id} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    match /insurance_plans/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

@@ -4,23 +4,20 @@
 
 @layer base {
   :root {
-    /* Soft Lavender Page BG */
-    --background: 240 100% 97%;
-    --foreground: 240 28% 15%;
+    /* Backgrounds */
+    --background: 240 100% 97%; /* #EEEEFF */
+    --foreground: 240 28% 15%; /* #1A1A2E */
 
-    /* White Cards */
-    --card: 0 0% 100%;
+    --card: 0 0% 100%; /* #FFFFFF */
     --card-foreground: 240 28% 15%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 240 28% 15%;
 
-    /* Electric Purple Primary */
-    --primary: 252 100% 64%;
+    --primary: 252 100% 64%; /* #6C47FF */
     --primary-foreground: 0 0% 100%;
 
-    /* Light Purple Secondary/Accents */
-    --secondary: 252 100% 96%;
+    --secondary: 252 100% 96%; /* #EDE9FF */
     --secondary-foreground: 252 100% 64%;
 
     --muted: 210 40% 96%;
@@ -32,26 +29,11 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Lavender Borders */
-    --border: 244 100% 95%;
-    --input: 215 14% 85%;
+    --border: 244 100% 95%; /* #E8E6FF */
+    --input: 214 32% 91%; /* #D1D5DB */
     --ring: 252 100% 64%;
 
     --radius: 1rem;
-
-    --chart-1: 252 100% 64%;
-    --chart-2: 191 70% 50%;
-    --chart-3: 160 60% 45%;
-    --chart-4: 30 80% 55%;
-    --chart-5: 280 65% 60%;
-
-    /* Custom Colors */
-    --success: 142 71% 45%;
-    --success-bg: 138 76% 97%;
-    --warning: 38 92% 50%;
-    --warning-bg: 48 100% 96%;
-    --danger: 0 84% 60%;
-    --danger-bg: 0 100% 97%;
   }
 }
 
@@ -60,17 +42,46 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body;
+    @apply bg-background text-foreground font-body antialiased;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-headline text-foreground;
+    @apply font-headline text-heading font-bold;
   }
+}
+
+:root {
+  --bg-page: #EEEEFF;
+  --bg-card: #FFFFFF;
+  --bg-card-purple: #6C47FF;
+  --bg-card-yellow: #FFFBEA;
+  --bg-card-hover: #F5F3FF;
+  --primary-hex: #6C47FF;
+  --primary-hover-hex: #5535E8;
+  --primary-light-hex: #EDE9FF;
+  --text-heading: #1A1A2E;
+  --text-body: #64748B;
+  --text-white: #FFFFFF;
+  --text-purple: #6C47FF;
+  --text-muted: #94A3B8;
+  --success: #22C55E;
+  --success-bg: #DCFCE7;
+  --warning: #F59E0B;
+  --warning-bg: #FEF3C7;
+  --danger: #EF4444;
+  --danger-bg: #FEE2E2;
+  --info: #3B82F6;
+  --info-bg: #DBEAFE;
+  --border-hex: #E8E6FF;
+  --border-input: #D1D5DB;
+  --border-focus: #6C47FF;
+  --shadow-card: 0 2px 12px rgba(108, 71, 255, 0.08);
+  --shadow-btn: 0 4px 14px rgba(108, 71, 255, 0.3);
 }
 
 .shadow-card {
-  box-shadow: 0 2px 12px rgba(108, 71, 255, 0.08);
+  box-shadow: var(--shadow-card);
 }
 
 .shadow-btn {
-  box-shadow: 0 4px 14px rgba(108, 71, 255, 0.3);
+  box-shadow: var(--shadow-btn);
 }

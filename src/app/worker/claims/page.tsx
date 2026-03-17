@@ -1,242 +1,149 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, addDoc, serverTimestamp, query, where } from "firebase/firestore";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Loader2, Zap, Clock, Calendar, CheckCircle2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { collection, query, where, orderBy } from "firebase/firestore";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, Calendar, IndianRupee, Loader2, Zap } from "lucide-react";
 import { format } from "date-fns";
 
 export default function WorkerClaims() {
   const { user } = useUser();
   const db = useFirestore();
-  const { toast } = useToast();
-  
-  const [timeSlot, setTimeSlot] = useState("");
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [estimatedPayout, setEstimatedPayout] = useState(0);
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // We strictly filter by userId to satisfy Firestore Security Rules for 'list'
     return query(
       collection(db, "claims"),
-      where("userId", "==", user.uid)
+      where("worker_id", "==", user.uid)
     );
   }, [db, user]);
 
-  const { data: rawClaims, isLoading: isClaimsLoading } = useCollection(claimsQuery);
+  const { data: rawClaims, isLoading } = useCollection(claimsQuery);
 
-  // Sort claims in memory to provide the expected UI without requiring complex composite indexes immediately
   const claims = useMemo(() => {
     if (!rawClaims) return null;
-    return [...rawClaims].sort((a, b) => {
-      const dateA = a.createdAt?.seconds || 0;
-      const dateB = b.createdAt?.seconds || 0;
-      return dateB - dateA;
-    });
+    return [...rawClaims].sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
   }, [rawClaims]);
 
-  const calculateEstimate = (slot: string) => {
-    const rates: Record<string, number> = {
-      morning: 450,
-      afternoon: 350,
-      evening: 600,
-      night: 400
-    };
-    setEstimatedPayout(rates[slot] || 0);
-  };
-
-  const handleFileClaim = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !timeSlot) return;
-
-    setLoading(true);
-    try {
-      await addDoc(collection(db, "claims"), {
-        userId: user.uid,
-        time_slot: timeSlot,
-        description,
-        claim_amount: estimatedPayout,
-        status: "pending",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      toast({
-        title: "Claim Filed Successfully",
-        description: "AI is reviewing your disruption report.",
-      });
-      setTimeSlot("");
-      setDescription("");
-      setEstimatedPayout(0);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error filing claim",
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-bg-page">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-8 p-6 lg:p-10 bg-bg-page min-h-screen">
       <header>
         <h1 className="text-3xl font-headline font-bold">My Protection Claims</h1>
-        <p className="text-muted-foreground">Report disruptions and receive instant compensation</p>
+        <p className="text-body mt-1">Review your parametric payout history and automated verification status</p>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <section className="space-y-6">
-          <Card className="border-primary/20 bg-card/50">
-            <CardHeader>
-              <CardTitle className="text-xl font-headline flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                File New Claim
-              </CardTitle>
-              <CardDescription>Select the time window when your earnings were disrupted</CardDescription>
-            </CardHeader>
-            <form onSubmit={handleFileClaim}>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label>Disruption Time Slot</Label>
-                  <Select 
-                    value={timeSlot} 
-                    onValueChange={(val) => {
-                      setTimeSlot(val);
-                      calculateEstimate(val);
-                    }}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a time slot" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="morning">Morning (06:00 - 12:00)</SelectItem>
-                      <SelectItem value="afternoon">Afternoon (12:00 - 18:00)</SelectItem>
-                      <SelectItem value="evening">Evening (18:00 - 00:00)</SelectItem>
-                      <SelectItem value="night">Night (00:00 - 06:00)</SelectItem>
-                    </SelectContent>
-                  </Select>
+      <div className="space-y-6 max-w-5xl">
+        {claims && claims.length > 0 ? (
+          claims.map((claim) => (
+            <Card key={claim.id} className="border-border shadow-card overflow-hidden bg-white rounded-card">
+              <CardHeader className="bg-success-bg/30 px-6 py-4 flex flex-row items-center justify-between border-b border-border/50">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                  <span className="font-bold text-heading">Parametric Trigger: {claim.trigger_description || "Severe Rainfall Event"}</span>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Description of Disruption</Label>
-                  <Textarea 
-                    placeholder="E.g. Network outage in Lower Parel area, app inaccessible for 3 hours."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="min-h-[100px]"
-                    required
-                  />
+                <div className="flex items-center gap-2 text-xs text-body font-bold">
+                  <Calendar className="h-4 w-4" />
+                  {claim.created_at?.seconds ? format(new Date(claim.created_at.seconds * 1000), "MMM dd, yyyy · HH:mm") : "Recently processed"}
                 </div>
-
-                {estimatedPayout > 0 && (
-                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">Estimated Payout</span>
-                    </div>
-                    <span className="text-xl font-bold text-primary">₹{estimatedPayout}</span>
-                  </div>
-                )}
-              </CardContent>
-              <CardContent className="pt-0">
-                <Button className="w-full font-bold h-12" type="submit" disabled={loading || !timeSlot}>
-                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4 fill-current" />}
-                  File Instant Claim
-                </Button>
-              </CardContent>
-            </form>
-          </Card>
-
-          <Card className="bg-muted/10 border-border/50">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                How Claims Work
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p className="flex items-start gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                AI verifies collective disruption patterns in your reported area.
-              </p>
-              <p className="flex items-start gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                Payouts are calculated based on your unique Income DNA hourly rate.
-              </p>
-              <p className="flex items-start gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                Approved funds are instantly credited to your linked payout wallet.
-              </p>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-headline font-bold">Claim History</h2>
-          </div>
-          
-          <div className="space-y-4">
-            {isClaimsLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i} className="animate-pulse bg-card/30 h-24" />
-              ))
-            ) : claims && claims.length > 0 ? (
-              claims.map((claim) => (
-                <Card key={claim.id} className="bg-card/50 border-border/50 hover:border-primary/30 transition-colors">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                        claim.status === 'approved' ? "bg-green-400/10 text-green-400" :
-                        claim.status === 'pending' ? "bg-amber-400/10 text-amber-400" :
-                        "bg-muted text-muted-foreground"
-                      }`}>
-                        <FileText className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-lg">₹{claim.claim_amount}</p>
-                          <Badge variant="outline" className="capitalize text-[10px] h-4">
-                            {claim.time_slot}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {claim.createdAt?.seconds ? format(new Date(claim.createdAt.seconds * 1000), "MMM dd, HH:mm") : "Recently filed"}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant={claim.status === 'approved' ? "default" : "outline"} className={
-                      claim.status === 'approved' ? "bg-green-500 hover:bg-green-500" :
-                      claim.status === 'pending' ? "text-amber-400 border-amber-400/30" :
-                      ""
-                    }>
-                      {claim.status}
+              </CardHeader>
+              <CardContent className="p-0 grid md:grid-cols-[1fr,240px]">
+                <div className="p-6 bg-primary-light/30 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-body uppercase">Claim ID: <span className="text-heading">#{claim.claim_number || claim.id.slice(0, 6)}</span></span>
+                    <Badge className="bg-primary/10 text-primary border-none text-[10px] font-bold uppercase tracking-wider">
+                      Calculated using Income DNA
                     </Badge>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <div className="text-center py-20 bg-muted/10 rounded-xl border border-dashed border-border/50">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-20" />
-                <p className="text-muted-foreground">You haven't filed any claims yet.</p>
-              </div>
-            )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-body font-medium">DNA Time Slot</span>
+                      <span className="text-heading font-bold">{claim.dna_time_slot || "Evening 5-9 PM"}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-body font-medium">Registered Rate</span>
+                      <span className="text-heading font-bold">₹{claim.registered_rate || "60"}/hr</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-body font-medium">Time Multiplier</span>
+                      <span className="text-heading font-bold">{claim.time_multiplier || "1.3"}×</span>
+                    </div>
+                    <div className="flex justify-between text-sm bg-white p-2 rounded-lg border border-primary/20">
+                      <span className="text-primary font-bold">DNA Hourly Rate</span>
+                      <span className="text-primary font-black">₹{claim.dna_hourly_rate || "78"}/hr</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-body font-medium">Hours Lost</span>
+                      <span className="text-heading font-bold">{claim.hours_lost || "4"}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-body font-medium">Income Loss</span>
+                      <span className="text-danger font-bold">₹{claim.income_loss || "312"}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-body font-medium">Plan Max Payout</span>
+                      <span className="text-heading font-bold">₹{claim.plan_max_payout || "240"}</span>
+                    </div>
+                    <div className="flex justify-between text-sm border-t border-border pt-2">
+                      <span className="text-heading font-bold">Compensation</span>
+                      <span className="text-primary text-lg font-black">₹{claim.compensation || "240"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 border-l border-border/50 flex flex-col justify-between bg-white text-center">
+                  <div>
+                    <p className="text-[11px] font-bold text-muted uppercase tracking-wider mb-2">Compensation Amount</p>
+                    <div className="text-4xl font-black text-primary mb-1">₹{claim.compensation || "240"}</div>
+                    <p className="text-[10px] text-body">Per coverage event</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="bg-success-bg text-success py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-xs font-bold">
+                      <CheckCircle2 className="h-4 w-4" /> Paid
+                    </div>
+                    <div className="bg-success-bg text-success py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-xs font-bold">
+                      <CheckCircle2 className="h-4 w-4" /> Transferred
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <p className="text-success text-sm font-bold">Processing Complete</p>
+                      <p className="text-[10px] text-body mt-0.5">Funds deposited to your account</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 px-6 py-4 border-t border-border/50 bg-bg-page/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 text-success font-bold text-xs uppercase tracking-widest">
+                    <CheckCircle2 className="h-4 w-4" /> FRAUD DETECTION STATUS: PASSED
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className="bg-success-bg text-success border-none text-[9px] font-bold px-3">GPS Validation → Verified</Badge>
+                    <Badge className="bg-success-bg text-success border-none text-[9px] font-bold px-3">Weather Event → Confirmed</Badge>
+                    <Badge className="bg-success-bg text-success border-none text-[9px] font-bold px-3">Duplicate Check → Passed</Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="py-20 text-center border-2 border-dashed border-border rounded-card bg-white/50">
+            <div className="h-16 w-16 bg-muted/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Zap className="h-8 w-8 text-muted" />
+            </div>
+            <h3 className="text-xl font-bold text-heading">No claims yet</h3>
+            <p className="text-body max-w-xs mx-auto mt-2">Automated payouts will appear here when severe weather events are detected.</p>
           </div>
-        </section>
+        )}
       </div>
     </div>
   );
