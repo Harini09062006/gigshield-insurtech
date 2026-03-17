@@ -13,7 +13,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
-      router.push("/worker/overview");
+      router.push("/dashboard");
     }
   }, [user, isUserLoading, router]);
 
@@ -27,8 +27,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-bg-page flex flex-col font-body">
-      {/* Navbar */}
-      <header className="px-8 py-6 flex items-center">
+      <header className="px-8 py-6 flex items-center bg-white border-b border-border shadow-sm">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center shadow-btn">
             <Shield className="h-6 w-6 text-white" />
@@ -39,7 +38,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center px-6 pt-16 pb-20 max-w-7xl mx-auto w-full text-center">
         <div className="max-w-4xl space-y-8 mb-20">
           <h1 className="text-5xl md:text-7xl font-headline font-bold leading-tight">
@@ -52,10 +50,8 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Feature Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
-          {/* Login Card */}
-          <div className="bg-white p-10 rounded-[32px] border border-border shadow-card flex flex-col items-start text-left group hover:bg-bg-card-hover transition-colors">
+          <div className="bg-white p-10 rounded-card border border-border shadow-card flex flex-col items-start text-left group hover:bg-bg-card-hover transition-colors">
             <div className="h-14 w-14 rounded-2xl bg-primary-light flex items-center justify-center mb-8">
               <LogIn className="h-7 w-7 text-primary" />
             </div>
@@ -63,13 +59,12 @@ export default function Home() {
             <p className="text-body text-base leading-relaxed mb-10 flex-1">
               Return to your account and view your coverage, claims history, and earnings protection.
             </p>
-            <Link href="/auth/login" className="inline-flex items-center text-primary font-bold text-lg hover:gap-2 transition-all">
+            <Link href="/login" className="inline-flex items-center text-primary font-bold text-lg hover:gap-2 transition-all">
               Sign In <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </div>
 
-          {/* Signup Card */}
-          <div className="bg-white p-10 rounded-[32px] border border-border shadow-card flex flex-col items-start text-left group hover:bg-bg-card-hover transition-colors">
+          <div className="bg-white p-10 rounded-card border border-border shadow-card flex flex-col items-start text-left group hover:bg-bg-card-hover transition-colors">
             <div className="h-14 w-14 rounded-2xl bg-primary-light flex items-center justify-center mb-8">
               <UserPlus className="h-7 w-7 text-primary" />
             </div>
@@ -77,13 +72,12 @@ export default function Home() {
             <p className="text-body text-base leading-relaxed mb-10 flex-1">
               Register to get covered and receive automatic payouts when severe weather strikes your city.
             </p>
-            <Link href="/auth/signup" className="inline-flex items-center text-primary font-bold text-lg hover:gap-2 transition-all">
+            <Link href="/register" className="inline-flex items-center text-primary font-bold text-lg hover:gap-2 transition-all">
               Get Protected <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </div>
 
-          {/* Admin Card */}
-          <div className="bg-white p-10 rounded-[32px] border border-border shadow-card flex flex-col items-start text-left group hover:bg-bg-card-hover transition-colors">
+          <div className="bg-white p-10 rounded-card border border-border shadow-card flex flex-col items-start text-left group hover:bg-bg-card-hover transition-colors">
             <div className="h-14 w-14 rounded-2xl bg-primary-light flex items-center justify-center mb-8">
               <Settings className="h-7 w-7 text-primary" />
             </div>
@@ -98,7 +92,7 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="px-8 py-10 text-center text-muted text-sm mt-auto">
+      <footer className="px-8 py-10 text-center text-muted text-sm mt-auto bg-white border-t border-border">
         © 2024 GigShield Protection System. Empowering India's Digital Workforce.
       </footer>
     </div>
