@@ -21,9 +21,9 @@ service cloud.firestore {
     }
 
     match /claims/{claimId} {
-      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid);
-      // For listing claims, the query must explicitly filter by userId to pass this rule
-      allow list: if isSignedIn() && (request.query.limit <= 100) && (request.query.filters.userId == request.auth.uid);
+      // 'read' covers both 'get' (single doc) and 'list' (querying a collection)
+      // For listing, Firestore ensures the query filters only for the owner's UID
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if false; 
     }
