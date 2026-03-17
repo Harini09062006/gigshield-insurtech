@@ -26,7 +26,7 @@ export default function WorkerClaims() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // We remove orderBy for now to avoid potential composite index/permission issues
+    // We strictly filter by userId to satisfy Firestore Security Rules for 'list'
     return query(
       collection(db, "claims"),
       where("userId", "==", user.uid)
@@ -35,7 +35,7 @@ export default function WorkerClaims() {
 
   const { data: rawClaims, isLoading: isClaimsLoading } = useCollection(claimsQuery);
 
-  // Sort claims in memory to ensure ownership-based read rules are satisfied without complex indexes
+  // Sort claims in memory to provide the expected UI without requiring complex composite indexes immediately
   const claims = useMemo(() => {
     if (!rawClaims) return null;
     return [...rawClaims].sort((a, b) => {

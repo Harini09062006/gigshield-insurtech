@@ -41,20 +41,6 @@ service cloud.firestore {
       allow create: if isOwner(userId) && request.resource.data.workerId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.workerId == resource.data.workerId;
       allow delete: if isExistingOwner(userId);
-
-      match /peakEarningHours/{peakEarningHourId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.workerId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.workerId == resource.data.workerId;
-        allow delete: if isExistingOwner(userId);
-      }
-
-      match /earningsByTimeWindow/{earningsByTimeWindowId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.workerId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.workerId == resource.data.workerId;
-        allow delete: if isExistingOwner(userId);
-      }
     }
 
     match /userProfiles/{userId}/policies/{policyId} {
@@ -69,7 +55,10 @@ service cloud.firestore {
      * For 'list' operations (queries), the query MUST filter by userId == request.auth.uid.
      */
     match /claims/{claimId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Split read into get and list for better rule engine evaluation
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isAdmin();
       allow delete: if isAdmin();
