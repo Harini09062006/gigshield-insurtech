@@ -1,90 +1,108 @@
 rules_version = '2';
-
-/**
- * GigShield Protection - Security Rules (Prototyping Mode)
- *
- * PHILOSOPHY:
- * This ruleset enforces a strict user-ownership model using path-based authorization 
- * and structural segregation. It prioritizes high-security for authorization 
- * (who can access what) while maintaining maximum flexibility for data shapes 
- * to support rapid iteration.
- *
- * DATA STRUCTURE:
- * - /users/{userId}: Root profile for gig workers.
- * - /roles_admin/{adminId}: Dedicated collection for system administrators (Authorization Independence).
- * - /insurance_plans/{planId}: Publicly readable configuration for available plans.
- * - /weather_events & /disruption_zones: System-wide data for risk assessment/heatmaps.
- * - /users/{userId}/claims/{claimId}: Private, worker-specific claim history (Subcollection pattern).
- * - /users/{userId}/income_dna/{dnaId}: Private, worker-specific earning patterns.
- *
- * KEY SECURITY DECISIONS:
- * 1. ADMIN ROLE: Admin privileges are determined by the existence of a document in the 
- *    'roles_admin' collection. This avoids costly 'get' calls on user documents.
- * 2. PATH-BASED OWNERSHIP: Worker-specific data (claims, DNA) is nested under the 
- *    user's root path, making authorization checks simple and performance-optimized.
- * 3. DENORMALIZATION: Critical ownership fields (e.g., id, workerId) are validated 
- *    on creation to match the path but are otherwise not type-checked to allow prototyping.
- */
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- GLOBAL HELPER FUNCTIONS ---
+    /**
+     * GIGSHIELD PROTECTION SECURITY RULES
+     * 
+     * Core Philosophy:
+     * This ruleset enforces a strict user-ownership model for worker data while providing
+     * global read access to insurance plans and disruption data. Administrative access is
+     * handled through a dedicated 'admin_roles' collection for high-performance authorization.
+     * 
+     * Data Structure:
+     * - /users/{userId}: Root profile for delivery workers.
+     * - /users/{userId}/income_dna/dna: Private earning patterns used for payout calculations.
+     * - /users/{userId}/claims/{claimId}: User-specific insurance claims triggered by weather events.
+     * - /insurance_plans: Publicly readable insurance product definitions.
+     * - /weather_events & /disruption_zones: Authenticated read access for realtime risk mapping.
+     * 
+     * Key Security Decisions:
+     * 1. Authorization Independence: Uses the 'admin_roles' collection to verify admin status
+     *    via exists() checks, avoiding heavy get() calls on the user profile.
+     * 2. Hierarchical Segregation: Claims and Income DNA are nested under the user path
+     *    to ensure QAP compliance (Rules are not filters), making list operations naturally secure.
+     * 3. Relational Integrity: Enforces that 'workerId' and 'id' fields within documents
+     *    match the authenticated user's UID and the document path.
+     * 4. Prototyping Flexibility: Logic enforces "who" can access data and "relational links,"
+     *    but does not restrict the specific data schema to allow for rapid UI iteration.
+     */
 
-    /** @description Checks if the user is authenticated via Firebase Auth. */
+    // --- HELPER FUNCTIONS ---
+
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the authenticated user's UID matches the provided userId. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Combined check for ownership and document existence for destructive operations. */
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
-    }
-
-    /** @description Efficiently checks for admin privileges via existence in the roles_admin collection. */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() && exists(/databases/$(database)/documents/admin_roles/$(request.auth.uid));
     }
 
     // --- COLLECTION RULES ---
 
     /**
-     * @description Rules for the core User profile.
+     * @description Rules for user profiles. Workers manage their own data; Admins have oversight.
      * @path /users/{userId}
-     * @allow get, list, create, update: if isOwner(userId);
-     * @deny delete: if true; // Users cannot delete their own profiles via the client.
-     * @principle Path-based ownership and self-creation validation.
+     * @allow (create) If the authenticated UID matches the path and data ID.
+     * @deny (write) If attempting to modify another user's profile.
+     * @principle Path-based ownership and relational integrity.
      */
     match /users/{userId} {
       allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
     }
 
     /**
-     * @description Administrative role assignments.
-     * @path /roles_admin/{adminId}
-     * @allow read: if isSignedIn();
-     * @deny write: if true; // Handled via Admin SDK/Console only for security.
-     * @principle Segregated role collection for high-performance authorization.
+     * @description Dedicated check for administrative privileges.
+     * @path /admin_roles/{userId}
+     * @allow (read) If the user is an admin.
+     * @deny (write) All client-side writes; managed via Admin SDK/Console.
+     * @principle Structural segregation of roles.
      */
-    match /roles_admin/{adminId} {
-      allow get: if isSignedIn();
-      allow list: if isAdmin();
-      allow write: if false; 
+    match /admin_roles/{userId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     /**
-     * @description Insurance plan configurations.
+     * @description Personalized Income DNA profile used for parametric payout calculations.
+     * @path /users/{userId}/income_dna/dna
+     * @allow (read) Owner or Admin.
+     * @deny (write) Any user other than the owner or admin.
+     * @principle Restricts access to sensitive earning patterns.
+     */
+    match /users/{userId}/income_dna/dna {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Insurance claims linked to specific weather events.
+     * @path /users/{userId}/claims/{claimId}
+     * @allow (list) Owner listing their own claim history.
+     * @deny (update) Workers cannot modify claims once submitted (enforces integrity).
+     * @principle Immutable records for financial transactions.
+     */
+    match /users/{userId}/claims/{claimId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.workerId == userId;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Global definitions for insurance plans (Basic, Pro, Max).
      * @path /insurance_plans/{planId}
-     * @allow read: if true; // Publicly readable for the signup flow.
-     * @deny write: if !isAdmin();
+     * @allow (read) Public access for unauthenticated users to view pricing.
+     * @deny (write) Non-admin users.
      * @principle Public read with admin-only writes.
      */
     match /insurance_plans/{planId} {
@@ -93,11 +111,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Global weather events triggering parametric payouts.
+     * @description Data regarding specific weather triggers and event history.
      * @path /weather_events/{eventId}
-     * @allow read: if isSignedIn();
-     * @deny write: if !isAdmin();
-     * @principle Authenticated consumption of system-generated events.
+     * @allow (read) All signed-in workers to see what triggered a claim.
+     * @deny (write) Client-side writes (usually managed by trigger engine).
+     * @principle Authenticated read access for transparency.
      */
     match /weather_events/{eventId} {
       allow get, list: if isSignedIn();
@@ -105,40 +123,15 @@ service cloud.firestore {
     }
 
     /**
-     * @description Geographical risk zones for the interactive heatmap.
+     * @description Geographical risk zones for the live heatmap.
      * @path /disruption_zones/{zoneId}
-     * @allow read: if isSignedIn();
-     * @deny write: if !isAdmin();
-     * @principle Real-time spatial data secured by authentication.
+     * @allow (read) All signed-in workers to view the risk map.
+     * @deny (write) Client-side modification of risk levels.
+     * @principle Shared access for realtime monitoring.
      */
     match /disruption_zones/{zoneId} {
       allow get, list: if isSignedIn();
       allow create, update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Individual insurance claims nested under workers.
-     * @path /users/{userId}/claims/{claimId}
-     * @allow read: if isOwner(userId) || isAdmin();
-     * @deny write: if !isAdmin(); // Claims are system-triggered based on parametric rules.
-     * @principle Path-based isolation for private financial records.
-     */
-    match /users/{userId}/claims/{claimId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create, update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Personalized earning patterns generated by AI.
-     * @path /users/{userId}/income_dna/{dnaId}
-     * @allow read, write: if isOwner(userId) || isAdmin();
-     * @principle Ownership-based access to sensitive personalized profiles.
-     */
-    match /users/{userId}/income_dna/{dnaId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) || isAdmin();
-      allow update: if (isExistingOwner(userId) || isAdmin());
-      allow delete: if isAdmin();
     }
   }
 }
