@@ -6,7 +6,7 @@ service cloud.firestore {
      * CORE PHILOSOPHY:
      * This ruleset implements a robust, ownership-based security model designed for an AI-powered gig worker 
      * insurance platform. It prioritizes "Authorization Independence" by using denormalized fields 
-     * (like 'workerId') to ensure that every document can be secured without expensive recursive lookups.
+     * (like 'workerId' or 'userId') to ensure that every document can be secured without expensive recursive lookups.
      */
 
     // --- Helper Functions ---
@@ -66,7 +66,7 @@ service cloud.firestore {
 
     /**
      * @description Rules for claims. Allows users to manage their own claims.
-     * @path /claims/{claimId}
+     * Denormalized 'userId' field is used for query authorization.
      */
     match /claims/{claimId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());

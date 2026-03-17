@@ -24,6 +24,7 @@ export default function WorkerOverview() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
+    // Explicitly filter by userId to satisfy Firestore Security Rules
     return query(
       collection(db, "claims"),
       where("userId", "==", user.uid),
@@ -150,7 +151,7 @@ export default function WorkerOverview() {
                 ) : claims && claims.length > 0 ? (
                   claims.map((claim) => (
                     <tr key={claim.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="p-4 text-muted-foreground">{format(new Date(claim.createdAt?.seconds * 1000 || Date.now()), "MMM dd, yyyy")}</td>
+                      <td className="p-4 text-muted-foreground">{claim.createdAt?.seconds ? format(new Date(claim.createdAt.seconds * 1000), "MMM dd, yyyy") : 'Recent'}</td>
                       <td className="p-4 capitalize">{claim.time_slot}</td>
                       <td className="p-4 font-bold">₹{claim.claim_amount}</td>
                       <td className="p-4 text-right">
