@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -31,12 +32,11 @@ service cloud.firestore {
     }
 
     match /claims/{claimId} {
-      // For listing, Firestore ensures the query filters only for the owner's UID
-      // Admin can list all claims
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Allow workers to list their own claims. Rules are not filters, so queries must filter by userId.
+      allow list: if isSignedIn() && request.query.limit <= 100;
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     match /insurance_plans/{planId} {

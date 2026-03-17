@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { generateIncomeDNA, IncomeDNAOutput } from "@/ai/flows/income-dna-flow";
 import { MOCK_WORKER_PROFILE } from "@/lib/mock-data";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Map, Bell, User, LogOut, ChevronRight, Loader2 } from "lucide-react";
+import { Shield, LayoutDashboard, Map as MapIcon, Bell, User, LogOut, ChevronRight, Loader2 } from "lucide-react";
 import { PolicyCard } from "@/components/dashboard/policy-card";
 import { IncomeDNACharts } from "@/components/dashboard/income-dna-charts";
 import { DisruptionAlerts } from "@/components/dashboard/disruption-alerts";
@@ -13,7 +14,7 @@ import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, Query, DocumentReference } from "firebase/firestore";
+import { doc, collection } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 export default function WorkerDashboard() {
@@ -26,7 +27,7 @@ export default function WorkerDashboard() {
     return doc(db, "userProfiles", user.uid);
   }, [db, user]);
 
-  const { data: profile, isLoading: isProfileLoading } = useDoc(userProfileRef);
+  const { data: profile } = useDoc(userProfileRef);
 
   const policiesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -44,8 +45,6 @@ export default function WorkerDashboard() {
     async function loadDNA() {
       setDnaLoading(true);
       try {
-        // In a real app, we'd check if DNA exists in Firestore first
-        // For this demo, we use the AI flow with mock entries if no real ones exist
         const result = await generateIncomeDNA({
           workerId: user.uid,
           workEntries: MOCK_WORKER_PROFILE.lastEarningSnapshot
@@ -94,7 +93,7 @@ export default function WorkerDashboard() {
               <SidebarMenuItem>
                 <Link href="/heatmap" className="w-full">
                   <SidebarMenuButton>
-                    <Map className="h-4 w-4" />
+                    <MapIcon className="h-4 w-4" />
                     <span>Live Heatmap</span>
                   </SidebarMenuButton>
                 </Link>
@@ -202,12 +201,12 @@ export default function WorkerDashboard() {
                   <p className="text-sm text-muted-foreground mb-4">Visualize disruption clusters and high-earning zones across India in real-time.</p>
                   <Link href="/heatmap">
                     <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                      Open Heatmap <Map className="ml-2 h-4 w-4" />
+                      Open Heatmap <MapIcon className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
                 </div>
                 <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <Map className="h-32 w-32" />
+                  <MapIcon className="h-32 w-32" />
                 </div>
               </section>
             </aside>
