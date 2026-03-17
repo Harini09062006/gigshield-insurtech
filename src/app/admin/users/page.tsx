@@ -1,19 +1,21 @@
-
 "use client";
 
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Map as MapIcon, Bell, Users, BarChart3, Settings, LogOut, Search, Filter, Mail, Calendar } from "lucide-react";
+import { Shield, LayoutDashboard, Map as MapIcon, Bell, Users, BarChart3, LogOut, Search, Mail, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
 
 export default function AdminUsers() {
   const db = useFirestore();
+  const auth = useAuth();
+  const router = useRouter();
   
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -21,6 +23,11 @@ export default function AdminUsers() {
   }, [db]);
 
   const { data: users, isLoading } = useCollection(usersQuery);
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push("/");
+  };
 
   return (
     <SidebarProvider>
@@ -65,12 +72,10 @@ export default function AdminUsers() {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-6 border-t border-border/50">
-            <Link href="/" className="w-full">
-              <SidebarMenuButton className="text-destructive">
-                <LogOut className="h-4 w-4" />
-                <span>Logout</span>
-              </SidebarMenuButton>
-            </Link>
+            <SidebarMenuButton onClick={handleLogout} className="text-destructive">
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </SidebarMenuButton>
           </SidebarFooter>
         </Sidebar>
 

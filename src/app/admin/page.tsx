@@ -1,9 +1,8 @@
-
 "use client";
 
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
 import { collection, query, limit } from "firebase/firestore";
-import { Shield, LayoutDashboard, Map as MapIcon, Bell, Users, BarChart3, LogOut, Search, Filter } from "lucide-react";
+import { Shield, LayoutDashboard, Map as MapIcon, Bell, Users, BarChart3, LogOut, Search } from "lucide-react";
 import { StatsOverview } from "@/components/admin/stats-overview";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,9 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AdminDashboard() {
   const db = useFirestore();
+  const auth = useAuth();
+  const router = useRouter();
   
   const disruptionsQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -30,6 +32,11 @@ export default function AdminDashboard() {
       return timeB - timeA;
     });
   }, [rawDisruptions]);
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push("/");
+  };
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
@@ -59,11 +66,13 @@ export default function AdminDashboard() {
           </Button>
         </nav>
         <div className="p-6 border-t border-border/50">
-          <Link href="/">
-            <Button variant="ghost" className="w-full justify-start gap-2 text-danger hover:bg-danger-bg font-bold">
-              <LogOut className="h-4 w-4" /> Logout
-            </Button>
-          </Link>
+          <Button 
+            variant="ghost" 
+            onClick={handleLogout}
+            className="w-full justify-start gap-2 text-danger hover:bg-danger-bg font-bold"
+          >
+            <LogOut className="h-4 w-4" /> Logout
+          </Button>
         </div>
       </aside>
 

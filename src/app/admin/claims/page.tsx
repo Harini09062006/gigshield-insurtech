@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
 import { collection, query, orderBy, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Shield, LayoutDashboard, Map as MapIcon, Bell, Users, BarChart3, LogOut, CheckCircle2, XCircle, Clock } from "lucide-react";
@@ -11,9 +10,12 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 export default function AdminClaims() {
   const db = useFirestore();
+  const auth = useAuth();
+  const router = useRouter();
   const { toast } = useToast();
   
   const claimsQuery = useMemoFirebase(() => {
@@ -40,6 +42,11 @@ export default function AdminClaims() {
         description: error.message || "You do not have permission to update claims." 
       });
     }
+  };
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push("/");
   };
 
   return (
@@ -85,12 +92,10 @@ export default function AdminClaims() {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-6 border-t border-border/50">
-            <Link href="/" className="w-full">
-              <SidebarMenuButton className="text-destructive">
-                <LogOut className="h-4 w-4" />
-                <span>Logout</span>
-              </SidebarMenuButton>
-            </Link>
+            <SidebarMenuButton onClick={handleLogout} className="text-destructive">
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </SidebarMenuButton>
           </SidebarFooter>
         </Sidebar>
 

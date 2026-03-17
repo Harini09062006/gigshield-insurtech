@@ -4,18 +4,26 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Shield, ArrowRight, Zap, PieChart, Map as MapIcon } from "lucide-react";
+import { Shield, ArrowRight, Zap, PieChart, Map as MapIcon, Loader2 } from "lucide-react";
 import { useUser } from "@/firebase";
 
 export default function Home() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (user) {
+    if (!isUserLoading && user) {
       router.push("/worker/overview");
     }
-  }, [user, router]);
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-bg-page">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg-page flex flex-col">
