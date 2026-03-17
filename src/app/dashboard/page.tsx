@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
@@ -56,21 +55,40 @@ export default function WorkerDashboard() {
   };
 
   const simulateWeather = async () => {
-    if (!user || !profile || !dna) return;
+    if (!user) return;
+    
+    if (!profile || !dna) {
+      toast({
+        variant: "destructive",
+        title: "Simulation Blocked",
+        description: "Please complete your profile and activate a protection plan first."
+      });
+      return;
+    }
+
     setIsSimulating(true);
     try {
-      const claimId = `CL-${Math.floor(10000 + Math.random() * 90000)}`;
+      const claimIdNum = Math.floor(10000 + Math.random() * 90000);
+      const claimId = `CL-${claimIdNum}`;
+      const claimNumber = `#${String(claimIdNum).padStart(5, '0')}`;
+      
       const baseRate = profile.avg_hourly_earnings || 60;
-      const multiplier = 1.3; // Evening Peak
+      const multiplier = 1.3; // Evening Peak simulation
       const dnaRate = baseRate * multiplier;
       const hoursLost = 4;
       const incomeLoss = dnaRate * hoursLost;
-      const planCap = profile.plan_id === 'max' ? 500 : profile.plan_id === 'pro' ? 240 : 100;
+      
+      // Calculate compensation based on plan
+      let planCap = 120; // Default fallback
+      if (profile.plan_id === 'max') planCap = 500;
+      else if (profile.plan_id === 'pro') planCap = 240;
+      else if (profile.plan_id === 'basic') planCap = 100;
+      
       const compensation = Math.min(incomeLoss, planCap);
 
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
-        claim_number: claimId,
+        claim_number: claimNumber,
         trigger_type: "weather",
         trigger_description: "Severe Rainfall (65mm) Detected",
         dna_time_slot: "Evening 5-9 PM",
@@ -80,17 +98,26 @@ export default function WorkerDashboard() {
         hours_lost: hoursLost,
         income_loss: incomeLoss,
         compensation: compensation,
+        plan_max_payout: planCap,
         status: "paid",
-        fraud_check: { gps: "verified", weather: "confirmed", duplicate: "passed" },
+        fraud_check: { 
+          gps: "verified", 
+          weather: "confirmed", 
+          duplicate: "passed" 
+        },
         created_at: serverTimestamp()
       });
 
       toast({
-        title: "Simulation Active",
-        description: "Severe weather detected. Parametric claim processed instantly!"
+        title: "Simulation Successful",
+        description: "Severe weather detected. Your parametric claim was processed and paid instantly!"
       });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Simulation Failed", description: error.message });
+      toast({ 
+        variant: "destructive", 
+        title: "Simulation Failed", 
+        description: error.message || "An unexpected error occurred during simulation." 
+      });
     } finally {
       setIsSimulating(false);
     }
