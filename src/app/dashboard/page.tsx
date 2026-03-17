@@ -12,6 +12,7 @@ import { DisruptionAlerts } from "@/components/dashboard/disruption-alerts";
 import { PlanRecommendation } from "@/components/dashboard/plan-recommendation";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 export default function WorkerDashboard() {
   const [dna, setDna] = useState<IncomeDNAOutput | null>(null);
