@@ -18,14 +18,14 @@ const WorkerWorkEntrySchema = z.object({
   location: z.string().describe('Geographical location during the work session (e.g., "City, State" or "latitude,longitude").')
 });
 
-export const WorkerWorkDataInputSchema = z.object({
+const WorkerWorkDataInputSchema = z.object({
   workerId: z.string().describe('The unique identifier of the worker.'),
   workEntries: z.array(WorkerWorkEntrySchema).describe('An array of individual work entries, each detailing a work session.')
 });
 export type WorkerWorkDataInput = z.infer<typeof WorkerWorkDataInputSchema>;
 
 // Output Schema
-export const IncomeDNAOutputSchema = z.object({
+const IncomeDNAOutputSchema = z.object({
   worker_id: z.string().describe('The ID of the worker.'),
   peak_earning_hours: z.array(z.string()).describe('A list of time windows (e.g., "17:00-19:00") when the worker typically earns the most.'),
   high_activity_days: z.array(z.string()).describe('A list of days of the week (e.g., "Monday", "Friday") when the worker is most active or earns most.'),
