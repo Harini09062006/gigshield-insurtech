@@ -2,7 +2,7 @@
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collection, query, orderBy, limit } from "firebase/firestore";
-import { Shield, Zap, TrendingUp, AlertCircle, ChevronRight, FileText } from "lucide-react";
+import { Shield, Zap, TrendingUp, AlertCircle, ChevronRight, FileText, Map as MapIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -202,7 +202,7 @@ export default function WorkerOverview() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="aspect-video bg-muted/30 rounded-lg flex items-center justify-center border border-dashed border-border/50 relative overflow-hidden group cursor-pointer">
-                <Map className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
+                <MapIcon className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
                 <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <p className="text-xs text-muted-foreground">3 clusters detected in Mumbai Central. High earning zones active in Navi Mumbai.</p>
