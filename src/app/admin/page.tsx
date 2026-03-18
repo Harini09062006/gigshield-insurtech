@@ -31,20 +31,22 @@ export default function AdminDashboard() {
         } catch (error) {
           console.error("Role check failed", error);
           router.replace("/dashboard");
+        } finally {
+          setCheckingAdmin(false);
         }
       } else if (!isUserLoading) {
         router.replace("/login");
+        setCheckingAdmin(false);
       }
-      setCheckingAdmin(false);
     }
     checkRole();
   }, [user, isUserLoading, db, router]);
 
   const zonesQuery = useMemoFirebase(() => {
     // CRITICAL: Only attempt an unfiltered query if we are SURE the user is an admin
-    if (!db || !isAdmin) return null;
+    if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "disruption_zones"), limit(10));
-  }, [db, isAdmin]);
+  }, [db, isAdmin, checkingAdmin]);
 
   const { data: zones, isLoading: isZonesLoading } = useCollection(zonesQuery);
 
@@ -104,9 +106,9 @@ export default function AdminDashboard() {
                 {isZonesLoading ? <tr><td colSpan={3} className="p-10 text-center"><Loader2 className="animate-spin mx-auto text-[#6C47FF]" /></td></tr> : 
                   zones?.map(z => (
                     <tr key={z.id}>
-                      <td className="p-4 font-bold">{z.zone_name}</td>
-                      <td className="p-4"><Badge className={z.risk_level === 'extreme' ? 'bg-[#FEE2E2] text-[#DC2626]' : 'bg-[#DCFCE7] text-[#22C55E]'}>{z.risk_level}</Badge></td>
-                      <td className="p-4 font-mono font-bold">{z.risk_score}/100</td>
+                      <td className="p-4 font-bold">{z.zone_name || 'Urban Cluster'}</td>
+                      <td className="p-4"><Badge className={z.risk_level === 'extreme' ? 'bg-[#FEE2E2] text-[#DC2626]' : 'bg-[#DCFCE7] text-[#22C55E]'}>{z.risk_level || 'stable'}</Badge></td>
+                      <td className="p-4 font-mono font-bold">{z.risk_score || 0}/100</td>
                     </tr>
                   ))}
               </tbody>

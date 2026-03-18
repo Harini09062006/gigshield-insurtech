@@ -35,11 +35,13 @@ export default function AdminClaims() {
         } catch (error) {
           console.error("Role check failed", error);
           router.replace("/dashboard");
+        } finally {
+          setCheckingAdmin(false);
         }
       } else if (!isUserLoading) {
         router.replace("/login");
+        setCheckingAdmin(false);
       }
-      setCheckingAdmin(false);
     }
     checkRole();
   }, [user, isUserLoading, db, router]);
@@ -47,9 +49,9 @@ export default function AdminClaims() {
   const claimsQuery = useMemoFirebase(() => {
     // CRITICAL: Only attempt an unfiltered query if we are SURE the user is an admin
     // This prevents permission errors for non-admin users during state transition
-    if (!db || !isAdmin) return null;
+    if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "claims"), orderBy("created_at", "desc"));
-  }, [db, isAdmin]);
+  }, [db, isAdmin, checkingAdmin]);
 
   const { data: claims, isLoading } = useCollection(claimsQuery);
 
@@ -79,8 +81,8 @@ export default function AdminClaims() {
 
   if (isUserLoading || checkingAdmin) {
     return (
-      <div className="h-screen flex items-center justify-center bg-bg-page">
-        <Loader2 className="animate-spin text-primary h-10 w-10" />
+      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
+        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
       </div>
     );
   }
@@ -89,12 +91,12 @@ export default function AdminClaims() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-bg-page overflow-hidden">
-        <Sidebar className="border-r border-border bg-white">
+      <div className="flex h-screen w-full bg-[#EEEEFF] overflow-hidden">
+        <Sidebar className="border-r border-[#E8E6FF] bg-white">
           <SidebarHeader className="p-6">
             <div className="flex items-center gap-2">
-              <Shield className="h-6 w-6 text-primary" />
-              <span className="text-xl font-headline font-bold">GigShield<span className="text-primary text-xs ml-1">ADMIN</span></span>
+              <Shield className="h-6 w-6 text-[#6C47FF]" />
+              <span className="text-xl font-headline font-bold">GigShield<span className="text-[#6C47FF] text-xs ml-1">ADMIN</span></span>
             </div>
           </SidebarHeader>
           <SidebarContent className="p-4">
@@ -121,16 +123,10 @@ export default function AdminClaims() {
                   <span>All Claims</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <BarChart3 className="h-4 w-4" />
-                  <span>System Analytics</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-6 border-t border-border">
-            <SidebarMenuButton onClick={handleLogout} className="text-danger font-bold">
+          <SidebarFooter className="p-6 border-t border-[#E8E6FF]">
+            <SidebarMenuButton onClick={handleLogout} className="text-[#EF4444] font-bold">
               <LogOut className="h-4 w-4" />
               <span>Logout</span>
             </SidebarMenuButton>
@@ -140,14 +136,14 @@ export default function AdminClaims() {
         <main className="flex-1 overflow-y-auto p-6 lg:p-10 space-y-10">
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-headline font-bold text-heading">Claim Management</h1>
-              <p className="text-body">Review and process worker insurance claims</p>
+              <h1 className="text-3xl font-headline font-bold text-[#1A1A2E]">Claim Management</h1>
+              <p className="text-[#64748B]">Review and process worker insurance claims</p>
             </div>
           </header>
 
-          <section className="rounded-card border border-border bg-white shadow-card overflow-hidden">
+          <section className="rounded-card border border-[#E8E6FF] bg-white shadow-card overflow-hidden">
             <table className="w-full text-left text-sm">
-              <thead className="bg-bg-page font-bold uppercase text-xs tracking-wider text-muted border-b border-border">
+              <thead className="bg-[#EEEEFF] font-bold uppercase text-xs tracking-wider text-[#94A3B8] border-b border-[#E8E6FF]">
                 <tr>
                   <th className="p-4">Worker ID</th>
                   <th className="p-4">Amount</th>
@@ -157,7 +153,7 @@ export default function AdminClaims() {
                   <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-[#E8E6FF]">
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i}>
@@ -166,40 +162,40 @@ export default function AdminClaims() {
                   ))
                 ) : claims && claims.length > 0 ? (
                   claims.map((claim) => (
-                    <tr key={claim.id} className="hover:bg-primary-light transition-colors">
-                      <td className="p-4 font-mono text-[10px] text-body">{claim.worker_id}</td>
-                      <td className="p-4 font-bold text-heading">₹{claim.compensation}</td>
-                      <td className="p-4 capitalize text-body">{claim.dna_time_slot}</td>
+                    <tr key={claim.id} className="hover:bg-[#EDE9FF]/30 transition-colors">
+                      <td className="p-4 font-mono text-[10px] text-[#64748B]">{claim.worker_id || claim.userId}</td>
+                      <td className="p-4 font-bold text-[#1A1A2E]">₹{claim.compensation}</td>
+                      <td className="p-4 capitalize text-[#64748B]">{claim.dna_time_slot}</td>
                       <td className="p-4">
                         <Badge variant="outline" className={`capitalize font-semibold ${
-                          claim.status === 'paid' || claim.status === 'approved' ? 'bg-success-bg text-success border-transparent' : 
-                          claim.status === 'rejected' ? 'bg-danger-bg text-danger border-transparent' : 
-                          'bg-warning-bg text-warning border-transparent'
+                          claim.status === 'paid' || claim.status === 'approved' ? 'bg-[#DCFCE7] text-[#22C55E] border-transparent' : 
+                          claim.status === 'rejected' ? 'bg-[#FEE2E2] text-[#EF4444] border-transparent' : 
+                          'bg-[#FEF3C7] text-[#F59E0B] border-transparent'
                         }`}>
-                          {claim.status}
+                          {claim.status || 'pending'}
                         </Badge>
                       </td>
-                      <td className="p-4 text-body text-xs">
+                      <td className="p-4 text-[#64748B] text-xs">
                         {claim.created_at?.seconds ? format(new Date(claim.created_at.seconds * 1000), "MMM dd, HH:mm") : "Just now"}
                       </td>
                       <td className="p-4 text-right flex items-center justify-end gap-2">
                         {(claim.status === 'pending' || !claim.status) && (
                           <>
-                            <Button size="icon" variant="ghost" className="text-success hover:bg-success-bg" onClick={() => updateStatus(claim.id, 'approved')}>
+                            <Button size="icon" variant="ghost" className="text-[#22C55E] hover:bg-[#DCFCE7]" onClick={() => updateStatus(claim.id, 'approved')}>
                               <CheckCircle2 className="h-4 w-4" />
                             </Button>
-                            <Button size="icon" variant="ghost" className="text-danger hover:bg-danger-bg" onClick={() => updateStatus(claim.id, 'rejected')}>
+                            <Button size="icon" variant="ghost" className="text-[#EF4444] hover:bg-[#FEE2E2]" onClick={() => updateStatus(claim.id, 'rejected')}>
                               <XCircle className="h-4 w-4" />
                             </Button>
                           </>
                         )}
-                        <Button variant="ghost" size="sm" className="h-8 font-bold text-primary hover:bg-primary-light">Details</Button>
+                        <Button variant="ghost" size="sm" className="h-8 font-bold text-[#6C47FF] hover:bg-[#EDE9FF]">Details</Button>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="p-10 text-center text-muted italic">No claims filed yet.</td>
+                    <td colSpan={6} className="p-10 text-center text-[#94A3B8] italic">No claims filed yet.</td>
                   </tr>
                 )}
               </tbody>

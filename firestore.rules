@@ -23,14 +23,13 @@ service cloud.firestore {
     // Claims: Standardized on worker_id ownership.
     match /claims/{claimId} {
       // Allow read/list if the worker_id matches OR if the user is an admin.
-      // resource.data is used for existing documents (read/update/delete)
+      // Firestore rules for list require the query to be filtered by the owner ID.
       allow read: if isAuthenticated() && (
         isAdmin() || 
-        (resource != null && (resource.data.worker_id == request.auth.uid || resource.data.userId == request.auth.uid))
+        (resource.data.worker_id == request.auth.uid || resource.data.userId == request.auth.uid)
       );
       
       // Allow creation if the new document's worker_id matches the authenticated user.
-      // request.resource.data is used for incoming data (create/update)
       allow create: if isAuthenticated() && (
         isAdmin() ||
         (request.resource.data.worker_id == request.auth.uid || request.resource.data.userId == request.auth.uid)
