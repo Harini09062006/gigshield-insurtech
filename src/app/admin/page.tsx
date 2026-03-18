@@ -40,6 +40,7 @@ export default function AdminDashboard() {
   }, [user, isUserLoading, db, router]);
 
   const zonesQuery = useMemoFirebase(() => {
+    // CRITICAL: Only attempt an unfiltered query if we are SURE the user is an admin
     if (!db || !isAdmin) return null;
     return query(collection(db, "disruption_zones"), limit(10));
   }, [db, isAdmin]);
