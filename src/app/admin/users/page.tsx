@@ -1,10 +1,9 @@
-
 "use client";
 
-import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
-import { collection, query, orderBy } from "firebase/firestore";
+import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
+import { collection, query, orderBy, getDoc, doc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, Search, Mail, Calendar } from "lucide-react";
+import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, Search, Calendar, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,23 +11,47 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function AdminUsers() {
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
+
+  useEffect(() => {
+    async function checkRole() {
+      if (user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role === "admin") {
+          setIsAdmin(true);
+        } else {
+          router.replace("/dashboard");
+        }
+      } else if (!isUserLoading) {
+        router.replace("/login");
+      }
+      setCheckingAdmin(false);
+    }
+    checkRole();
+  }, [user, isUserLoading, db, router]);
   
   const usersQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !isAdmin) return null;
     return query(collection(db, "users"), orderBy("created_at", "desc"));
-  }, [db]);
+  }, [db, isAdmin]);
 
   const { data: users, isLoading } = useCollection(usersQuery);
 
   const handleLogout = async () => {
     await auth.signOut();
-    router.push("/");
+    router.push("/login");
   };
+
+  if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-bg-page"><Loader2 className="animate-spin text-primary h-10 w-10" /></div>;
+  if (!isAdmin) return null;
 
   return (
     <SidebarProvider>
@@ -39,7 +62,7 @@ export default function AdminUsers() {
               <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
                 <Shield className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-headline font-bold">GigGuard<span className="text-primary">Admin</span></span>
+              <span className="text-xl font-headline font-bold">GigShield<span className="text-primary text-xs ml-1">ADMIN</span></span>
             </div>
           </SidebarHeader>
           <SidebarContent className="p-4">
@@ -75,7 +98,7 @@ export default function AdminUsers() {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-6 border-t border-border">
-            <SidebarMenuButton onClick={handleLogout} className="text-danger hover:bg-danger-bg font-bold">
+            <SidebarMenuButton onClick={handleLogout} className="text-danger font-bold">
               <LogOut className="h-4 w-4" />
               <span>Logout</span>
             </SidebarMenuButton>
@@ -120,7 +143,7 @@ export default function AdminUsers() {
                       <td className="p-4 font-bold text-heading">{user.name || "Anonymous Worker"}</td>
                       <td className="p-4 text-body font-medium">{user.platform || 'Not set'}</td>
                       <td className="p-4">
-                        <Badge variant="outline" className="capitalize border-primary text-primary bg-primary-light font-bold">
+                        <Badge variant="outline" className={`capitalize border-primary text-primary font-bold ${user.role === 'admin' ? 'bg-primary text-white' : 'bg-primary-light'}`}>
                           {user.role}
                         </Badge>
                       </td>

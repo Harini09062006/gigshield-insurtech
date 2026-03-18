@@ -1,48 +1,47 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
 
     match /users/{userId} {
-      allow read: if request.auth != null 
-        && request.auth.uid == userId;
-      allow write: if request.auth != null 
-        && request.auth.uid == userId;
-      allow read: if request.auth != null
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isAdmin();
     }
 
     match /claims/{claimId} {
+      // Workers can only read their own claims. Admins can read all.
       allow read: if request.auth != null && (
-        resource.data.worker_id == request.auth.uid ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        resource.data.worker_id == request.auth.uid || isAdmin()
       );
+      // Workers can create claims (for simulation).
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-      );
+      // Only admins can update or delete claims.
+      allow update, delete: if isAdmin();
     }
 
     match /insurance_plans/{planId} {
       allow read: if true;
-      allow write: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if isAdmin();
     }
 
     match /weather_events/{eventId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if isAdmin();
     }
 
     match /disruption_zones/{zoneId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if isAdmin();
     }
 
     match /income_dna/{userId} {
-      allow read, write: if request.auth != null
-        && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isAdmin();
     }
   }
 }

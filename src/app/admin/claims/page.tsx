@@ -1,9 +1,9 @@
 "use client";
 
-import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
-import { collection, query, orderBy, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
+import { collection, query, orderBy, doc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Map as MapIcon, Bell, Users, BarChart3, LogOut, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -11,17 +11,38 @@ import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function AdminClaims() {
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
+
+  useEffect(() => {
+    async function checkRole() {
+      if (user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role === "admin") {
+          setIsAdmin(true);
+        } else {
+          router.replace("/dashboard");
+        }
+      } else if (!isUserLoading) {
+        router.replace("/login");
+      }
+      setCheckingAdmin(false);
+    }
+    checkRole();
+  }, [user, isUserLoading, db, router]);
   
   const claimsQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "claims"), orderBy("createdAt", "desc"));
-  }, [db]);
+    if (!db || !isAdmin) return null;
+    return query(collection(db, "claims"), orderBy("created_at", "desc"));
+  }, [db, isAdmin]);
 
   const { data: claims, isLoading } = useCollection(claimsQuery);
 
@@ -46,17 +67,20 @@ export default function AdminClaims() {
 
   const handleLogout = async () => {
     await auth.signOut();
-    router.push("/");
+    router.push("/login");
   };
+
+  if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-bg-page"><Loader2 className="animate-spin text-primary h-10 w-10" /></div>;
+  if (!isAdmin) return null;
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-background overflow-hidden">
-        <Sidebar className="border-r border-border/50 bg-card">
+      <div className="flex h-screen w-full bg-bg-page overflow-hidden">
+        <Sidebar className="border-r border-border bg-white">
           <SidebarHeader className="p-6">
             <div className="flex items-center gap-2">
               <Shield className="h-6 w-6 text-primary" />
-              <span className="text-xl font-headline font-bold">GigGuard<span className="text-primary">Admin</span></span>
+              <span className="text-xl font-headline font-bold">GigShield<span className="text-primary text-xs ml-1">ADMIN</span></span>
             </div>
           </SidebarHeader>
           <SidebarContent className="p-4">
@@ -91,8 +115,8 @@ export default function AdminClaims() {
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-6 border-t border-border/50">
-            <SidebarMenuButton onClick={handleLogout} className="text-destructive">
+          <SidebarFooter className="p-6 border-t border-border">
+            <SidebarMenuButton onClick={handleLogout} className="text-danger font-bold">
               <LogOut className="h-4 w-4" />
               <span>Logout</span>
             </SidebarMenuButton>
@@ -129,12 +153,12 @@ export default function AdminClaims() {
                 ) : claims && claims.length > 0 ? (
                   claims.map((claim) => (
                     <tr key={claim.id} className="hover:bg-primary-light transition-colors">
-                      <td className="p-4 font-mono text-[10px] text-body">{claim.userId}</td>
-                      <td className="p-4 font-bold text-heading">₹{claim.claim_amount}</td>
-                      <td className="p-4 capitalize text-body">{claim.time_slot}</td>
+                      <td className="p-4 font-mono text-[10px] text-body">{claim.worker_id || claim.userId}</td>
+                      <td className="p-4 font-bold text-heading">₹{claim.compensation}</td>
+                      <td className="p-4 capitalize text-body">{claim.dna_time_slot}</td>
                       <td className="p-4">
                         <Badge variant="outline" className={`capitalize font-semibold ${
-                          claim.status === 'approved' ? 'bg-success-bg text-success border-transparent' : 
+                          claim.status === 'paid' || claim.status === 'approved' ? 'bg-success-bg text-success border-transparent' : 
                           claim.status === 'rejected' ? 'bg-danger-bg text-danger border-transparent' : 
                           'bg-warning-bg text-warning border-transparent'
                         }`}>
@@ -142,7 +166,7 @@ export default function AdminClaims() {
                         </Badge>
                       </td>
                       <td className="p-4 text-body text-xs">
-                        {claim.createdAt?.seconds ? format(new Date(claim.createdAt.seconds * 1000), "MMM dd, HH:mm") : "Just now"}
+                        {claim.created_at?.seconds ? format(new Date(claim.created_at.seconds * 1000), "MMM dd, HH:mm") : "Just now"}
                       </td>
                       <td className="p-4 text-right flex items-center justify-end gap-2">
                         {claim.status === 'pending' && (
