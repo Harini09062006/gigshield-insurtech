@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, addDays, differenceInDays, startOfDay } from "date-fns";
 import { useMemo, useState, useEffect } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar, Cell } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 
 export default function WorkerDashboard() {
@@ -73,7 +73,7 @@ export default function WorkerDashboard() {
       const compensation = Math.min(incomeLoss, maxPayout);
 
       await addDoc(collection(db, "claims"), {
-        worker_id: user.uid,
+        worker_id: user.uid, // STANDARD: Use worker_id for ownership
         claim_number: `${Math.floor(10000 + Math.random() * 90000)}`,
         trigger_type: "weather",
         trigger_description: "Severe Rainfall (65mm) Detected",

@@ -19,20 +19,18 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
     }
 
-    // Claims: Standardized on worker_id and userId ownership.
+    // Claims: Strictly owned by worker_id.
     match /claims/{claimId} {
-      // Allow read/list if the worker_id or userId matches OR if the user is an admin.
+      // Allow list/get if the worker_id matches the authenticated user OR user is admin.
       allow read: if isAuthenticated() && (
         isAdmin() || 
-        resource.data.worker_id == request.auth.uid || 
-        resource.data.userId == request.auth.uid
+        resource.data.worker_id == request.auth.uid
       );
       
-      // Allow creation if the new document's ID matches the authenticated user.
+      // Allow creation if the new document's worker_id matches the authenticated user.
       allow create: if isAuthenticated() && (
         isAdmin() ||
-        request.resource.data.worker_id == request.auth.uid || 
-        request.resource.data.userId == request.auth.uid
+        request.resource.data.worker_id == request.auth.uid
       );
       
       // Update/Delete restricted to admins for audit integrity

@@ -24,7 +24,7 @@ export default function WorkerClaims() {
     if (!isUserLoading && !user) router.replace("/login");
   }, [user, isUserLoading, router]);
 
-  // CRITICAL: Query MUST be filtered by owner to satisfy security rules for 'list'
+  // CRITICAL: Query MUST be filtered by worker_id to satisfy security rules for 'list'
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -76,11 +76,11 @@ export default function WorkerClaims() {
         </header>
 
         {error ? (
-          <div className="py-20 text-center border-2 border-dashed border-danger/30 rounded-2xl bg-white/50 space-y-4">
-            <AlertCircle className="h-12 w-12 text-danger mx-auto" />
+          <div className="py-20 text-center border-2 border-dashed border-[#EF4444]/30 rounded-2xl bg-white/50 space-y-4">
+            <AlertCircle className="h-12 w-12 text-[#EF4444] mx-auto" />
             <h3 className="text-lg font-bold text-[#1A1A2E]">Access Denied</h3>
             <p className="text-[#64748B] text-sm max-w-xs mx-auto">
-              Unable to load claims. Please check permissions or ensure your account is properly registered.
+              Unable to load claims. Please ensure your account is properly registered and you have an active plan.
             </p>
           </div>
         ) : isLoading ? (
