@@ -2,12 +2,12 @@
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
 import { collection, query, limit, doc, getDoc } from "firebase/firestore";
-import { Shield, LayoutDashboard, Map as MapIcon, Bell, Users, BarChart3, LogOut, Search, Loader2 } from "lucide-react";
+import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
 export default function AdminDashboard() {
@@ -21,10 +21,14 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function checkRole() {
       if (user) {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists() && userDoc.data().role === "admin") {
-          setIsAdmin(true);
-        } else {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists() && userDoc.data().role === "admin") {
+            setIsAdmin(true);
+          } else {
+            router.replace("/dashboard");
+          }
+        } catch (error) {
           router.replace("/dashboard");
         }
       } else if (!isUserLoading) {
@@ -54,8 +58,8 @@ export default function AdminDashboard() {
         </div>
         <nav className="flex-1 space-y-2">
           <Button variant="ghost" className="w-full justify-start gap-2 bg-[#EDE9FF] text-[#6C47FF] font-bold"><LayoutDashboard size={18} /> Overview</Button>
-          <Button variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Users size={18} /> Workers</Button>
-          <Button variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Bell size={18} /> Claims</Button>
+          <Button onClick={() => router.push('/admin/users')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Users size={18} /> Workers</Button>
+          <Button onClick={() => router.push('/admin/claims')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Bell size={18} /> Claims</Button>
         </nav>
         <Button onClick={() => auth.signOut().then(() => router.push("/login"))} variant="ghost" className="text-[#EF4444] justify-start gap-2 font-bold"><LogOut size={18} /> Logout</Button>
       </aside>

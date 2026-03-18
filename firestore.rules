@@ -5,6 +5,7 @@ service cloud.firestore {
     // Helper function to check if the user is an admin
     function isAdmin() {
       return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -14,9 +15,10 @@ service cloud.firestore {
     }
 
     match /claims/{claimId} {
-      // Workers can only read their own claims. Admins can read all.
+      // Allow read (get and list) if the user owns the claim or is an admin.
+      // For queries (list), Firestore rules act as a filter.
       allow read: if request.auth != null && (
-        resource.data.worker_id == request.auth.uid || isAdmin()
+        (resource != null && resource.data.worker_id == request.auth.uid) || isAdmin()
       );
       // Workers can create claims (for simulation).
       allow create: if request.auth != null;

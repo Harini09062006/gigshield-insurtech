@@ -25,10 +25,14 @@ export default function AdminClaims() {
   useEffect(() => {
     async function checkRole() {
       if (user) {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists() && userDoc.data().role === "admin") {
-          setIsAdmin(true);
-        } else {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists() && userDoc.data().role === "admin") {
+            setIsAdmin(true);
+          } else {
+            router.replace("/dashboard");
+          }
+        } catch (error) {
           router.replace("/dashboard");
         }
       } else if (!isUserLoading) {
