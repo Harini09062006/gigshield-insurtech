@@ -20,7 +20,7 @@ export default function WorkerLayout({ children }: { children: ReactNode }) {
 
   const handleLogout = async () => {
     await auth.signOut();
-    router.push("/auth/login");
+    router.push("/");
   };
 
   return (

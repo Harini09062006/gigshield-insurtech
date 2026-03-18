@@ -52,7 +52,7 @@ export default function AdminUsers() {
 
   const handleLogout = async () => {
     await auth.signOut();
-    router.push("/login");
+    router.push("/");
   };
 
   if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-bg-page"><Loader2 className="animate-spin text-primary h-10 w-10" /></div>;

@@ -72,7 +72,7 @@ export default function AdminDashboard() {
           <Button onClick={() => router.push('/admin/users')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Users size={18} /> Workers</Button>
           <Button onClick={() => router.push('/admin/claims')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Bell size={18} /> Claims</Button>
         </nav>
-        <Button onClick={() => auth.signOut().then(() => router.push("/login"))} variant="ghost" className="text-[#EF4444] justify-start gap-2 font-bold"><LogOut size={18} /> Logout</Button>
+        <Button onClick={() => auth.signOut().then(() => router.push("/"))} variant="ghost" className="text-[#EF4444] justify-start gap-2 font-bold"><LogOut size={18} /> Logout</Button>
       </aside>
 
       <main className="flex-1 overflow-y-auto p-6 lg:p-10 space-y-10">

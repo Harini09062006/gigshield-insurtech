@@ -37,7 +37,7 @@ export default function WorkerClaims() {
 
   const handleLogout = async () => {
     await auth.signOut();
-    router.push("/login");
+    router.push("/");
   };
 
   if (isUserLoading || !mounted) {

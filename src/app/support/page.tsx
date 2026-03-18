@@ -99,7 +99,7 @@ export default function SupportPage() {
         <div className="flex gap-4">
           <Link href="/dashboard"><Button variant="ghost" size="icon"><Home /></Button></Link>
           <Link href="/claims"><Button variant="ghost" size="icon"><FileText /></Button></Link>
-          <Button onClick={() => auth.signOut().then(() => router.push("/login"))} variant="ghost" size="icon" className="text-[#EF4444]"><LogOut /></Button>
+          <Button onClick={() => auth.signOut().then(() => router.push("/"))} variant="ghost" size="icon" className="text-[#EF4444]"><LogOut /></Button>
         </div>
       </header>
 

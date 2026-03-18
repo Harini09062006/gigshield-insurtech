@@ -51,7 +51,7 @@ export default function HeatmapPage() {
 
   const handleLogout = async () => {
     await auth.signOut();
-    router.push("/login");
+    router.push("/");
   };
 
   if (isUserLoading || !mounted) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
