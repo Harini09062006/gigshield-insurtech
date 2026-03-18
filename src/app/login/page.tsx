@@ -46,7 +46,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // Authenticate first using virtual credentials
+      // Authenticate first using virtual credentials to avoid permission errors
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
       

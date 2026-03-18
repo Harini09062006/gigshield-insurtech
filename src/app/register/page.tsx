@@ -54,15 +54,18 @@ export default function RegisterPage() {
       const email = cleanPhone + '@gigshield.app';
       const password = cleanPhone.slice(-6) + 'GIG#' + cleanPhone.slice(0, 4);
       
-      // Create user account first
+      // Create user account first to establish UID context
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
       // Save user profile
       await setDoc(doc(db, "users", uid), {
-        ...formData,
+        name: formData.name,
         phone: cleanPhone,
         email: email,
+        platform: formData.platform,
+        state: formData.state,
+        city: formData.city,
         id: uid,
         role: "worker",
         createdAt: serverTimestamp(),
