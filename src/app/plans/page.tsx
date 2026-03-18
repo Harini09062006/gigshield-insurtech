@@ -17,26 +17,26 @@ const PLANS = [
     id: "basic",
     name: "Basic Shield",
     description: "Basic cover for heavy rain and minor floods.",
-    price: 1,
-    maxPayout: 5,
-    features: ["Up to ₹5 payout per event", "Covers Heavy Rain & Floods", "Covers Severe AQI (Pollution)"]
+    price: 10,
+    maxPayout: 60,
+    features: ["Up to ₹60 payout per event", "Covers Heavy Rain & Floods", "Covers Severe AQI (Pollution)"]
   },
   {
     id: "pro",
     name: "Pro Shield",
     description: "Extensive cover for all extreme weather disruptions.",
-    price: 1,
-    maxPayout: 12,
-    features: ["Up to ₹12 payout per event", "Covers Heavy Rain & Floods", "Covers Severe AQI (Pollution)"],
+    price: 25,
+    maxPayout: 240,
+    features: ["Up to ₹240 payout per event", "Covers Heavy Rain & Floods", "Covers Severe AQI (Pollution)"],
     recommended: true
   },
   {
-    id: "max",
-    name: "Max Shield",
+    id: "elite",
+    name: "Elite Shield",
     description: "Premium parametric cover with fastest payouts.",
-    price: 2,
-    maxPayout: 25,
-    features: ["Up to ₹25 payout per event", "Covers Heavy Rain & Floods", "Covers Severe AQI (Pollution)"]
+    price: 50,
+    maxPayout: 600,
+    features: ["Up to ₹600 payout per event", "Covers Heavy Rain & Floods", "Covers Severe AQI (Pollution)"]
   }
 ];
 
@@ -70,7 +70,7 @@ export default function PlansPage() {
         evening_rate: Math.round(avgEarnings * 1.30),
         night_rate: Math.round(avgEarnings * 0.85),
         weekly_earnings: Math.round(avgEarnings * 8 * 7),
-        recommended_plan: "Pro Shield",
+        recommended_plan: plan?.name || "Pro Shield",
         best_days: {
           mon: avgEarnings * 6.8,
           tue: avgEarnings * 7.2,
@@ -83,7 +83,7 @@ export default function PlansPage() {
         updated_at: serverTimestamp()
       });
 
-      toast({ title: "Protection Activated", description: "You are now covered by GigShield." });
+      toast({ title: "Protection Activated", description: `You are now covered by ${plan?.name}.` });
       router.push("/dashboard");
     } catch (error: any) {
       toast({ variant: "destructive", title: "Activation Failed", description: error.message });

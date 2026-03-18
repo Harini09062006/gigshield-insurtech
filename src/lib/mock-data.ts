@@ -1,4 +1,3 @@
-
 export interface InsurancePlan {
   id: string;
   name: string;

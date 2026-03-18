@@ -73,11 +73,11 @@ export default function WorkerDashboard() {
       const hoursLost = 4;
       const incomeLoss = dnaRate * hoursLost;
       
-      // Fixed Payout Caps per plan from prompt
-      let planCap = 5;
-      if (profile?.plan_id === 'max') planCap = 25;
-      else if (profile?.plan_id === 'pro') planCap = 12;
-      else planCap = 5;
+      // Fixed Payout Caps per plan - UPDATED VALUES
+      let planCap = 60;
+      if (profile?.plan_id === 'elite') planCap = 600;
+      else if (profile?.plan_id === 'pro') planCap = 240;
+      else planCap = 60;
       
       const compensation = Math.min(incomeLoss, planCap);
 
@@ -200,16 +200,16 @@ export default function WorkerDashboard() {
               <Shield className="h-5 w-5 text-white/80" />
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="text-2xl font-bold">{profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "PRO SHIELD"}</div>
+              <div className="text-2xl font-bold">{(profile?.plan_id === 'elite' ? 'ELITE' : profile?.plan_id === 'pro' ? 'PRO' : 'BASIC') + " SHIELD"}</div>
               <p className="text-xs text-white/70">Parametric weather cover activated</p>
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <div className="bg-white/10 p-2 rounded-lg text-center">
                   <p className="text-[10px] uppercase opacity-60">Max Payout</p>
-                  <p className="text-sm font-bold">₹{profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5}</p>
+                  <p className="text-sm font-bold">₹{profile?.plan_id === 'elite' ? 600 : profile?.plan_id === 'pro' ? 240 : 60}</p>
                 </div>
                 <div className="bg-white/10 p-2 rounded-lg text-center">
                   <p className="text-[10px] uppercase opacity-60">Weekly Premium</p>
-                  <p className="text-sm font-bold">₹{profile?.plan_id === 'max' ? 2 : 1}</p>
+                  <p className="text-sm font-bold">₹{profile?.plan_id === 'elite' ? 50 : profile?.plan_id === 'pro' ? 25 : 10}</p>
                 </div>
               </div>
             </CardContent>
@@ -274,7 +274,7 @@ export default function WorkerDashboard() {
               <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                 <div>
                   <p className="text-[9px] font-bold text-muted uppercase">Recommended Plan</p>
-                  <p className="text-base font-bold text-warning">{dna?.recommended_plan || "Max Shield"}</p>
+                  <p className="text-base font-bold text-warning">{dna?.recommended_plan || "Pro Shield"}</p>
                 </div>
                 <Button variant="outline" size="sm" className="border-primary text-primary font-bold h-8 text-xs hover:bg-primary-light rounded-btn" asChild>
                   <Link href="/plans">Upgrade Plan</Link>
@@ -313,15 +313,15 @@ export default function WorkerDashboard() {
                   <ResponsiveContainer width="100%" height={180}>
                     <AreaChart data={hourlyChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                       <defs>
-                        <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorEvening" x1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.2}/>
                           <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
                         </linearGradient>
-                        <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorLunch" x1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2}/>
                           <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
                         </linearGradient>
-                        <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorActive" x1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#C4B8F8" stopOpacity={0.3}/>
                           <stop offset="95%" stopColor="#C4B8F8" stopOpacity={0}/>
                         </linearGradient>
