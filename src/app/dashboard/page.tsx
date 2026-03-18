@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
 import { doc, collection, query, limit, where, addDoc, serverTimestamp } from "firebase/firestore";
-import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Info, Calendar, RefreshCcw, IndianRupee } from "lucide-react";
+import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Info, Calendar, RefreshCcw, IndianRupee, Thermometer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { format, addDays, differenceInDays } from "date-fns";
 import { useMemo, useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
@@ -54,7 +56,6 @@ export default function WorkerDashboard() {
     return [...rawClaims].sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
   }, [rawClaims]);
 
-  // Renewal Logic Calculations
   const policyInfo = useMemo(() => {
     if (!profile?.plan_activated_at?.seconds) return null;
     const start = new Date(profile.plan_activated_at.seconds * 1000);
@@ -186,11 +187,20 @@ export default function WorkerDashboard() {
               <FileText className="h-6 w-6" />
             </Button>
           </Link>
-          <Link href="/heatmap">
-            <Button variant="ghost" size="icon" className={pathname === "/heatmap" ? "text-primary bg-primary-light" : "text-body"}>
-              <MapIcon className="h-6 w-6" />
-            </Button>
-          </Link>
+          <TooltipProvider>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Link href="/heatmap">
+                  <Button variant="ghost" size="icon" className={pathname === "/heatmap" ? "text-primary bg-primary-light" : "text-body"}>
+                    <MapIcon className="h-6 w-6" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>View Disruption Heatmap</p>
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
           <Button onClick={handleLogout} variant="ghost" className="text-body font-bold gap-2">
             <LogOut className="h-5 w-5" /> Logout
           </Button>
@@ -220,14 +230,21 @@ export default function WorkerDashboard() {
               <p className="text-sm text-body font-medium">Active on {profile?.platform || 'Delivery'} in {profile?.city || 'Mumbai'}</p>
             </div>
           </div>
-          <Button 
-            onClick={simulateWeather} 
-            disabled={isSimulating}
-            className="bg-primary hover:bg-primary-hover text-white font-bold shadow-btn rounded-btn h-11 px-6 transition-all active:scale-95"
-          >
-            {isSimulating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Zap className="mr-2 h-4 w-4 fill-current" />}
-            Simulate Severe Weather
-          </Button>
+          <div className="flex items-center gap-3">
+            <Link href="/heatmap">
+              <Button variant="outline" className="border-primary text-primary font-bold shadow-sm rounded-btn h-11 px-6 hover:bg-primary-light">
+                <Thermometer className="mr-2 h-4 w-4" /> AI Heatmap
+              </Button>
+            </Link>
+            <Button 
+              onClick={simulateWeather} 
+              disabled={isSimulating}
+              className="bg-primary hover:bg-primary-hover text-white font-bold shadow-btn rounded-btn h-11 px-6 transition-all active:scale-95"
+            >
+              {isSimulating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Zap className="mr-2 h-4 w-4 fill-current" />}
+              Simulate Severe Weather
+            </Button>
+          </div>
         </header>
 
         <div className="grid gap-6 md:grid-cols-3">
