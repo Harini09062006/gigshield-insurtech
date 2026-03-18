@@ -29,6 +29,7 @@ export default function AdminDashboard() {
             router.replace("/dashboard");
           }
         } catch (error) {
+          console.error("Role check failed", error);
           router.replace("/dashboard");
         }
       } else if (!isUserLoading) {

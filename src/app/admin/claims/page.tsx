@@ -33,6 +33,7 @@ export default function AdminClaims() {
             router.replace("/dashboard");
           }
         } catch (error) {
+          console.error("Role check failed", error);
           router.replace("/dashboard");
         }
       } else if (!isUserLoading) {
@@ -158,7 +159,7 @@ export default function AdminClaims() {
                 ) : claims && claims.length > 0 ? (
                   claims.map((claim) => (
                     <tr key={claim.id} className="hover:bg-primary-light transition-colors">
-                      <td className="p-4 font-mono text-[10px] text-body">{claim.worker_id || claim.userId}</td>
+                      <td className="p-4 font-mono text-[10px] text-body">{claim.worker_id}</td>
                       <td className="p-4 font-bold text-heading">₹{claim.compensation}</td>
                       <td className="p-4 capitalize text-body">{claim.dna_time_slot}</td>
                       <td className="p-4">
