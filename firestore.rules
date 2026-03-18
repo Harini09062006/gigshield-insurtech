@@ -19,9 +19,10 @@ service cloud.firestore {
 
     match /claims/{claimId} {
       // Allow workers to read their own claims and admins to read everything
+      // For list operations, the query must be filtered by worker_id == uid
       allow read: if isAuthenticated() && (
-        (resource.data.worker_id == request.auth.uid) || 
-        isAdmin()
+        isAdmin() || 
+        (resource != null && resource.data.worker_id == request.auth.uid)
       );
       
       // Allow workers to create their own claims (needed for prototype simulation)

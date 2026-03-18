@@ -48,7 +48,14 @@ export default function AdminDashboard() {
 
   const { data: zones, isLoading: isZonesLoading } = useCollection(zonesQuery);
 
-  if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
+  if (isUserLoading || checkingAdmin) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
+        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
+      </div>
+    );
+  }
+
   if (!isAdmin) return null;
 
   return (

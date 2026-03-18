@@ -46,6 +46,7 @@ export default function AdminClaims() {
   
   const claimsQuery = useMemoFirebase(() => {
     // CRITICAL: Only attempt an unfiltered query if we are SURE the user is an admin
+    // This prevents permission errors for non-admin users during state transition
     if (!db || !isAdmin) return null;
     return query(collection(db, "claims"), orderBy("created_at", "desc"));
   }, [db, isAdmin]);
@@ -76,7 +77,14 @@ export default function AdminClaims() {
     router.push("/login");
   };
 
-  if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-bg-page"><Loader2 className="animate-spin text-primary h-10 w-10" /></div>;
+  if (isUserLoading || checkingAdmin) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-bg-page">
+        <Loader2 className="animate-spin text-primary h-10 w-10" />
+      </div>
+    );
+  }
+
   if (!isAdmin) return null;
 
   return (
@@ -175,7 +183,7 @@ export default function AdminClaims() {
                         {claim.created_at?.seconds ? format(new Date(claim.created_at.seconds * 1000), "MMM dd, HH:mm") : "Just now"}
                       </td>
                       <td className="p-4 text-right flex items-center justify-end gap-2">
-                        {claim.status === 'pending' && (
+                        {(claim.status === 'pending' || !claim.status) && (
                           <>
                             <Button size="icon" variant="ghost" className="text-success hover:bg-success-bg" onClick={() => updateStatus(claim.id, 'approved')}>
                               <CheckCircle2 className="h-4 w-4" />
