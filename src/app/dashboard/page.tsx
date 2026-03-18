@@ -295,121 +295,121 @@ export default function WorkerDashboard() {
           </CardContent>
         </Card>
 
-        {/* Updated Income DNA Profile Section */}
-        <section className="space-y-8">
-          <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1">
+        {/* Updated Income DNA Profile Section - Compact & Medium Sized */}
+        <section className="space-y-3 p-4">
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <div className="space-y-0.5">
               <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-headline font-bold text-heading">Income DNA Profile</h2>
-                <Brain className="h-5 w-5 text-primary" />
+                <h2 className="text-base font-headline font-bold text-heading">Income DNA Profile</h2>
+                <Brain className="h-4 w-4 text-primary" />
               </div>
-              <p className="text-sm text-body">Your personalized earning pattern — used to calculate accurate payouts</p>
+              <p className="text-[11px] text-body">Your personalized earning pattern — used to calculate accurate payouts</p>
             </div>
-            <p className="text-xs text-muted font-mono uppercase tracking-widest">Updated Today</p>
+            <p className="text-[11px] text-muted font-mono uppercase tracking-widest">Updated Today</p>
           </header>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card className="bg-white border-border shadow-card rounded-card p-6 flex flex-col justify-between">
+          <div className="grid gap-3 md:grid-cols-2">
+            <Card className="bg-white border-border shadow-card rounded-[12px] p-3 flex flex-col justify-between">
               <div>
-                <p className="text-xs font-bold text-muted uppercase tracking-widest mb-2">Expected Weekly Earnings</p>
-                <div className="text-5xl font-bold text-primary">₹{dna?.weekly_earnings || 3120}</div>
-                <p className="text-xs text-body mt-2">Derived from your Income DNA earning pattern</p>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Expected Weekly Earnings</p>
+                <div className="text-3xl font-bold text-primary">₹{dna?.weekly_earnings || 3120}</div>
+                <p className="text-[10px] text-body mt-1">Derived from your Income DNA earning pattern</p>
               </div>
-              <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+              <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-bold text-muted uppercase mb-1">Recommended Plan</p>
-                  <p className="text-lg font-bold text-warning">{dna?.recommended_plan || "Max Shield"}</p>
+                  <p className="text-[9px] font-bold text-muted uppercase">Recommended Plan</p>
+                  <p className="text-base font-bold text-warning">{dna?.recommended_plan || "Max Shield"}</p>
                 </div>
-                <Button variant="outline" className="border-primary text-primary font-bold hover:bg-primary-light rounded-btn">
+                <Button variant="outline" size="sm" className="border-primary text-primary font-bold h-8 text-xs hover:bg-primary-light rounded-btn">
                   Upgrade Plan
                 </Button>
               </div>
             </Card>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2">
               {[
                 { label: "Morning", time: "6-10 AM", rate: dna?.morning_rate || 45, mult: "0.75", icon: "🌅", color: "bg-warning" },
                 { label: "Afternoon", time: "12-4 PM", rate: dna?.afternoon_rate || 57, mult: "0.95", icon: "☀", color: "bg-orange-500" },
                 { label: "Evening", time: "5-9 PM", rate: dna?.evening_rate || 78, mult: "1.30", icon: "🌆", color: "bg-primary" },
                 { label: "Night", time: "9 PM-12 AM", rate: dna?.night_rate || 51, mult: "0.85", icon: "🌙", color: "bg-blue-500" }
               ].map((slot, i) => (
-                <Card key={i} className="bg-white border-border shadow-sm p-4 rounded-xl flex flex-col justify-between overflow-hidden relative">
+                <Card key={i} className="bg-white border-border shadow-sm p-2.5 px-3 rounded-[10px] flex flex-col justify-between overflow-hidden relative">
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-1.5 mb-0.5">
                       <span className="text-sm">{slot.icon}</span>
-                      <p className="text-[11px] font-bold text-muted uppercase">{slot.label}</p>
+                      <p className="text-[10px] font-bold text-muted uppercase">{slot.label}</p>
                     </div>
-                    <p className="text-[10px] text-body mb-2">{slot.time}</p>
-                    <p className="text-2xl font-bold text-heading">₹{slot.rate}/hr</p>
-                    <p className="text-[10px] font-bold text-primary">{slot.mult}x multiplier</p>
+                    <p className="text-[10px] text-body mb-1">{slot.time}</p>
+                    <p className="text-base font-bold text-heading leading-none">₹{slot.rate}/hr</p>
+                    <p className="text-[10px] font-bold text-primary mt-1">{slot.mult}x multiplier</p>
                   </div>
-                  <div className={`absolute bottom-0 left-0 h-1.5 w-full ${slot.color} opacity-80`} />
+                  <div className={`absolute bottom-0 left-0 h-1 w-full ${slot.color} opacity-80 rounded-full`} />
                 </Card>
               ))}
             </div>
           </div>
 
-          <div className="grid gap-8 lg:grid-cols-2">
-            {/* Peak Earning Hours */}
-            <Card className="bg-white border-border shadow-card rounded-card p-6">
-              <CardTitle className="text-lg font-bold mb-8">Peak Earning Hours (24-Hour Profile)</CardTitle>
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={hourlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {/* Peak Earning Hours - Compact Fix */}
+            <Card className="bg-white border-border shadow-card rounded-[12px] p-4 max-w-full">
+              <CardTitle className="text-sm font-semibold mb-2">Peak Earning Hours (24-Hour Profile)</CardTitle>
+              <div className="h-[180px] w-full">
+                <ResponsiveContainer width="100%" height="180">
+                  <AreaChart data={hourlyChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <defs>
                       <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.3}/>
+                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.2}/>
                         <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
                       </linearGradient>
                       <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/>
+                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2}/>
                         <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
                       </linearGradient>
                       <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#EDE9FF" stopOpacity={0.5}/>
-                        <stop offset="95%" stopColor="#EDE9FF" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#C4B8F8" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#C4B8F8" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E6FF" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E6FF" opacity={0.3} />
                     <XAxis 
                       dataKey="hour" 
                       axisLine={false} 
                       tickLine={false} 
                       tick={{ fontSize: 10, fill: '#94A3B8' }}
-                      interval="preserveStartEnd"
+                      ticks={["12 AM", "6 AM", "12 PM", "6 PM", "11 PM"]}
                     />
-                    <YAxis hide />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                    <Area type="monotone" dataKey="evening" name="Evening peak" stroke="#6C47FF" strokeWidth={3} fillOpacity={1} fill="url(#colorEvening)" />
-                    <Area type="monotone" dataKey="lunch" name="Lunch peak" stroke="#F59E0B" strokeWidth={3} fillOpacity={1} fill="url(#colorLunch)" />
-                    <Area type="monotone" dataKey="active" name="Active hours" stroke="#D4CCFF" strokeWidth={2} fillOpacity={1} fill="url(#colorActive)" />
+                    <YAxis hide={true} />
+                    <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }} />
+                    <Area type="monotone" dataKey="evening" name="Evening peak" stroke="#6C47FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvening)" />
+                    <Area type="monotone" dataKey="lunch" name="Lunch peak" stroke="#F59E0B" strokeWidth={2} fillOpacity={1} fill="url(#colorLunch)" />
+                    <Area type="monotone" dataKey="active" name="Active hours" stroke="#C4B8F8" strokeWidth={1.5} fillOpacity={1} fill="url(#colorActive)" />
                     <Legend 
                       verticalAlign="bottom" 
                       align="left" 
-                      iconType="square" 
-                      wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }}
+                      iconSize={8}
+                      wrapperStyle={{ paddingTop: '4px', fontSize: '11px' }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </Card>
 
-            {/* Best Working Days */}
-            <Card className="bg-white border-border shadow-card rounded-card p-6">
-              <CardTitle className="text-lg font-bold mb-8">Best Working Days (Daily Earnings)</CardTitle>
-              <div className="space-y-5">
+            {/* Best Working Days - Compact Fix */}
+            <Card className="bg-white border-border shadow-card rounded-[12px] p-4">
+              <CardTitle className="text-sm font-semibold mb-2.5">Best Working Days (Daily Earnings)</CardTitle>
+              <div className="space-y-1.5">
                 {weeklyEarningsData.map((data, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <span className="w-8 text-xs font-bold text-heading">{data.day}</span>
-                    <div className="flex-1 h-2 bg-primary-light rounded-full overflow-hidden">
+                  <div key={i} className="flex items-center gap-2 h-[28px]">
+                    <span className="w-7 text-[12px] font-medium text-body">{data.day}</span>
+                    <div className="flex-1 h-[6px] bg-[#E8E6FF] rounded-full overflow-hidden">
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${data.percentage}%` }}
-                        transition={{ duration: 1, delay: i * 0.1 }}
-                        className="h-full bg-primary rounded-full shadow-[0_0_8px_rgba(108,71,255,0.4)]"
+                        transition={{ duration: 1, delay: i * 0.05 }}
+                        className="h-full bg-primary rounded-full"
                       />
                     </div>
-                    <span className="w-12 text-right text-xs font-bold text-heading">₹{data.earning}</span>
+                    <span className="w-10 text-right text-[12px] font-bold text-heading">₹{data.earning}</span>
                   </div>
                 ))}
               </div>
