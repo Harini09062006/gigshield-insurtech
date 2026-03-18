@@ -14,7 +14,7 @@ export default function WorkerLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   if (!isUserLoading && !user) {
-    router.push("/auth/login");
+    router.push("/");
     return null;
   }
 

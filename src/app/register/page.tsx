@@ -206,6 +206,26 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-[#EEEEFF] flex flex-col items-center py-10 px-4 font-body">
       <div className="w-full max-w-4xl space-y-8">
+        <div className="w-full flex justify-start">
+          <button
+            onClick={() => router.push('/')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#6C47FF',
+              fontSize: '14px',
+              fontWeight: '500',
+              padding: '8px 0'
+            }}
+          >
+            ← Back to Home
+          </button>
+        </div>
+
         <div className="flex flex-col items-center gap-4">
           <div className="h-12 w-12 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn"><Shield className="h-7 w-7 text-white" /></div>
           <StepIndicator currentStep={step} />

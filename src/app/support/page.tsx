@@ -28,6 +28,12 @@ export default function SupportPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace("/");
+    }
+  }, [user, isUserLoading, router]);
+
+  useEffect(() => {
     if (auth.currentUser) {
       getDoc(doc(db, 'users', auth.currentUser.uid))
         .then(snap => {

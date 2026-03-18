@@ -38,7 +38,7 @@ export default function HeatmapPage() {
   useEffect(() => {
     setMounted(true);
     if (!isUserLoading && !user) {
-      router.replace("/login");
+      router.replace("/");
     }
   }, [user, isUserLoading, router]);
 

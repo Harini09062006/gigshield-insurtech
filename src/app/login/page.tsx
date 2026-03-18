@@ -82,7 +82,28 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#EEEEFF] p-4 font-body">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-10 flex flex-col items-center">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-6 flex flex-col items-center">
+        <div className="w-full flex justify-start">
+          <button
+            onClick={() => router.push('/')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#6C47FF',
+              fontSize: '14px',
+              fontWeight: '500',
+              padding: '8px 0',
+              fontFamily: 'Inter, sans-serif'
+            }}
+          >
+            ← Back to Home
+          </button>
+        </div>
+
         <Link href="/" className="flex flex-col items-center">
           <div className="h-16 w-16 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn mb-3">
             <Shield className="h-9 w-9 text-white" />

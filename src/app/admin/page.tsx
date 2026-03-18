@@ -26,16 +26,16 @@ export default function AdminDashboard() {
           if (userDoc.exists() && userDoc.data().role === "admin") {
             setIsAdmin(true);
           } else {
-            router.replace("/dashboard");
+            router.replace("/");
           }
         } catch (error) {
           console.error("Role check failed", error);
-          router.replace("/dashboard");
+          router.replace("/");
         } finally {
           setCheckingAdmin(false);
         }
       } else if (!isUserLoading) {
-        router.replace("/login");
+        router.replace("/");
         setCheckingAdmin(false);
       }
     }

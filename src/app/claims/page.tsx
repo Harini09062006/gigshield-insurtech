@@ -21,14 +21,14 @@ export default function WorkerClaims() {
 
   useEffect(() => {
     setMounted(true);
-    if (!isUserLoading && !user) router.replace("/login");
+    if (!isUserLoading && !user) router.replace("/");
   }, [user, isUserLoading, router]);
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return query(
       collection(db, "claims"), 
-      where("userId", "==", user.uid), 
+      where("worker_id", "==", user.uid), 
       limit(20)
     );
   }, [db, user?.uid]);
