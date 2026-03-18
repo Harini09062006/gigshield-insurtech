@@ -2,10 +2,10 @@
 
 import { useMemo } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy } from "firebase/firestore";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { collection, query, where } from "firebase/firestore";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Calendar, IndianRupee, Loader2, Zap } from "lucide-react";
+import { CheckCircle2, Calendar, Loader2, Zap, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 
 export default function WorkerClaims() {
@@ -18,9 +18,9 @@ export default function WorkerClaims() {
       collection(db, "claims"),
       where("worker_id", "==", user.uid)
     );
-  }, [db, user]);
+  }, [db, user?.uid]);
 
-  const { data: rawClaims, isLoading } = useCollection(claimsQuery);
+  const { data: rawClaims, isLoading, error } = useCollection(claimsQuery);
 
   const claims = useMemo(() => {
     if (!rawClaims) return null;
@@ -31,6 +31,20 @@ export default function WorkerClaims() {
     return (
       <div className="h-screen flex items-center justify-center bg-bg-page">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-10 flex flex-col items-center justify-center text-center space-y-4">
+        <div className="h-16 w-16 bg-danger-bg rounded-full flex items-center justify-center">
+          <AlertCircle className="h-8 w-8 text-danger" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-heading">Access Denied</h2>
+          <p className="text-body max-w-xs mx-auto mt-2">Unable to load claims. Please check permissions.</p>
+        </div>
       </div>
     );
   }
@@ -82,18 +96,6 @@ export default function WorkerClaims() {
                       <span className="text-primary font-bold">DNA Hourly Rate</span>
                       <span className="text-primary font-black">₹{claim.dna_hourly_rate || "78"}/hr</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-body font-medium">Hours Lost</span>
-                      <span className="text-heading font-bold">{claim.hours_lost || "4"}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-body font-medium">Income Loss</span>
-                      <span className="text-danger font-bold">₹{claim.income_loss || "312"}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-body font-medium">Plan Max Payout</span>
-                      <span className="text-heading font-bold">₹{claim.plan_max_payout || "240"}</span>
-                    </div>
                     <div className="flex justify-between text-sm border-t border-border pt-2">
                       <span className="text-heading font-bold">Compensation</span>
                       <span className="text-primary text-lg font-black">₹{claim.compensation || "240"}</span>
@@ -101,24 +103,11 @@ export default function WorkerClaims() {
                   </div>
                 </div>
 
-                <div className="p-6 border-l border-border/50 flex flex-col justify-between bg-white text-center">
+                <div className="p-6 border-l border-border/50 flex flex-col justify-center bg-white text-center">
                   <div>
                     <p className="text-[11px] font-bold text-muted uppercase tracking-wider mb-2">Compensation Amount</p>
                     <div className="text-4xl font-black text-primary mb-1">₹{claim.compensation || "240"}</div>
-                    <p className="text-[10px] text-body">Per coverage event</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="bg-success-bg text-success py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-xs font-bold">
-                      <CheckCircle2 className="h-4 w-4" /> Paid
-                    </div>
-                    <div className="bg-success-bg text-success py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-xs font-bold">
-                      <CheckCircle2 className="h-4 w-4" /> Transferred
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <p className="text-success text-sm font-bold">Processing Complete</p>
-                      <p className="text-[10px] text-body mt-0.5">Funds deposited to your account</p>
-                    </div>
+                    <Badge className="bg-success-bg text-success border-none font-bold">✓ PAID INSTANTLY</Badge>
                   </div>
                 </div>
 
@@ -129,7 +118,6 @@ export default function WorkerClaims() {
                   <div className="flex flex-wrap gap-2">
                     <Badge className="bg-success-bg text-success border-none text-[9px] font-bold px-3">GPS Validation → Verified</Badge>
                     <Badge className="bg-success-bg text-success border-none text-[9px] font-bold px-3">Weather Event → Confirmed</Badge>
-                    <Badge className="bg-success-bg text-success border-none text-[9px] font-bold px-3">Duplicate Check → Passed</Badge>
                   </div>
                 </div>
               </CardContent>
