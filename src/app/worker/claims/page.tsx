@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Calendar, Loader2, Zap, AlertCircle } from "lucide-react";
@@ -16,15 +16,16 @@ export default function WorkerClaims() {
     if (!db || !user) return null;
     return query(
       collection(db, "claims"),
-      where("worker_id", "==", user.uid)
+      where("worker_id", "==", user.uid),
+      orderBy("created_at", "desc"),
+      limit(50)
     );
   }, [db, user?.uid]);
 
   const { data: rawClaims, isLoading, error } = useCollection(claimsQuery);
 
   const claims = useMemo(() => {
-    if (!rawClaims) return null;
-    return [...rawClaims].sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
+    return rawClaims || [];
   }, [rawClaims]);
 
   if (isLoading) {
@@ -43,7 +44,7 @@ export default function WorkerClaims() {
         </div>
         <div>
           <h2 className="text-xl font-bold text-heading">Access Denied</h2>
-          <p className="text-body max-w-xs mx-auto mt-2">Unable to load claims. Please check permissions.</p>
+          <p className="text-body max-w-xs mx-auto mt-2">Unable to load claims. Please ensure you are logged in correctly.</p>
         </div>
       </div>
     );
