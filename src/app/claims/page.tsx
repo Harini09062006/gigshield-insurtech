@@ -125,15 +125,6 @@ export default function WorkerClaims() {
                       <div className="text-3xl font-bold text-[#6C47FF] mb-1">₹{claim.compensation}</div>
                       <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">✓ PAID INSTANTLY</Badge>
                     </div>
-                    <div className="md:col-span-2 px-6 py-3 border-t border-[#E8E6FF]/50 bg-[#EEEEFF]/30 flex flex-wrap items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 text-[#22C55E] font-bold text-[10px] uppercase tracking-widest">
-                        <CheckCircle2 className="h-4 w-4" /> Fraud Checks Passed
-                      </div>
-                      <div className="flex gap-2">
-                        <Badge variant="outline" className="border-[#22C55E] text-[#22C55E] bg-[#DCFCE7] text-[8px] font-bold">GPS Verified</Badge>
-                        <Badge variant="outline" className="border-[#22C55E] text-[#22C55E] bg-[#DCFCE7] text-[8px] font-bold">Weather Confirmed</Badge>
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               ))
