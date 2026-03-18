@@ -2,49 +2,57 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper: Check if user is logged in
     function isAuthenticated() {
       return request.auth != null;
     }
 
+    // Helper: Check if user has admin role
     function isAdmin() {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Profiles: Users can read/write their own profiles. Admins see everything.
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
     }
 
+    // Claims: Standardized on worker_id ownership.
     match /claims/{claimId} {
-      // Allow workers to read/list their own claims only.
-      // Admins can read everything.
+      // Allow read/list if the worker_id matches OR if the user is an admin.
+      // resource.data is used for existing documents (read/update/delete)
       allow read: if isAuthenticated() && (
         isAdmin() || 
-        (resource != null && resource.data.worker_id == request.auth.uid) ||
-        (resource == null) // Allow listing queries that will be filtered by the code
+        (resource != null && (resource.data.worker_id == request.auth.uid || resource.data.userId == request.auth.uid))
       );
       
-      // Allow workers to create their own claims (required for prototype simulation)
+      // Allow creation if the new document's worker_id matches the authenticated user.
+      // request.resource.data is used for incoming data (create/update)
       allow create: if isAuthenticated() && (
         isAdmin() ||
-        (request.resource.data.worker_id == request.auth.uid)
+        (request.resource.data.worker_id == request.auth.uid || request.resource.data.userId == request.auth.uid)
       );
       
+      // Update/Delete restricted to admins for audit integrity
       allow update, delete: if isAdmin();
     }
 
+    // Insurance Plans: Publicly readable, admin only write.
     match /insurance_plans/{planId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
+    // Disruption Zones: Readable by authenticated workers, admin only write.
     match /disruption_zones/{zoneId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
+    // Income DNA: Personal profiles.
     match /income_dna/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
