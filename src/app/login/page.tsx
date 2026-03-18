@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Phone, Loader2, AlertCircle } from "lucide-react";
+import { Shield, Phone, Loader2, AlertCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
-import { useAuth, useFirestore } from "@/firebase";
+import { useAuth, useFirestore, useUser } from "@/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 export default function LoginPage() {
   const [phone, setPhone] = useState("");
@@ -20,6 +21,14 @@ export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
   const db = useFirestore();
+  const { user } = useUser();
+
+  // If already logged in, skip to dashboard
+  useEffect(() => {
+    if (user) {
+      router.replace("/dashboard");
+    }
+  }, [user, router]);
 
   function validatePhone(phone: string) {
     const cleaned = phone.replace(/\s/g, '').replace('+91', '').trim();
@@ -46,11 +55,9 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // Authenticate first using virtual credentials to avoid permission errors
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
       
-      // Now we have permission to read the profile
       const userDoc = await getDoc(doc(db, 'users', uid));
       
       if (!userDoc.exists()) {
@@ -70,6 +77,8 @@ export default function LoginPage() {
         setErrorMessage('No account found. Please register first.');
       } else if (error.code === 'auth/too-many-requests') {
         setErrorMessage('Too many attempts. Wait 5 minutes.');
+      } else if (error.code === 'auth/network-request-failed') {
+        setErrorMessage('Check your internet connection.');
       } else {
         setErrorMessage(error.message || 'Something went wrong. Please try again.');
       }
@@ -80,7 +89,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#EEEEFF] p-4 font-body">
-      <div className="w-full max-w-md space-y-10 flex flex-col items-center">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md space-y-10 flex flex-col items-center"
+      >
         <Link href="/" className="flex flex-col items-center">
           <div className="h-16 w-16 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn mb-3">
             <Shield className="h-9 w-9 text-white" />
@@ -121,20 +134,13 @@ export default function LoginPage() {
               </div>
 
               {errorMessage && (
-                <div style={{
-                  background: '#FEE2E2',
-                  border: '1px solid #FECACA',
-                  borderRadius: '8px',
-                  padding: '10px 14px',
-                  marginTop: '12px',
-                  color: '#DC2626',
-                  fontSize: '13px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <AlertCircle className="h-4 w-4" /> {errorMessage}
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="bg-[#FEE2E2] border border-[#FECACA] rounded-lg p-3 text-[#DC2626] text-xs flex items-center gap-2"
+                >
+                  <AlertCircle className="h-4 w-4 shrink-0" /> {errorMessage}
+                </motion.div>
               )}
             </CardContent>
             
@@ -159,7 +165,7 @@ export default function LoginPage() {
             </CardFooter>
           </form>
         </Card>
-      </div>
+      </motion.div>
     </div>
   );
 }

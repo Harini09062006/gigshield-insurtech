@@ -1,148 +1,106 @@
-
 "use client";
 
-import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
-import { collection, query, limit } from "firebase/firestore";
-import { Shield, LayoutDashboard, Map as MapIcon, Bell, Users, BarChart3, LogOut, Search } from "lucide-react";
-import { StatsOverview } from "@/components/admin/stats-overview";
-import { Input } from "@/components/ui/input";
+import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
+import { collection, query, limit, doc, getDoc } from "firebase/firestore";
+import { Shield, LayoutDashboard, Map as MapIcon, Bell, Users, BarChart3, LogOut, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { format } from "date-fns";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 export default function AdminDashboard() {
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
-  
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
+
+  useEffect(() => {
+    async function checkRole() {
+      if (user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role === "admin") {
+          setIsAdmin(true);
+        } else {
+          router.replace("/dashboard");
+        }
+      } else if (!isUserLoading) {
+        router.replace("/login");
+      }
+      setCheckingAdmin(false);
+    }
+    checkRole();
+  }, [user, isUserLoading, db, router]);
+
   const zonesQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !isAdmin) return null;
     return query(collection(db, "disruption_zones"), limit(10));
-  }, [db]);
+  }, [db, isAdmin]);
 
-  const { data: zones, isLoading } = useCollection(zonesQuery);
+  const { data: zones, isLoading: isZonesLoading } = useCollection(zonesQuery);
 
-  const sortedZones = useMemo(() => {
-    if (!zones) return null;
-    return [...zones].sort((a, b) => (b.risk_score || 0) - (a.risk_score || 0));
-  }, [zones]);
-
-  const handleLogout = async () => {
-    await auth.signOut();
-    router.push("/");
-  };
+  if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
+  if (!isAdmin) return null;
 
   return (
-    <div className="flex h-screen w-full bg-bg-page overflow-hidden">
-      <aside className="w-64 border-r border-border bg-white hidden md:flex flex-col">
-        <div className="p-6">
-          <div className="flex items-center gap-2">
-            <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center">
-              <Shield className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-xl font-headline font-bold text-heading">GigShield<span className="text-primary text-sm ml-1 font-normal tracking-wider">ADMIN</span></span>
-          </div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex h-screen w-full bg-[#EEEEFF] overflow-hidden font-body">
+      <aside className="w-64 border-r border-[#E8E6FF] bg-white hidden md:flex flex-col p-6 space-y-8">
+        <div className="flex items-center gap-2">
+          <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn"><Shield className="text-white" /></div>
+          <span className="text-xl font-bold text-[#1A1A2E]">GigShield<span className="text-[#6C47FF] text-xs ml-1">ADMIN</span></span>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
-          <Button variant="ghost" className="w-full justify-start gap-2 bg-primary-light text-primary font-bold">
-            <LayoutDashboard className="h-4 w-4" /> Overview
-          </Button>
-          <Link href="/admin/users" className="block">
-            <Button variant="ghost" className="w-full justify-start gap-2 text-body hover:text-primary font-bold">
-              <Users className="h-4 w-4" /> Worker Directory
-            </Button>
-          </Link>
-          <Link href="/admin/claims" className="block">
-            <Button variant="ghost" className="w-full justify-start gap-2 text-body hover:text-primary font-bold">
-              <Bell className="h-4 w-4" /> Manage Claims
-            </Button>
-          </Link>
-          <Button variant="ghost" className="w-full justify-start gap-2 text-body hover:text-primary font-bold">
-            <BarChart3 className="h-4 w-4" /> Analytics
-          </Button>
+        <nav className="flex-1 space-y-2">
+          <Button variant="ghost" className="w-full justify-start gap-2 bg-[#EDE9FF] text-[#6C47FF] font-bold"><LayoutDashboard size={18} /> Overview</Button>
+          <Button variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Users size={18} /> Workers</Button>
+          <Button variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Bell size={18} /> Claims</Button>
         </nav>
-        <div className="p-6 border-t border-border">
-          <Button 
-            variant="ghost" 
-            onClick={handleLogout}
-            className="w-full justify-start gap-2 text-danger hover:bg-danger-bg font-bold"
-          >
-            <LogOut className="h-4 w-4" /> Logout
-          </Button>
-        </div>
+        <Button onClick={() => auth.signOut().then(() => router.push("/login"))} variant="ghost" className="text-[#EF4444] justify-start gap-2 font-bold"><LogOut size={18} /> Logout</Button>
       </aside>
 
       <main className="flex-1 overflow-y-auto p-6 lg:p-10 space-y-10">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-headline font-bold text-heading">Admin Central</h1>
-            <p className="text-body">Platform health and worker protection monitor</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted" />
-              <Input placeholder="Search system..." className="pl-9 h-9 rounded-btn bg-white border-border" />
-            </div>
-          </div>
+        <header>
+          <h1 className="text-2xl font-bold text-[#1A1A2E]">Admin Central</h1>
+          <p className="text-[#64748B] text-sm">Platform health and worker protection monitor</p>
         </header>
 
-        <StatsOverview />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[
+            { label: "Total Workers", value: "1,248" },
+            { label: "Active Policies", value: "892" },
+            { label: "Live Disruptions", value: zones?.length ?? 0 },
+            { label: "Total Payouts", value: "₹42,500" }
+          ].map((s, i) => (
+            <Card key={i} className="p-6 bg-white border-[#E8E6FF] rounded-2xl shadow-sm">
+              <p className="text-[10px] font-bold text-[#94A3B8] uppercase">{s.label}</p>
+              <p className="text-2xl font-bold text-[#1A1A2E]">{s.value}</p>
+            </Card>
+          ))}
+        </div>
 
-        <section className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-headline font-bold text-heading">Live Disruption Zones</h2>
-            <Link href="/heatmap">
-              <Button size="sm" variant="link" className="text-primary font-bold">
-                View Live Map <MapIcon className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-          
-          <div className="rounded-card border border-border bg-white shadow-card overflow-hidden">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-bg-page font-bold uppercase text-xs tracking-wider text-muted border-b border-border">
-                <tr>
-                  <th className="p-4">Zone</th>
-                  <th className="p-4">City</th>
-                  <th className="p-4">Risk Level</th>
-                  <th className="p-4">Score</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold text-[#1A1A2E]">Live Risk Zones</h2>
+          <div className="bg-white border border-[#E8E6FF] rounded-2xl overflow-hidden shadow-card">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#EEEEFF] border-b border-[#E8E6FF] font-bold text-[#94A3B8] uppercase tracking-wider">
+                <tr><th className="p-4">Zone</th><th className="p-4">Risk Level</th><th className="p-4">Score</th></tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {isLoading ? (
-                  <tr><td colSpan={5} className="p-10 text-center text-muted">Loading live events...</td></tr>
-                ) : sortedZones && sortedZones.length > 0 ? (
-                  sortedZones.map((zone) => (
-                    <tr key={zone.id} className="hover:bg-primary-light transition-colors">
-                      <td className="p-4 font-bold text-heading">{zone.zone_name || zone.zone}</td>
-                      <td className="p-4 text-body">{zone.city}</td>
-                      <td className="p-4">
-                        <Badge variant="outline" className={`capitalize font-bold ${
-                          zone.risk_level === 'extreme' ? 'bg-danger-bg text-danger border-danger' : 
-                          zone.risk_level === 'high' ? 'bg-orange-50 text-orange-600 border-orange-200' :
-                          'bg-success-bg text-success border-success'
-                        }`}>
-                          {zone.risk_level}
-                        </Badge>
-                      </td>
-                      <td className="p-4 font-mono font-bold text-heading">{zone.risk_score}/100</td>
-                      <td className="p-4 text-right">
-                        <Button variant="ghost" size="sm" className="text-primary hover:bg-primary-light h-8 font-bold">Details</Button>
-                      </td>
+              <tbody className="divide-y divide-[#E8E6FF]">
+                {isZonesLoading ? <tr><td colSpan={3} className="p-10 text-center"><Loader2 className="animate-spin mx-auto text-[#6C47FF]" /></td></tr> : 
+                  zones?.map(z => (
+                    <tr key={z.id}>
+                      <td className="p-4 font-bold">{z.zone_name}</td>
+                      <td className="p-4"><Badge className={z.risk_level === 'extreme' ? 'bg-[#FEE2E2] text-[#DC2626]' : 'bg-[#DCFCE7] text-[#22C55E]'}>{z.risk_level}</Badge></td>
+                      <td className="p-4 font-mono font-bold">{z.risk_score}/100</td>
                     </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan={5} className="p-10 text-center text-muted italic">No active disruptions detected.</td></tr>
-                )}
+                  ))}
               </tbody>
             </table>
           </div>
         </section>
       </main>
-    </div>
+    </motion.div>
   );
 }
