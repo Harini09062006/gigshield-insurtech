@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
@@ -35,7 +36,16 @@ export default function WorkerDashboard() {
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
   const { data: dna, isLoading: isDnaLoading } = useDoc(dnaRef);
 
-  const claimsQuery = useMemoFirebase(() => (db && user ? query(collection(db, "claims"), where("worker_id", "==", user.uid), limit(5)) : null), [db, user]);
+  // Filtered query to satisfy security rules
+  const claimsQuery = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null;
+    return query(
+      collection(db, "claims"), 
+      where("userId", "==", user.uid), // Standardized ownership field
+      limit(5)
+    );
+  }, [db, user?.uid]);
+  
   const { data: claims } = useCollection(claimsQuery);
 
   const policyInfo = useMemo(() => {
@@ -61,7 +71,9 @@ export default function WorkerDashboard() {
   }, [profile]);
 
   const simulateWeather = async () => {
-    if (!user || !profile || !db) return;
+    // Safety check: ensure user and db are ready
+    if (!user?.uid || !profile || !db) return;
+    
     setIsSimulating(true);
     try {
       const baseRate = profile.avg_hourly_earnings || 60;
@@ -72,8 +84,10 @@ export default function WorkerDashboard() {
       const maxPayout = policyInfo?.maxPayout || 240;
       const compensation = Math.min(incomeLoss, maxPayout);
 
+      // CRITICAL: Ensure document contains userId for security rules
       await addDoc(collection(db, "claims"), {
-        worker_id: user.uid, // STANDARD: Use worker_id for ownership
+        userId: user.uid, // Standardized ownership field
+        worker_id: user.uid, // Legacy support
         claim_number: `${Math.floor(10000 + Math.random() * 90000)}`,
         trigger_type: "weather",
         trigger_description: "Severe Rainfall (65mm) Detected",

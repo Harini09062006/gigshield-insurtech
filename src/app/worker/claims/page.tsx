@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo } from "react";
@@ -13,10 +14,12 @@ export default function WorkerClaims() {
   const db = useFirestore();
 
   const claimsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    // Safety check: ensure user UID is available
+    if (!db || !user?.uid) return null;
+    
     return query(
       collection(db, "claims"),
-      where("worker_id", "==", user.uid),
+      where("userId", "==", user.uid), // Standardized ownership field
       orderBy("created_at", "desc"),
       limit(50)
     );

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -24,12 +25,14 @@ export default function WorkerClaims() {
     if (!isUserLoading && !user) router.replace("/login");
   }, [user, isUserLoading, router]);
 
-  // CRITICAL: Query MUST be filtered by worker_id to satisfy security rules for 'list'
+  // CRITICAL: Query MUST be filtered by userId to satisfy security rules for 'list'
   const claimsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    // Safety check: ensure both db and user are fully initialized
+    if (!db || !user?.uid) return null;
+    
     return query(
       collection(db, "claims"), 
-      where("worker_id", "==", user.uid), 
+      where("userId", "==", user.uid), // Standardized ownership field
       orderBy("created_at", "desc"),
       limit(20)
     );

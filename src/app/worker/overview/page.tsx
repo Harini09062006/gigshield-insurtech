@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
@@ -19,22 +20,27 @@ export default function WorkerOverview() {
   const db = useFirestore();
 
   const profileRef = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user?.uid) return null;
     return doc(db, "users", user.uid);
-  }, [db, user]);
+  }, [db, user?.uid]);
 
   const dnaRef = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user?.uid) return null;
     return doc(db, "income_dna", user.uid);
-  }, [db, user]);
+  }, [db, user?.uid]);
 
   const { data: profile } = useDoc(profileRef);
   const { data: dna } = useDoc(dnaRef);
 
+  // Filtered query for security rules
   const claimsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(collection(db, "claims"), where("worker_id", "==", user.uid), limit(5));
-  }, [db, user]);
+    if (!db || !user?.uid) return null;
+    return query(
+      collection(db, "claims"), 
+      where("userId", "==", user.uid), // Standardized ownership field
+      limit(5)
+    );
+  }, [db, user?.uid]);
 
   const { data: rawClaims } = useCollection(claimsQuery);
 
@@ -198,7 +204,7 @@ export default function WorkerOverview() {
                 Worker Earnings Model: ₹{baseRate}/hr
               </Badge>
             </div>
-            <Link href="/worker/claims">
+            <Link href="/claims">
               <Button variant="ghost" className="text-primary font-bold hover:bg-primary-light">
                 View Full History <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
