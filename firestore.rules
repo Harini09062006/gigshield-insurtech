@@ -11,8 +11,14 @@ service cloud.firestore {
       return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
+    // Allow reading and writing own profile
     match /users/{uid} {
       allow read, write: if isOwner(uid) || isAdmin();
+    }
+    
+    // IMPORTANT: Allow searching for profiles by phone number during login
+    match /users {
+      allow list: if isAuth();
     }
     
     match /claims/{id} {
