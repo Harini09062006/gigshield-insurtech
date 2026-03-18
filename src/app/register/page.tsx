@@ -9,9 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { useAuth, useFirestore, useUser } from "@/firebase";
+import { useFirestore, useUser } from "@/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
 const PLATFORMS = ["Swiggy", "Zomato", "Uber Eats", "Ola", "Dunzo", "Blinkit", "Other"];
@@ -40,10 +39,11 @@ export default function RegisterPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user?.phoneNumber) {
-      setFormData(prev => ({ ...prev, phone: user.phoneNumber || "" }));
+    // If user is not logged in anonymously yet, redirect back to login
+    if (!isUserLoading && !user) {
+      router.push("/login");
     }
-  }, [user]);
+  }, [user, isUserLoading, router]);
 
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +87,7 @@ export default function RegisterPage() {
           <Progress value={33} className="h-2 w-full bg-white border border-border" />
         </div>
 
-        <Card className="border-border shadow-card rounded-card overflow-hidden">
+        <Card className="border-border shadow-card rounded-card overflow-hidden bg-white">
           <CardHeader className="bg-white">
             <CardTitle className="text-2xl font-headline font-bold text-heading">Tell us about yourself</CardTitle>
             <CardDescription className="text-body">This helps us customize your Income DNA profile</CardDescription>
@@ -102,7 +102,7 @@ export default function RegisterPage() {
                   placeholder="Ravi Kumar" 
                   value={formData.name}
                   onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="h-12 rounded-btn border-input focus:border-primary"
+                  className="h-12 rounded-btn border-input focus:border-primary bg-white"
                   required 
                 />
               </div>
@@ -114,8 +114,9 @@ export default function RegisterPage() {
                 <Input 
                   placeholder="+91 98765 43210" 
                   value={formData.phone}
-                  readOnly
-                  className="h-12 rounded-btn bg-bg-page/30"
+                  onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  className="h-12 rounded-btn border-input focus:border-primary bg-white"
+                  required
                 />
               </div>
 
@@ -124,7 +125,7 @@ export default function RegisterPage() {
                   <Briefcase className="h-4 w-4 text-primary" /> Delivery Platform
                 </Label>
                 <Select onValueChange={val => setFormData(prev => ({ ...prev, platform: val }))} required>
-                  <SelectTrigger className="h-12 rounded-btn border-input">
+                  <SelectTrigger className="h-12 rounded-btn border-input bg-white">
                     <SelectValue placeholder="Select platform" />
                   </SelectTrigger>
                   <SelectContent>
@@ -139,7 +140,7 @@ export default function RegisterPage() {
                     <MapPin className="h-4 w-4 text-primary" /> State
                   </Label>
                   <Select onValueChange={val => setFormData(prev => ({ ...prev, state: val, city: "" }))} required>
-                    <SelectTrigger className="h-12 rounded-btn border-input">
+                    <SelectTrigger className="h-12 rounded-btn border-input bg-white">
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
                     <SelectContent>
@@ -152,7 +153,7 @@ export default function RegisterPage() {
                     <Navigation className="h-4 w-4 text-primary" /> City
                   </Label>
                   <Select onValueChange={val => setFormData(prev => ({ ...prev, city: val }))} disabled={!formData.state} required>
-                    <SelectTrigger className="h-12 rounded-btn border-input">
+                    <SelectTrigger className="h-12 rounded-btn border-input bg-white">
                       <SelectValue placeholder="Select city" />
                     </SelectTrigger>
                     <SelectContent>
@@ -165,7 +166,7 @@ export default function RegisterPage() {
               </div>
             </CardContent>
             <CardFooter className="bg-bg-page/10 p-6">
-              <Button className="w-full h-12 font-bold bg-primary hover:bg-primary-hover shadow-btn" type="submit" disabled={loading}>
+              <Button className="w-full h-12 font-bold bg-primary hover:bg-primary-hover shadow-btn rounded-btn text-white" type="submit" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : "Next → Choose Your Plan"}
               </Button>
             </CardFooter>

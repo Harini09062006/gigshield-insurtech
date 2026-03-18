@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth, useFirestore } from "@/firebase";
 import { signInAnonymously } from "firebase/auth";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,23 +24,40 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone) return;
+    const normalizedPhone = phone.replace(/\s+/g, "");
+    if (!normalizedPhone) return;
     
     setLoading(true);
     try {
-      await signInAnonymously(auth);
+      // 1. Sign in anonymously for the prototype session
+      const userCredential = await signInAnonymously(auth);
+      const newUid = userCredential.user.uid;
       
+      // 2. Lookup existing profile by phone
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("phone", "==", phone));
+      const q = query(usersRef, where("phone", "==", normalizedPhone));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        const userData = querySnapshot.docs[0].data();
-        router.push(userData.role === "admin" ? "/admin" : "/worker/overview");
+        // 3. Found existing user - migrate/copy profile to new UID
+        const existingData = querySnapshot.docs[0].data();
+        
+        // Update the new UID with the existing profile data
+        await setDoc(doc(db, "users", newUid), {
+          ...existingData,
+          id: newUid,
+          lastLoginAt: serverTimestamp(),
+        }, { merge: true });
+
+        toast({ title: "Welcome Back", description: `Logged in as ${existingData.name}` });
+        router.push(existingData.role === "admin" ? "/admin" : "/dashboard");
       } else {
+        // 4. New user - redirect to registration
+        toast({ title: "New Profile", description: "Please complete your registration." });
         router.push("/register");
       }
     } catch (error: any) {
+      console.error(error);
       toast({ variant: "destructive", title: "Login Failed", description: error.message });
     } finally {
       setLoading(false);
@@ -60,7 +77,7 @@ export default function LoginPage() {
           </span>
         </div>
 
-        <Card className="w-full border-border shadow-card rounded-card">
+        <Card className="w-full border-border shadow-card rounded-card bg-white">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline font-bold text-heading">Welcome Back</CardTitle>
             <CardDescription className="text-body">
@@ -80,14 +97,14 @@ export default function LoginPage() {
                     placeholder="+91 98765 43210" 
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="pl-12 rounded-btn h-12 border-input focus:border-primary"
+                    className="pl-12 rounded-btn h-12 border-input focus:border-primary bg-white"
                     required 
                   />
                 </div>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-6 pt-2">
-              <Button className="w-full h-12 font-bold bg-primary hover:bg-primary-hover shadow-btn" type="submit" disabled={loading}>
+              <Button className="w-full h-12 font-bold bg-primary hover:bg-primary-hover shadow-btn rounded-btn text-white" type="submit" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Login
               </Button>
