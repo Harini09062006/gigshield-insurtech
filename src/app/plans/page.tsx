@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Check, Zap, Loader2, IndianRupee } from "lucide-react";
+import { Shield, Check, Zap, Loader2, IndianRupee, Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,8 @@ export default function PlansPage() {
         plan_id: selectedPlan,
         avg_hourly_earnings: avgEarnings,
         plan_activated_at: serverTimestamp(),
+        auto_renew: true,
+        commitment_weeks: 4
       });
 
       await setDoc(doc(db, "income_dna", user.uid), {
@@ -93,6 +95,8 @@ export default function PlansPage() {
   };
 
   if (isUserLoading) return null;
+
+  const currentPlan = PLANS.find(p => p.id === selectedPlan);
 
   return (
     <div className="min-h-screen bg-bg-page flex flex-col items-center py-10 px-4">
@@ -175,6 +179,14 @@ export default function PlansPage() {
                 Used to calculate parametric payouts based on hours lost during weather triggers.
               </p>
             </div>
+
+            <div className="bg-primary-light/50 p-4 rounded-xl border border-primary/20 flex gap-3">
+              <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <p className="text-xs text-primary font-medium leading-relaxed">
+                This plan auto-renews weekly for minimum 4 weeks. ₹{currentPlan?.price || '0'}/week will be automatically deducted.
+              </p>
+            </div>
+
             <Button 
               className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary-hover shadow-btn rounded-btn" 
               onClick={handleActivate}

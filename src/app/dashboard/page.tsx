@@ -2,7 +2,7 @@
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
 import { doc, collection, query, limit, where, addDoc, serverTimestamp } from "firebase/firestore";
-import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Sparkles } from "lucide-react";
+import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Info, Calendar, RefreshCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { format } from "date-fns";
+import { format, addDays, differenceInDays } from "date-fns";
 import { useMemo, useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +54,32 @@ export default function WorkerDashboard() {
     return [...rawClaims].sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
   }, [rawClaims]);
 
+  // Renewal Logic Calculations
+  const policyInfo = useMemo(() => {
+    if (!profile?.plan_activated_at?.seconds) return null;
+    const start = new Date(profile.plan_activated_at.seconds * 1000);
+    const today = new Date();
+    const diffDays = differenceInDays(today, start);
+    const currentWeek = Math.floor(diffDays / 7) + 1;
+    const nextRenewal = addDays(start, currentWeek * 7);
+    const isRenewingTomorrow = (diffDays % 7 === 6);
+    const commitmentEnd = addDays(start, 28);
+    const isCommitmentActive = currentWeek <= 4;
+
+    const premiums: Record<string, number> = { basic: 10, pro: 25, elite: 50 };
+    const premiumAmount = premiums[profile.plan_id] || 25;
+
+    return {
+      startDate: start,
+      currentWeek,
+      nextRenewalDate: nextRenewal,
+      premiumAmount,
+      isRenewingTomorrow,
+      isCommitmentActive,
+      commitmentEndDate: commitmentEnd
+    };
+  }, [profile]);
+
   const handleLogout = async () => {
     await auth.signOut();
     router.replace("/");
@@ -73,7 +99,6 @@ export default function WorkerDashboard() {
       const hoursLost = 4;
       const incomeLoss = dnaRate * hoursLost;
       
-      // Fixed Payout Caps per plan - UPDATED VALUES
       let planCap = 60;
       if (profile?.plan_id === 'elite') planCap = 600;
       else if (profile?.plan_id === 'pro') planCap = 240;
@@ -139,8 +164,6 @@ export default function WorkerDashboard() {
   if (isUserLoading) return <div className="h-screen flex items-center justify-center bg-bg-page"><Loader2 className="animate-spin text-primary h-10 w-10" /></div>;
   if (!user) return null;
 
-  const currentDnaRate = dna?.evening_rate || 78;
-
   return (
     <div className="min-h-screen bg-bg-page flex flex-col font-body">
       <header className="px-6 py-4 flex items-center justify-between border-b border-border bg-white sticky top-0 z-50 shadow-sm">
@@ -175,6 +198,20 @@ export default function WorkerDashboard() {
       </header>
 
       <main className="flex-1 space-y-8 pb-20 p-6 lg:px-10 max-w-7xl mx-auto w-full">
+        {policyInfo?.isRenewingTomorrow && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-warning-bg border border-warning/30 p-4 rounded-xl flex items-start gap-4 shadow-sm"
+          >
+            <AlertCircle className="h-6 w-6 text-warning shrink-0" />
+            <div>
+              <p className="font-bold text-heading text-sm">Your plan renews tomorrow</p>
+              <p className="text-xs text-body mt-0.5">₹{policyInfo.premiumAmount} will be auto-deducted. Coverage continues for the next 7 days.</p>
+            </div>
+          </motion.div>
+        )}
+
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-headline font-bold text-heading">Welcome back, {profile?.name?.split(' ')[0] || 'Worker'}</h1>
@@ -237,20 +274,46 @@ export default function WorkerDashboard() {
 
           <Card className="bg-bg-card-yellow border-[#FEF3C7] shadow-card rounded-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-bold text-warning uppercase tracking-wider">Weather Risk</CardTitle>
-              <AlertCircle className="h-5 w-5 text-warning" />
+              <CardTitle className="text-sm font-bold text-warning uppercase tracking-wider">Commitment Status</CardTitle>
+              <RefreshCcw className="h-5 w-5 text-warning" />
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-end">
-                <div className="text-3xl font-bold text-heading">AQI 142</div>
-                <Badge className="bg-warning-bg text-warning border-transparent">Caution</Badge>
+                <div className="text-xl font-bold text-heading">
+                  {policyInfo ? `Week ${policyInfo.currentWeek} of 4` : 'No active plan'}
+                </div>
+                <Badge className="bg-success-bg text-success border-transparent">Auto-Renew ON</Badge>
               </div>
-              <Button className="w-full bg-warning hover:bg-warning/90 text-white font-bold h-10 mt-2 rounded-btn">
-                View Precautions
-              </Button>
+              <p className="text-[10px] text-body">
+                {policyInfo?.isCommitmentActive 
+                  ? `Cancellation available from: ${format(policyInfo.commitmentEndDate, "MMM dd, yyyy")}`
+                  : "Minimum commitment completed. Cancellation available."}
+              </p>
             </CardContent>
           </Card>
         </div>
+
+        <section className="space-y-4">
+          <h2 className="text-xl font-headline font-bold text-heading">Policy Management</h2>
+          <div className="grid gap-4 md:grid-cols-4">
+            {[
+              { label: "Activation Date", value: policyInfo ? format(policyInfo.startDate, "MMM dd, yyyy") : "-", icon: Calendar },
+              { label: "Next Renewal", value: policyInfo ? format(policyInfo.nextRenewalDate, "MMM dd, yyyy") : "-", icon: RefreshCcw },
+              { label: "Renewal Amount", value: policyInfo ? `₹${policyInfo.premiumAmount}` : "-", icon: IndianRupee },
+              { label: "Weeks Remaining", value: policyInfo ? Math.max(0, 4 - policyInfo.currentWeek) : "-", icon: Info }
+            ].map((stat, i) => (
+              <Card key={i} className="bg-white border-border shadow-sm p-4 rounded-xl flex items-center gap-4">
+                <div className="h-10 w-10 bg-primary-light rounded-lg flex items-center justify-center">
+                  <stat.icon className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted uppercase font-bold">{stat.label}</p>
+                  <p className="text-base font-bold text-heading">{stat.value}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
 
         <section className="space-y-3">
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-2">
