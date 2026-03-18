@@ -48,7 +48,6 @@ export default function AdminClaims() {
   
   const claimsQuery = useMemoFirebase(() => {
     // CRITICAL: Only attempt an unfiltered query if we are SURE the user is an admin
-    // This prevents permission errors for non-admin users during state transition
     if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "claims"), orderBy("created_at", "desc"));
   }, [db, isAdmin, checkingAdmin]);

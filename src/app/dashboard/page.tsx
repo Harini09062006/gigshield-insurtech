@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
@@ -41,7 +40,7 @@ export default function WorkerDashboard() {
     if (!db || !user?.uid) return null;
     return query(
       collection(db, "claims"), 
-      where("userId", "==", user.uid), // Standardized ownership field
+      where("userId", "==", user.uid),
       limit(5)
     );
   }, [db, user?.uid]);
@@ -71,7 +70,6 @@ export default function WorkerDashboard() {
   }, [profile]);
 
   const simulateWeather = async () => {
-    // Safety check: ensure user and db are ready
     if (!user?.uid || !profile || !db) return;
     
     setIsSimulating(true);
@@ -84,10 +82,9 @@ export default function WorkerDashboard() {
       const maxPayout = policyInfo?.maxPayout || 240;
       const compensation = Math.min(incomeLoss, maxPayout);
 
-      // CRITICAL: Ensure document contains userId for security rules
       await addDoc(collection(db, "claims"), {
-        userId: user.uid, // Standardized ownership field
-        worker_id: user.uid, // Legacy support
+        userId: user.uid,
+        worker_id: user.uid,
         claim_number: `${Math.floor(10000 + Math.random() * 90000)}`,
         trigger_type: "weather",
         trigger_description: "Severe Rainfall (65mm) Detected",

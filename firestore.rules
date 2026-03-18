@@ -23,9 +23,11 @@ service cloud.firestore {
     // Claims: Strictly owned by worker_id or userId.
     match /claims/{claimId} {
       // Allow read (get/list) if owner or admin
+      // Note: Removed resource != null to ensure list queries work with filters
       allow read: if isAuthenticated() && (
         isAdmin() || 
-        (resource != null && (resource.data.worker_id == request.auth.uid || resource.data.userId == request.auth.uid))
+        resource.data.worker_id == request.auth.uid || 
+        resource.data.userId == request.auth.uid
       );
       
       // Allow creation if the new document's owner matches the authenticated user.
