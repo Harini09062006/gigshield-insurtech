@@ -2,70 +2,84 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Phone, Loader2 } from "lucide-react";
+import { Shield, Phone, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth, useFirestore } from "@/firebase";
-import { signInAnonymously } from "firebase/auth";
-import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
-import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   
   const router = useRouter();
   const auth = useAuth();
   const db = useFirestore();
-  const { toast } = useToast();
+
+  function validatePhone(phone: string) {
+    const cleaned = phone.replace(/\s/g, '').replace('+91', '').trim();
+    if (cleaned.length !== 10) {
+      setErrorMessage('Enter a valid 10-digit phone number');
+      return false;
+    }
+    if (!/^[6-9]\d{9}$/.test(cleaned)) {
+      setErrorMessage('Enter a valid Indian mobile number');
+      return false;
+    }
+    return true;
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const normalizedPhone = phone.trim().replace(/\s+/g, "");
-    if (!normalizedPhone) return;
+    setErrorMessage("");
     
+    if (!validatePhone(phone)) return;
+    
+    const cleanPhone = phone.replace(/\s/g, '').replace('+91', '').trim();
+    const email = cleanPhone + '@gigshield.app';
+    const password = cleanPhone.slice(-6) + 'GIG#' + cleanPhone.slice(0, 4);
+
     setLoading(true);
     try {
-      // Sign in anonymously to get context
-      const userCredential = await signInAnonymously(auth);
-      const newUid = userCredential.user.uid;
+      // Authenticate first using virtual credentials
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
       
-      // Look for existing profile
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("phone", "==", normalizedPhone));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const existingData = querySnapshot.docs[0].data();
-        // Bridge existing data to current session
-        await setDoc(doc(db, "users", newUid), {
-          ...existingData,
-          id: newUid,
-          lastLoginAt: serverTimestamp(),
-        }, { merge: true });
-
-        toast({ title: "Welcome Back", description: `Logged in as ${existingData.name}` });
-        router.replace(existingData.role === "admin" ? "/admin" : "/dashboard");
+      // Now we have permission to read the profile
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      
+      if (!userDoc.exists()) {
+        throw new Error('Account not found. Please register.');
+      }
+      
+      const userData = userDoc.data();
+      if (userData.role === 'admin') {
+        router.push('/admin');
       } else {
-        toast({ title: "New Profile", description: "Please complete your registration." });
-        router.push("/register");
+        router.push('/dashboard');
       }
     } catch (error: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Login Failed", 
-        description: error.message || "An unexpected error occurred." 
-      });
+      if (error.code === 'auth/user-not-found' || 
+          error.code === 'auth/wrong-password' ||
+          error.code === 'auth/invalid-credential') {
+        setErrorMessage('No account found. Please register first.');
+      } else if (error.code === 'auth/too-many-requests') {
+        setErrorMessage('Too many attempts. Wait 5 minutes.');
+      } else {
+        setErrorMessage(error.message || 'Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-page p-4 font-body">
+    <div className="min-h-screen flex items-center justify-center bg-[#EEEEFF] p-4 font-body">
       <div className="w-full max-w-md space-y-10 flex flex-col items-center">
         <Link href="/" className="flex flex-col items-center">
           <div className="h-16 w-16 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn mb-3">
@@ -105,6 +119,23 @@ export default function LoginPage() {
                   />
                 </div>
               </div>
+
+              {errorMessage && (
+                <div style={{
+                  background: '#FEE2E2',
+                  border: '1px solid #FECACA',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  marginTop: '12px',
+                  color: '#DC2626',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <AlertCircle className="h-4 w-4" /> {errorMessage}
+                </div>
+              )}
             </CardContent>
             
             <CardFooter className="flex flex-col gap-6 px-8 pb-10 pt-2">
@@ -113,7 +144,12 @@ export default function LoginPage() {
                 type="submit" 
                 disabled={loading}
               >
-                {loading ? <Loader2 className="animate-spin h-6 w-6" /> : "Login"}
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                    Logging in...
+                  </>
+                ) : "Login"}
               </Button>
               <div className="text-center">
                 <p className="text-sm text-[#64748B]">

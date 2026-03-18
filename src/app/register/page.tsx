@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, User, Phone, Briefcase, MapPin, Navigation, Loader2 } from "lucide-react";
+import { Shield, User, Phone, Briefcase, MapPin, Navigation, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { useFirestore, useUser } from "@/firebase";
+import { useFirestore, useAuth } from "@/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { useToast } from "@/hooks/use-toast";
 
 const PLATFORMS = ["Swiggy", "Zomato", "Uber Eats", "Ola", "Dunzo", "Blinkit", "Other"];
 const STATES_CITIES = {
@@ -25,7 +25,6 @@ const STATES_CITIES = {
 };
 
 export default function RegisterPage() {
-  const { user, isUserLoading } = useUser();
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -34,38 +33,53 @@ export default function RegisterPage() {
     city: ""
   });
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  
   const router = useRouter();
   const db = useFirestore();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push("/login");
-    }
-  }, [user, isUserLoading, router]);
+  const auth = useAuth();
 
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    setErrorMessage("");
+    
+    const cleanPhone = formData.phone.replace(/\s/g, '').replace('+91', '').trim();
+    if (cleanPhone.length !== 10) {
+      setErrorMessage("Enter a valid 10-digit phone number");
+      return;
+    }
 
     setLoading(true);
     try {
-      await setDoc(doc(db, "users", user.uid), {
+      const email = cleanPhone + '@gigshield.app';
+      const password = cleanPhone.slice(-6) + 'GIG#' + cleanPhone.slice(0, 4);
+      
+      // Create user account first
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+
+      // Save user profile
+      await setDoc(doc(db, "users", uid), {
         ...formData,
-        id: user.uid,
+        phone: cleanPhone,
+        email: email,
+        id: uid,
         role: "worker",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
+      
       router.push("/plans");
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
+      if (error.code === 'auth/email-already-in-use') {
+        setErrorMessage('Account already exists. Please login.');
+      } else {
+        setErrorMessage(error.message || 'Registration failed. Try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
-
-  if (isUserLoading) return null;
 
   return (
     <div className="min-h-screen bg-bg-page flex flex-col items-center py-10 px-4 font-body">
@@ -159,6 +173,23 @@ export default function RegisterPage() {
                   </Select>
                 </div>
               </div>
+
+              {errorMessage && (
+                <div style={{
+                  background: '#FEE2E2',
+                  border: '1px solid #FECACA',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  marginTop: '12px',
+                  color: '#DC2626',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <AlertCircle className="h-4 w-4" /> {errorMessage}
+                </div>
+              )}
             </CardContent>
             <CardFooter className="p-6">
               <Button className="w-full h-12 font-bold bg-primary hover:bg-primary-hover shadow-btn rounded-btn text-white" type="submit" disabled={loading}>

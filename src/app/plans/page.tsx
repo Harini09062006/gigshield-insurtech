@@ -55,22 +55,32 @@ export default function PlansPage() {
     setLoading(true);
     try {
       const plan = PLANS.find(p => p.id === selectedPlan);
+      const avgEarnings = Number(hourlyEarnings);
       
       await updateDoc(doc(db, "users", user.uid), {
         plan_id: selectedPlan,
-        avg_hourly_earnings: Number(hourlyEarnings),
+        avg_hourly_earnings: avgEarnings,
         plan_activated_at: serverTimestamp(),
       });
 
       await setDoc(doc(db, "income_dna", user.uid), {
-        base_rate: Number(hourlyEarnings),
-        morning_rate: Math.round(Number(hourlyEarnings) * 0.75),
-        afternoon_rate: Math.round(Number(hourlyEarnings) * 0.95),
-        evening_rate: Math.round(Number(hourlyEarnings) * 1.30),
-        night_rate: Math.round(Number(hourlyEarnings) * 0.85),
-        weekly_earnings: Number(hourlyEarnings) * 40,
+        base_rate: avgEarnings,
+        morning_rate: Math.round(avgEarnings * 0.75),
+        afternoon_rate: Math.round(avgEarnings * 0.95),
+        evening_rate: Math.round(avgEarnings * 1.30),
+        night_rate: Math.round(avgEarnings * 0.85),
+        weekly_earnings: Math.round(avgEarnings * 8 * 7),
         recommended_plan: "Pro Shield",
-        updatedAt: serverTimestamp()
+        best_days: {
+          mon: avgEarnings * 6.8,
+          tue: avgEarnings * 7.2,
+          wed: avgEarnings * 7.6,
+          thu: avgEarnings * 8.4,
+          fri: avgEarnings * 9.6,
+          sat: avgEarnings * 10.4,
+          sun: avgEarnings * 10.8
+        },
+        updated_at: serverTimestamp()
       });
 
       toast({ title: "Protection Activated", description: "You are now covered by GigShield." });
