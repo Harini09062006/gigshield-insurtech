@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useFirestore } from '@/firebase';
@@ -30,15 +30,7 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
   const [activeZones, setActiveZones] = useState<any[]>([]);
   const db = useFirestore();
 
-  useEffect(() => {
-    if (!db) return;
-    const unsub = onSnapshot(collection(db, "disruption_zones"), (snapshot) => {
-      const zones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setActiveZones(zones.length > 0 ? zones : DEFAULT_DISTRICTS);
-    });
-    return () => unsub();
-  }, [db]);
-
+  // 1. Initialize Map Once
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
@@ -55,19 +47,33 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
     mapRef.current = map;
     layerGroupRef.current = L.layerGroup().addTo(map);
 
-    if (workerState && STATE_COORDINATES[workerState]) {
-      const { lat, lng, zoom } = STATE_COORDINATES[workerState];
-      map.flyTo([lat, lng], zoom, { duration: 2 });
-    }
-
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
+  }, []);
+
+  // 2. Fly to worker state on change (without re-initializing map)
+  useEffect(() => {
+    if (mapRef.current && workerState && STATE_COORDINATES[workerState]) {
+      const { lat, lng, zoom } = STATE_COORDINATES[workerState];
+      mapRef.current.flyTo([lat, lng], zoom, { duration: 2 });
+    }
   }, [workerState]);
 
+  // 3. Listen for Firestore zones
+  useEffect(() => {
+    if (!db) return;
+    const unsub = onSnapshot(collection(db, "disruption_zones"), (snapshot) => {
+      const zones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setActiveZones(zones.length > 0 ? zones : DEFAULT_DISTRICTS);
+    });
+    return () => unsub();
+  }, [db]);
+
+  // 4. Update markers when zones change
   useEffect(() => {
     if (!layerGroupRef.current || !mapRef.current) return;
     
@@ -81,6 +87,8 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
     };
 
     activeZones.forEach(zone => {
+      if (!zone.lat || !zone.lng) return;
+      
       const style = riskStyles[zone.risk_level] || riskStyles.safe;
       const circle = L.circle([zone.lat, zone.lng], {
         radius: zone.radius_m || 2000,
