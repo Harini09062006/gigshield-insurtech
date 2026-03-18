@@ -12,7 +12,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { format } from "date-fns";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,6 +24,11 @@ export default function WorkerDashboard() {
   const pathname = usePathname();
   const { toast } = useToast();
   const [isSimulating, setIsSimulating] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const profileRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -58,30 +63,21 @@ export default function WorkerDashboard() {
   const simulateWeather = async () => {
     if (!user) return;
     
-    if (!profile || !dna) {
-      toast({
-        variant: "destructive",
-        title: "Simulation Blocked",
-        description: "Please complete your profile and activate a protection plan first."
-      });
-      return;
-    }
-
     setIsSimulating(true);
     try {
       const claimIdNum = Math.floor(10000 + Math.random() * 90000);
       const claimNumber = `#${String(claimIdNum).padStart(5, '0')}`;
       
-      const baseRate = profile.avg_hourly_earnings || 60;
-      const multiplier = 1.3; // Evening Peak simulation
+      const baseRate = profile?.avg_hourly_earnings || 60;
+      const multiplier = 1.3; 
       const dnaRate = baseRate * multiplier;
       const hoursLost = 4;
       const incomeLoss = dnaRate * hoursLost;
       
       let planCap = 120;
-      if (profile.plan_id === 'max') planCap = 500;
-      else if (profile.plan_id === 'pro') planCap = 240;
-      else if (profile.plan_id === 'basic') planCap = 100;
+      if (profile?.plan_id === 'max') planCap = 500;
+      else if (profile?.plan_id === 'pro') planCap = 240;
+      else if (profile?.plan_id === 'basic') planCap = 100;
       
       const compensation = Math.min(incomeLoss, planCap);
 
@@ -200,7 +196,7 @@ export default function WorkerDashboard() {
               <Shield className="h-5 w-5 text-white/80" />
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="text-2xl font-bold">{profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "Pro Shield"}</div>
+              <div className="text-2xl font-bold">{profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "PRO SHIELD"}</div>
               <p className="text-xs text-white/70">Parametric weather cover activated</p>
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <div className="bg-white/10 p-2 rounded-lg">
@@ -254,7 +250,7 @@ export default function WorkerDashboard() {
 
         <section className="grid gap-4 md:grid-cols-4">
           {[
-            { label: "Active Plan", value: profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "Pro Shield" },
+            { label: "Active Plan", value: profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "PRO SHIELD" },
             { label: "Activation Date", value: profile?.plan_activated_at?.seconds ? format(new Date(profile.plan_activated_at.seconds * 1000), "MMM dd, yyyy") : "Recently" },
             { label: "Coverage Period", value: "Current Week" },
             { label: "Next Renewal", value: "Automatic", highlight: true }
@@ -285,7 +281,7 @@ export default function WorkerDashboard() {
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Insurance Coverage</p>
               <p className="text-2xl font-bold text-success">₹{profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5}</p>
-              <p className="text-[10px] text-body">Capped by {profile?.plan_id || 'Pro'} Shield limit</p>
+              <p className="text-[10px] text-body">Capped by {profile?.plan_id?.toUpperCase() || 'PRO'} Shield limit</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Remaining Risk</p>
@@ -295,8 +291,7 @@ export default function WorkerDashboard() {
           </CardContent>
         </Card>
 
-        {/* Updated Income DNA Profile Section - Compact & Medium Sized */}
-        <section className="space-y-3 p-4">
+        <section className="space-y-3">
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-2">
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
@@ -336,11 +331,11 @@ export default function WorkerDashboard() {
                 <Card key={i} className="bg-white border-border shadow-sm p-2.5 px-3 rounded-[10px] flex flex-col justify-between overflow-hidden relative">
                   <div>
                     <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-sm">{slot.icon}</span>
+                      <span className="text-[14px]">{slot.icon}</span>
                       <p className="text-[10px] font-bold text-muted uppercase">{slot.label}</p>
                     </div>
                     <p className="text-[10px] text-body mb-1">{slot.time}</p>
-                    <p className="text-base font-bold text-heading leading-none">₹{slot.rate}/hr</p>
+                    <p className="text-[16px] font-bold text-heading leading-none">₹{slot.rate}/hr</p>
                     <p className="text-[10px] font-bold text-primary mt-1">{slot.mult}x multiplier</p>
                   </div>
                   <div className={`absolute bottom-0 left-0 h-1 w-full ${slot.color} opacity-80 rounded-full`} />
@@ -350,53 +345,53 @@ export default function WorkerDashboard() {
           </div>
 
           <div className="grid gap-3 lg:grid-cols-2">
-            {/* Peak Earning Hours - Compact Fix */}
             <Card className="bg-white border-border shadow-card rounded-[12px] p-4 max-w-full">
-              <CardTitle className="text-sm font-semibold mb-2">Peak Earning Hours (24-Hour Profile)</CardTitle>
+              <CardTitle className="text-[14px] font-semibold mb-2">Peak Earning Hours (24-Hour Profile)</CardTitle>
               <div className="h-[180px] w-full">
-                <ResponsiveContainer width="100%" height="180">
-                  <AreaChart data={hourlyChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#C4B8F8" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#C4B8F8" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E6FF" opacity={0.3} />
-                    <XAxis 
-                      dataKey="hour" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fill: '#94A3B8' }}
-                      ticks={["12 AM", "6 AM", "12 PM", "6 PM", "11 PM"]}
-                    />
-                    <YAxis hide={true} />
-                    <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }} />
-                    <Area type="monotone" dataKey="evening" name="Evening peak" stroke="#6C47FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvening)" />
-                    <Area type="monotone" dataKey="lunch" name="Lunch peak" stroke="#F59E0B" strokeWidth={2} fillOpacity={1} fill="url(#colorLunch)" />
-                    <Area type="monotone" dataKey="active" name="Active hours" stroke="#C4B8F8" strokeWidth={1.5} fillOpacity={1} fill="url(#colorActive)" />
-                    <Legend 
-                      verticalAlign="bottom" 
-                      align="left" 
-                      iconSize={8}
-                      wrapperStyle={{ paddingTop: '4px', fontSize: '11px' }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <AreaChart data={hourlyChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#C4B8F8" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#C4B8F8" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E6FF" opacity={0.3} />
+                      <XAxis 
+                        dataKey="hour" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 10, fill: '#94A3B8' }}
+                        ticks={["12 AM", "6 AM", "12 PM", "6 PM", "11 PM"]}
+                      />
+                      <YAxis hide={true} />
+                      <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }} />
+                      <Area type="monotone" dataKey="evening" name="Evening peak" stroke="#6C47FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvening)" />
+                      <Area type="monotone" dataKey="lunch" name="Lunch peak" stroke="#F59E0B" strokeWidth={2} fillOpacity={1} fill="url(#colorLunch)" />
+                      <Area type="monotone" dataKey="active" name="Active hours" stroke="#C4B8F8" strokeWidth={1.5} fillOpacity={1} fill="url(#colorActive)" />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        align="left" 
+                        iconSize={8}
+                        wrapperStyle={{ paddingTop: '4px', fontSize: '11px' }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </Card>
 
-            {/* Best Working Days - Compact Fix */}
             <Card className="bg-white border-border shadow-card rounded-[12px] p-4">
-              <CardTitle className="text-sm font-semibold mb-2.5">Best Working Days (Daily Earnings)</CardTitle>
+              <CardTitle className="text-[14px] font-semibold mb-2.5">Best Working Days (Daily Earnings)</CardTitle>
               <div className="space-y-1.5">
                 {weeklyEarningsData.map((data, i) => (
                   <div key={i} className="flex items-center gap-2 h-[28px]">
