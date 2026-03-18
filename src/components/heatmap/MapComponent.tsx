@@ -29,23 +29,26 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
   const [activeZones, setActiveZones] = useState<any[]>([]);
   const db = useFirestore();
 
+  // Initialization: Exactly Once
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Pulse animation keyframes
-    const style = document.createElement('style');
-    style.innerHTML = `
-      @keyframes leaflet-pulsate {
-        0% { transform: scale(0.1, 0.1); opacity: 0.0; }
-        50% { opacity: 1.0; }
-        100% { transform: scale(1.2, 1.2); opacity: 0.0; }
-      }
-      .leaflet-pulse {
-        animation: leaflet-pulsate 1.5s ease-out;
-        animation-iteration-count: infinite;
-      }
-    `;
-    document.head.appendChild(style);
+    // Define Global Styles for Pulsing
+    if (!document.getElementById('leaflet-pulse-style')) {
+      const style = document.createElement('style');
+      style.id = 'leaflet-pulse-style';
+      style.innerHTML = `
+        @keyframes leaflet-pulsate {
+          0% { transform: scale(0.1); opacity: 0.0; }
+          50% { opacity: 1.0; }
+          100% { transform: scale(1.2); opacity: 0.0; }
+        }
+        .leaflet-pulse {
+          animation: leaflet-pulsate 1.5s ease-out infinite;
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
     const map = L.map(mapContainerRef.current, {
       center: [20.5937, 78.9629],
@@ -68,6 +71,7 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
     };
   }, []);
 
+  // Update View on State Change
   useEffect(() => {
     if (mapRef.current && workerState && STATE_COORDINATES[workerState]) {
       const { lat, lng, zoom } = STATE_COORDINATES[workerState];
@@ -75,6 +79,7 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
     }
   }, [workerState]);
 
+  // Data Listener
   useEffect(() => {
     if (!db) return;
     const unsub = onSnapshot(collection(db, "disruption_zones"), (snapshot) => {
@@ -84,6 +89,7 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
     return () => unsub();
   }, [db]);
 
+  // Render Markers/Circles
   useEffect(() => {
     if (!layerGroupRef.current || !mapRef.current) return;
     
@@ -110,13 +116,13 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
       });
 
       const popup = `
-        <div style="padding: 12px; min-width: 200px; font-family: Inter, sans-serif;">
-          <h4 style="font-weight: 800; margin-bottom: 8px; color: #1A1A2E;">${zone.zone_name}</h4>
+        <div style="padding: 12px; min-width: 200px; font-family: sans-serif;">
+          <h4 style="font-weight: bold; margin-bottom: 8px; color: #1A1A2E;">${zone.zone_name}</h4>
           <p style="font-size: 11px; color: #64748B; margin-bottom: 4px;">Rainfall: ${zone.rainfall_mm}mm | AQI: ${zone.aqi}</p>
-          <p style="font-size: 11px; font-weight: 700; color: ${zone.risk_level === 'extreme' ? '#DC2626' : '#1A1A2E'}">
+          <p style="font-size: 11px; font-weight: bold; color: ${zone.risk_level === 'extreme' ? '#DC2626' : '#1A1A2E'}">
             Earning Impact: -₹${zone.earning_impact}/hr
           </p>
-          <div style="margin-top: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: ${style.fill}">
+          <div style="margin-top: 8px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: ${style.fill}">
             Risk: ${zone.risk_level}
           </div>
         </div>

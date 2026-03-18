@@ -2,7 +2,7 @@
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
 import { doc, collection, query, limit, where, addDoc, serverTimestamp } from "firebase/firestore";
-import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Info, Calendar, RefreshCcw, IndianRupee, IndianRupee as Rupee, ChevronRight } from "lucide-react";
+import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Info, Calendar, RefreshCcw, IndianRupee, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, addDays, differenceInDays, startOfDay } from "date-fns";
 import { useMemo, useState, useEffect } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar, Cell } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 
 export default function WorkerDashboard() {
@@ -206,7 +206,7 @@ export default function WorkerDashboard() {
             {[
               { label: "Activation Date", value: policyInfo ? format(policyInfo.startDate, "MMM dd, yyyy") : "-", icon: Calendar },
               { label: "Next Renewal", value: policyInfo ? format(policyInfo.nextRenewalDate, "dd MMM") : "-", icon: RefreshCcw },
-              { label: "Renewal Amount", value: policyInfo ? `₹${policyInfo.premiumAmount}` : "-", icon: Rupee },
+              { label: "Renewal Amount", value: policyInfo ? `₹${policyInfo.premiumAmount}` : "-", icon: IndianRupee },
               { label: "Commitment", value: "Week " + (policyInfo?.currentWeek || 1) + "/4", icon: Info }
             ].map((stat, i) => (
               <Card key={i} className="bg-white border-[#E8E6FF] shadow-sm p-4 rounded-xl flex items-center gap-4">
