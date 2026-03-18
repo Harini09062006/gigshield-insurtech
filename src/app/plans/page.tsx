@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Check, Zap, Loader2, IndianRupee, Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +39,88 @@ const PLANS = [
   }
 ];
 
+const StepIndicator = ({ currentStep }: { currentStep: number }) => {
+  const steps = [
+    { num: 1, label: 'Basic Info' },
+    { num: 2, label: 'Choose Plan' },
+    { num: 3, label: 'Done' }
+  ]
+  const progress = currentStep === 1 
+    ? 33 : currentStep === 2 ? 66 : 100
+
+  return (
+    <div style={{marginBottom: '24px'}}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '8px',
+        marginBottom: '12px'
+      }}>
+        {steps.map((step, i) => (
+          <React.Fragment key={step.num}>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <div style={{
+                width: '28px', height: '28px',
+                borderRadius: '50%',
+                background: currentStep >= step.num
+                  ? '#6C47FF' : '#E8E6FF',
+                color: currentStep >= step.num
+                  ? 'white' : '#94A3B8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: '700'
+              }}>
+                {currentStep > step.num ? '✓' : step.num}
+              </div>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: currentStep === step.num
+                  ? '600' : '400',
+                color: currentStep === step.num
+                  ? '#6C47FF' : '#94A3B8',
+                whiteSpace: 'nowrap'
+              }}>
+                {step.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div style={{
+                height: '2px', width: '40px',
+                background: currentStep > step.num
+                  ? '#6C47FF' : '#E8E6FF',
+                marginBottom: '18px',
+                borderRadius: '99px'
+              }}/>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{
+        height: '4px',
+        background: '#E8E6FF',
+        borderRadius: '99px',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          height: '4px',
+          width: `${progress}%`,
+          background: '#6C47FF',
+          borderRadius: '99px',
+          transition: 'width 0.3s ease'
+        }}/>
+      </div>
+    </div>
+  )
+}
+
 export default function PlansPage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -49,6 +130,24 @@ export default function PlansPage() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>("pro");
   const [hourlyEarnings, setHourlyEarnings] = useState("60");
   const [loading, setLoading] = useState(false);
+
+  function calculateIncomeDNA(base: number) {
+    const morning   = Math.round(base * 0.75 * 4)
+    const afternoon = Math.round(base * 0.95 * 4)
+    const evening   = Math.round(base * 1.30 * 4)
+    const night     = Math.round(base * 0.85 * 3)
+    const daily     = morning + afternoon + evening + night
+    const weekly    = daily * 7
+    
+    return {
+      morning_rate:   Math.round(base * 0.75),
+      afternoon_rate: Math.round(base * 0.95),
+      evening_rate:   Math.round(base * 1.30),
+      night_rate:     Math.round(base * 0.85),
+      daily_earnings: daily,
+      weekly_earnings: weekly
+    }
+  }
 
   const handleActivate = async () => {
     if (!user || !selectedPlan) return;
@@ -65,13 +164,11 @@ export default function PlansPage() {
         commitment_weeks: 4
       });
 
+      const dna = calculateIncomeDNA(avgEarnings);
+
       await setDoc(doc(db, "income_dna", user.uid), {
         base_rate: avgEarnings,
-        morning_rate: Math.round(avgEarnings * 0.75),
-        afternoon_rate: Math.round(avgEarnings * 0.95),
-        evening_rate: Math.round(avgEarnings * 1.30),
-        night_rate: Math.round(avgEarnings * 0.85),
-        weekly_earnings: Math.round(avgEarnings * 8 * 7),
+        ...dna,
         recommended_plan: plan?.name || "Pro Shield",
         best_days: {
           mon: avgEarnings * 6.8,
@@ -105,12 +202,7 @@ export default function PlansPage() {
           <div className="h-12 w-12 bg-primary rounded-2xl flex items-center justify-center shadow-btn">
             <Shield className="h-7 w-7 text-white" />
           </div>
-          <div className="flex items-center gap-6 text-[11px] font-bold uppercase tracking-widest text-muted">
-            <span className="text-primary flex items-center gap-2">① Basic Info</span>
-            <span className="text-primary flex items-center gap-2">② Choose Plan</span>
-            <span className="flex items-center gap-2">③ Done</span>
-          </div>
-          <Progress value={66} className="h-2 w-full bg-white border border-border" />
+          <StepIndicator currentStep={2} />
         </div>
 
         <div className="text-center space-y-2">

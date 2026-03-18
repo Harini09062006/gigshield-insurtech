@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, addDays, differenceInDays, startOfDay } from "date-fns";
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,7 +35,6 @@ export default function WorkerDashboard() {
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
   const { data: dna, isLoading: isDnaLoading } = useDoc(dnaRef);
 
-  // Filtered query to satisfy security rules
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return query(
@@ -234,10 +233,44 @@ export default function WorkerDashboard() {
             <Badge className="bg-[#6C47FF] text-white border-none py-1.5 px-4 rounded-full font-bold text-[10px]">DNA Rate: ₹{dnaRate}/hr (Evening Peak)</Badge>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
-            <div><p className="text-[10px] font-bold text-[#64748B] uppercase">Potential Income Loss</p><p className="text-2xl font-bold text-[#EF4444]">₹{potentialLoss}</p><p className="text-[9px] text-[#64748B]">6 hrs disruption during peak</p></div>
-            <div><p className="text-[10px] font-bold text-[#64748B] uppercase">Insurance Coverage</p><p className="text-2xl font-bold text-[#22C55E]">₹{coverage}</p><p className="text-[9px] text-[#64748B]">Parametric Payout Limit</p></div>
-            <div><p className="text-[10px] font-bold text-[#64748B] uppercase">Remaining Risk</p><p className="text-2xl font-bold text-[#EF4444]">₹{remainingRisk}</p><p className="text-[9px] text-[#64748B]">Consider upgrading plan</p></div>
+            <div><p className="text-xs font-bold text-[#64748B] uppercase">Potential Income Loss</p><p className="text-2xl font-bold text-[#EF4444]">₹{potentialLoss}</p><p className="text-[9px] text-[#64748B]">6 hrs disruption during peak</p></div>
+            <div><p className="text-xs font-bold text-[#64748B] uppercase">Insurance Coverage</p><p className="text-2xl font-bold text-[#22C55E]">₹{coverage}</p><p className="text-[9px] text-[#64748B]">Parametric Payout Limit</p></div>
+            <div><p className="text-xs font-bold text-[#64748B] uppercase">Remaining Risk</p><p className="text-2xl font-bold text-[#EF4444]">₹{remainingRisk}</p><p className="text-[9px] text-[#64748B]">Clamped at ₹0</p></div>
           </div>
+          
+          {remainingRisk <= 0 ? (
+            <div style={{
+              background: '#DCFCE7',
+              border: '1px solid #BBF7D0',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginTop: '12px',
+              fontSize: '13px',
+              color: '#16A34A',
+              fontWeight: '500'
+            }}>
+              ✓ You are fully covered for this disruption!
+            </div>
+          ) : (
+            <div style={{
+              background: '#FEF9C3',
+              border: '1px solid #FDE68A',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginTop: '12px',
+              fontSize: '13px',
+              color: '#D97706',
+              fontWeight: '500'
+            }}>
+              ⚠ Tip: Consider upgrading to a higher plan to cover your income completely.
+            </div>
+          )}
         </Card>
 
         <section className="space-y-6 bg-white p-4 rounded-2xl border border-[#E8E6FF]">
@@ -263,7 +296,31 @@ export default function WorkerDashboard() {
             ))}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="p-6 bg-white border-border shadow-card rounded-card flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-bold text-muted uppercase tracking-widest mb-2">Expected Weekly Earnings</p>
+                <div 
+                  className="text-5xl font-bold text-primary cursor-help"
+                  title="Calculated from your 4 time slot rates × working hours × 7 days"
+                >
+                  ₹{dna?.weekly_earnings || 6111}
+                </div>
+                <p className="text-xs text-body mt-2">Derived from your Income DNA earning pattern</p>
+              </div>
+              <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-muted uppercase mb-1">Recommended Plan</p>
+                  <p className="text-lg font-bold text-warning">{dna?.recommended_plan || "Elite Shield"}</p>
+                </div>
+                <Link href="/plans">
+                  <Button variant="outline" className="border-primary text-primary font-bold hover:bg-primary-light rounded-btn">
+                    Upgrade Plan
+                  </Button>
+                </Link>
+              </div>
+            </Card>
+
             <Card className="p-4 rounded-[12px] border-[#E8E6FF] shadow-sm">
               <h4 className="text-sm font-semibold mb-2">Peak Earning Hours (24-Hour Profile)</h4>
               <div className="h-[180px] w-full">
@@ -287,29 +344,6 @@ export default function WorkerDashboard() {
                     </AreaChart>
                   </ResponsiveContainer>
                 )}
-              </div>
-            </Card>
-
-            <Card className="p-4 rounded-[12px] border-[#E8E6FF] shadow-sm">
-              <h4 className="text-sm font-semibold mb-3">Best Working Days (Daily Earnings)</h4>
-              <div className="space-y-1.5">
-                {[
-                  { d: 'Mon', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 6.8) }, 
-                  { d: 'Tue', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 7.2) }, 
-                  { d: 'Wed', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 7.6) },
-                  { d: 'Thu', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 8.4) }, 
-                  { d: 'Fri', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 9.6) }, 
-                  { d: 'Sat', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 10.4) }, 
-                  { d: 'Sun', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 10.8) }
-                ].map((row, i) => (
-                  <div key={i} className="flex items-center gap-2 h-[28px]">
-                    <span className="w-7 text-xs text-[#64748B] flex-shrink-0">{row.d}</span>
-                    <div className="flex-1 h-[6px] bg-[#E8E6FF] rounded-full overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${(row.e / ((profile?.avg_hourly_earnings ?? 60) * 11)) * 100}%` }} className="h-full bg-[#6C47FF]" />
-                    </div>
-                    <span className="w-10 text-right text-xs font-semibold text-[#1A1A2E] flex-shrink-0">₹{row.e}</span>
-                  </div>
-                ))}
               </div>
             </Card>
           </div>

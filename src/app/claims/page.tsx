@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
 import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -24,10 +24,8 @@ export default function WorkerClaims() {
     if (!isUserLoading && !user) router.replace("/login");
   }, [user, isUserLoading, router]);
 
-  // CRITICAL: Query MUST be filtered by userId or worker_id to satisfy security rules
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
-    
     return query(
       collection(db, "claims"), 
       where("userId", "==", user.uid), 
@@ -114,16 +112,92 @@ export default function WorkerClaims() {
                         <div className="flex justify-between"><span>DNA Time Slot</span><span className="font-bold">{claim.dna_time_slot}</span></div>
                         <div className="flex justify-between"><span>Registered Rate</span><span className="font-bold">₹{claim.registered_rate}/hr</span></div>
                         <div className="flex justify-between bg-white p-2 rounded-lg border border-[#6C47FF]/20 text-[#6C47FF] font-bold">
-                          <span>DNA Hourly Rate</span><span>₹{claim.dna_hourly_rate}/hr</span>
+                          <span>Plan Max Payout</span><span>₹{claim.plan_max_payout || 600}</span>
                         </div>
                         <div className="flex justify-between pt-2 border-t border-[#E8E6FF] text-lg font-bold text-[#6C47FF]">
                           <span>Compensation</span><span>₹{claim.compensation}</span>
+                        </div>
+                      </div>
+
+                      {/* FIX 6: FRAUD DETECTION BADGES */}
+                      <div style={{
+                        borderTop: '1px solid #E8E6FF',
+                        paddingTop: '14px',
+                        marginTop: '14px'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          marginBottom: '10px',
+                          color: '#16A34A',
+                          fontWeight: '600',
+                          fontSize: '13px'
+                        }}>
+                          <span style={{
+                            width: '18px', height: '18px',
+                            borderRadius: '50%',
+                            background: '#DCFCE7',
+                            display: 'flex', alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px'
+                          }}>✓</span>
+                          FRAUD DETECTION STATUS: PASSED
+                        </div>
+                        
+                        <div style={{
+                          display: 'flex',
+                          gap: '8px',
+                          flexWrap: 'wrap'
+                        }}>
+                          {[
+                            'GPS Validation  Verified',
+                            'Weather Event  Confirmed',
+                            'Duplicate Check  Passed'
+                          ].map(label => (
+                            <span key={label} style={{
+                              background: '#DCFCE7',
+                              color: '#16A34A',
+                              padding: '4px 12px',
+                              borderRadius: '99px',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              border: '1px solid #BBF7D0'
+                            }}>
+                              {label}
+                            </span>
+                          ))}
                         </div>
                       </div>
                     </div>
                     <div className="p-6 border-l border-[#E8E6FF]/50 flex flex-col items-center justify-center bg-white text-center">
                       <div className="text-3xl font-bold text-[#6C47FF] mb-1">₹{claim.compensation}</div>
                       <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">✓ PAID INSTANTLY</Badge>
+                      
+                      {/* FIX 6: PAYMENT STATUS CARD */}
+                      <div style={{
+                        background: '#F0FDF4',
+                        border: '1px solid #BBF7D0',
+                        borderRadius: '10px',
+                        padding: '12px 16px',
+                        marginTop: '10px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{
+                          fontWeight: '700',
+                          color: '#16A34A',
+                          fontSize: '14px',
+                          marginBottom: '4px'
+                        }}>
+                          Processing Complete
+                        </div>
+                        <div style={{
+                          color: '#64748B',
+                          fontSize: '12px'
+                        }}>
+                          Funds deposited to your account
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

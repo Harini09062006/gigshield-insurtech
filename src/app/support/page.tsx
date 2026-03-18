@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Brain, Send, Mic, Globe, Loader2, User, Home, FileText, Map as MapIcon, LogOut, Shield } from "lucide-react";
+import { Brain, Send, Loader2, Home, FileText, LogOut, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useUser, useAuth } from "@/firebase";
+import { useUser, useAuth, useFirestore } from "@/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -17,17 +18,29 @@ interface Message {
 export default function SupportPage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const db = useFirestore();
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(false);
+  const [workerName, setWorkerName] = useState('Worker');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (user) {
-      setMessages([{ role: "bot", text: `Hi ${user.displayName || 'Worker'}! How can I help you today with your coverage?` }]);
+    if (auth.currentUser) {
+      getDoc(doc(db, 'users', auth.currentUser.uid))
+        .then(snap => {
+          setWorkerName(snap.data()?.name || 'Worker');
+        });
     }
-  }, [user]);
+  }, [auth.currentUser, db]);
+
+  useEffect(() => {
+    if (user) {
+      setMessages([{ role: "bot", text: `Hi ${workerName}! How can I help you today with your coverage?` }]);
+    }
+  }, [user, workerName]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -54,6 +67,24 @@ export default function SupportPage() {
     }, 800);
   };
 
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window)) return;
+    const recognition = new (window as any).webkitSpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.onresult = (e: any) => {
+      setInput(e.results[0][0].transcript);
+    };
+    recognition.start();
+  }
+
+  const quickQuestions = [
+    'Will rain affect my earnings today?',
+    'What is my current claim status?',
+    'How much compensation will I get?',
+    'Show my Income DNA profile',
+    'When is my next renewal?'
+  ];
+
   if (isUserLoading) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
 
   return (
@@ -72,9 +103,41 @@ export default function SupportPage() {
         </div>
       </header>
 
-      <div className="bg-[#6C47FF] px-6 py-4 flex items-center gap-3 shadow-lg">
-        <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center"><Brain className="text-[#6C47FF]" /></div>
-        <h1 className="text-white font-bold">AI Support Assistant</h1>
+      <div className="bg-[#6C47FF] px-6 py-4 flex items-center justify-between shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center"><Brain className="text-[#6C47FF]" /></div>
+          <h1 className="text-white font-bold">AI Support Assistant</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <select style={{
+            background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.5)',
+            borderRadius: '8px',
+            color: 'white',
+            padding: '4px 10px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            outline: 'none'
+          }}>
+            <option value="en">IN English</option>
+            <option value="hi">Hindi</option>
+            <option value="ta">Tamil</option>
+            <option value="te">Telugu</option>
+          </select>
+          <button 
+            onClick={() => setVoiceOn(!voiceOn)}
+            style={{
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.5)',
+              borderRadius: '8px',
+              color: 'white',
+              padding: '4px 12px',
+              fontSize: '12px',
+              cursor: 'pointer'
+            }}>
+            {voiceOn ? '🔊 Voice ON' : '🔇 Voice OFF'}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-4 max-w-4xl mx-auto w-full" ref={scrollRef}>
@@ -90,10 +153,51 @@ export default function SupportPage() {
         {loading && <div className="text-[#6C47FF] text-[10px] font-bold animate-pulse">AI is thinking...</div>}
       </div>
 
-      <div className="p-6 bg-white border-t border-[#E8E6FF]">
-        <div className="max-w-4xl mx-auto flex gap-3">
+      <div className="bg-white border-t border-[#E8E6FF]">
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          overflowX: 'auto',
+          padding: '8px 16px',
+          borderBottom: '1px solid #E8E6FF'
+        }}>
+          {quickQuestions.map(q => (
+            <button
+              key={q}
+              onClick={() => handleSend(q)}
+              style={{
+                whiteSpace: 'nowrap',
+                background: 'white',
+                border: '1px solid #6C47FF',
+                borderRadius: '99px',
+                color: '#6C47FF',
+                padding: '6px 14px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                fontWeight: '500',
+                flexShrink: 0
+              }}>
+              {q}
+            </button>
+          ))}
+        </div>
+        <div className="p-6 max-w-4xl mx-auto flex items-center gap-3">
+          <button onClick={startListening} style={{
+            width: '40px', height: '40px',
+            borderRadius: '50%',
+            background: '#6C47FF',
+            border: 'none',
+            color: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            🎤
+          </button>
           <Input placeholder="Ask me about your coverage..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()} className="rounded-full border-2 border-[#E8E6FF] h-12" />
-          <Button size="icon" onClick={() => handleSend()} className="rounded-full h-12 w-12 bg-[#6C47FF] shadow-btn"><Send /></Button>
+          <Button size="icon" onClick={() => handleSend()} className="rounded-full h-12 w-12 bg-[#6C47FF] shadow-btn flex-shrink-0"><Send /></Button>
         </div>
       </div>
     </div>

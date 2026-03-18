@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, User, Phone, Briefcase, MapPin, Navigation, Loader2, AlertCircle, IndianRupee, Zap, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import { useFirestore, useAuth } from "@/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -29,6 +28,88 @@ const PLANS = [
   { id: "elite", name: "Elite Shield", description: "Fastest payout limits.", price: 50, maxPayout: 600, features: ["₹600 Payout", "Rain & Floods", "AQI Pollution"] }
 ];
 
+const StepIndicator = ({ currentStep }: { currentStep: number }) => {
+  const steps = [
+    { num: 1, label: 'Basic Info' },
+    { num: 2, label: 'Choose Plan' },
+    { num: 3, label: 'Done' }
+  ]
+  const progress = currentStep === 1 
+    ? 33 : currentStep === 2 ? 66 : 100
+
+  return (
+    <div style={{marginBottom: '24px'}}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '8px',
+        marginBottom: '12px'
+      }}>
+        {steps.map((step, i) => (
+          <React.Fragment key={step.num}>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <div style={{
+                width: '28px', height: '28px',
+                borderRadius: '50%',
+                background: currentStep >= step.num
+                  ? '#6C47FF' : '#E8E6FF',
+                color: currentStep >= step.num
+                  ? 'white' : '#94A3B8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: '700'
+              }}>
+                {currentStep > step.num ? '✓' : step.num}
+              </div>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: currentStep === step.num
+                  ? '600' : '400',
+                color: currentStep === step.num
+                  ? '#6C47FF' : '#94A3B8',
+                whiteSpace: 'nowrap'
+              }}>
+                {step.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div style={{
+                height: '2px', width: '40px',
+                background: currentStep > step.num
+                  ? '#6C47FF' : '#E8E6FF',
+                marginBottom: '18px',
+                borderRadius: '99px'
+              }}/>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{
+        height: '4px',
+        background: '#E8E6FF',
+        borderRadius: '99px',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          height: '4px',
+          width: `${progress}%`,
+          background: '#6C47FF',
+          borderRadius: '99px',
+          transition: 'width 0.3s ease'
+        }}/>
+      </div>
+    </div>
+  )
+}
+
 export default function RegisterPage() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({ name: "", phone: "", platform: "", state: "", city: "" });
@@ -40,6 +121,24 @@ export default function RegisterPage() {
   const router = useRouter();
   const db = useFirestore();
   const auth = useAuth();
+
+  function calculateIncomeDNA(base: number) {
+    const morning   = Math.round(base * 0.75 * 4)
+    const afternoon = Math.round(base * 0.95 * 4)
+    const evening   = Math.round(base * 1.30 * 4)
+    const night     = Math.round(base * 0.85 * 3)
+    const daily     = morning + afternoon + evening + night
+    const weekly    = daily * 7
+    
+    return {
+      morning_rate:   Math.round(base * 0.75),
+      afternoon_rate: Math.round(base * 0.95),
+      evening_rate:   Math.round(base * 1.30),
+      night_rate:     Math.round(base * 0.85),
+      daily_earnings: daily,
+      weekly_earnings: weekly
+    }
+  }
 
   const handleNext = () => {
     const cleanPhone = formData.phone.replace(/\s/g, '').replace('+91', '').trim();
@@ -77,14 +176,12 @@ export default function RegisterPage() {
       });
 
       const base = Number(hourlyEarnings);
+      const dna = calculateIncomeDNA(base);
+      
       await setDoc(doc(db, "income_dna", uid), {
         userId: uid,
         base_rate: base,
-        morning_rate: Math.round(base * 0.75),
-        afternoon_rate: Math.round(base * 0.95),
-        evening_rate: Math.round(base * 1.30),
-        night_rate: Math.round(base * 0.85),
-        weekly_earnings: Math.round(base * 8 * 7),
+        ...dna,
         updated_at: serverTimestamp()
       });
       
@@ -101,7 +198,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-4xl space-y-8">
         <div className="flex flex-col items-center gap-4">
           <div className="h-12 w-12 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn"><Shield className="h-7 w-7 text-white" /></div>
-          <Progress value={step === 1 ? 33 : 66} className="h-2 w-full bg-white border border-[#E8E6FF]" />
+          <StepIndicator currentStep={step} />
         </div>
 
         <AnimatePresence mode="wait">
