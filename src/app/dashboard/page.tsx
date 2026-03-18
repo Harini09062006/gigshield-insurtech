@@ -2,7 +2,7 @@
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
 import { doc, collection, query, limit, where, addDoc, serverTimestamp } from "firebase/firestore";
-import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Info, Calendar, RefreshCcw, IndianRupee, Thermometer, ChevronRight } from "lucide-react";
+import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Info, Calendar, RefreshCcw, IndianRupee, IndianRupee as Rupee, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format, addDays, differenceInDays } from "date-fns";
+import { format, addDays, differenceInDays, startOfDay } from "date-fns";
 import { useMemo, useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +42,7 @@ export default function WorkerDashboard() {
     if (!profile?.plan_activated_at?.seconds) return null;
     const start = new Date(profile.plan_activated_at.seconds * 1000);
     const today = new Date();
-    const diffDays = differenceInDays(today, start);
+    const diffDays = differenceInDays(startOfDay(today), startOfDay(start));
     const currentWeek = Math.floor(diffDays / 7) + 1;
     const nextRenewal = addDays(start, currentWeek * 7);
     const isRenewingTomorrow = (diffDays % 7 === 6);
@@ -61,7 +61,7 @@ export default function WorkerDashboard() {
   }, [profile]);
 
   const simulateWeather = async () => {
-    if (!user || !profile) return;
+    if (!user || !profile || !db) return;
     setIsSimulating(true);
     try {
       const baseRate = profile.avg_hourly_earnings || 60;
@@ -74,7 +74,7 @@ export default function WorkerDashboard() {
 
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
-        claim_number: `#${Math.floor(10000 + Math.random() * 90000)}`,
+        claim_number: `${Math.floor(10000 + Math.random() * 90000)}`,
         trigger_type: "weather",
         trigger_description: "Severe Rainfall (65mm) Detected",
         dna_time_slot: "Evening Peak",
@@ -83,7 +83,7 @@ export default function WorkerDashboard() {
         dna_hourly_rate: dnaRate,
         hours_lost: hoursLost,
         income_loss: incomeLoss,
-        compensation: compensation,
+        compensation: Math.round(compensation),
         plan_max_payout: maxPayout,
         status: "paid",
         created_at: serverTimestamp()
@@ -132,7 +132,7 @@ export default function WorkerDashboard() {
 
       <main className="flex-1 space-y-8 p-6 lg:px-10 max-w-7xl mx-auto w-full">
         {policyInfo?.isRenewingTomorrow && (
-          <div className="bg-[#FEF3C7] border border-[#F59E0B]/30 p-4 rounded-xl flex items-center gap-4 shadow-sm animate-bounce">
+          <div className="bg-[#FEF3C7] border border-[#F59E0B]/30 p-4 rounded-xl flex items-center gap-4 shadow-sm">
             <AlertCircle className="h-6 w-6 text-[#F59E0B]" />
             <p className="font-bold text-[#1A1A2E] text-sm">⚠️ Your plan renews tomorrow. ₹{policyInfo.premiumAmount} will be auto-deducted.</p>
           </div>
@@ -206,7 +206,7 @@ export default function WorkerDashboard() {
             {[
               { label: "Activation Date", value: policyInfo ? format(policyInfo.startDate, "MMM dd, yyyy") : "-", icon: Calendar },
               { label: "Next Renewal", value: policyInfo ? format(policyInfo.nextRenewalDate, "dd MMM") : "-", icon: RefreshCcw },
-              { label: "Renewal Amount", value: policyInfo ? `₹${policyInfo.premiumAmount}` : "-", icon: IndianRupee },
+              { label: "Renewal Amount", value: policyInfo ? `₹${policyInfo.premiumAmount}` : "-", icon: Rupee },
               { label: "Commitment", value: "Week " + (policyInfo?.currentWeek || 1) + "/4", icon: Info }
             ].map((stat, i) => (
               <Card key={i} className="bg-white border-[#E8E6FF] shadow-sm p-4 rounded-xl flex items-center gap-4">
@@ -245,7 +245,7 @@ export default function WorkerDashboard() {
               <Card key={i} className="p-3 rounded-[10px] border-[#E8E6FF] shadow-sm relative overflow-hidden">
                 <div className="flex items-center gap-2 mb-1"><span className="text-sm">{slot.icon}</span><p className="text-[10px] font-bold text-[#94A3B8] uppercase">{slot.label}</p></div>
                 <p className="text-[10px] text-[#64748B]">{slot.time}</p>
-                <p className="text-base font-bold text-[#1A1A2E]">₹{slot.rate}/hr</p>
+                <p className="text-base font-bold text-[#1A1A2E]">₹{Math.round(slot.rate)}/hr</p>
                 <p className="text-[10px] text-[#6C47FF] mt-1">{slot.mult} multiplier</p>
                 <div className="absolute bottom-0 left-0 h-[4px] w-full" style={{ backgroundColor: slot.color, opacity: 0.3 }} />
               </Card>
@@ -256,24 +256,26 @@ export default function WorkerDashboard() {
             <Card className="p-4 rounded-[12px] border-[#E8E6FF] shadow-sm">
               <h4 className="text-sm font-semibold mb-2">Peak Earning Hours (24-Hour Profile)</h4>
               <div className="h-[180px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={[
-                    { hour: '12 AM', evening: 0, lunch: 0, active: 40 },
-                    { hour: '6 AM', evening: 0, lunch: 0, active: 45 },
-                    { hour: '12 PM', evening: 0, lunch: 80, active: 50 },
-                    { hour: '6 PM', evening: 95, lunch: 0, active: 60 },
-                    { hour: '11 PM', evening: 40, lunch: 0, active: 45 },
-                  ]} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E6FF" opacity={0.3} />
-                    <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} ticks={["12 AM", "6 AM", "12 PM", "6 PM", "11 PM"]} />
-                    <YAxis hide={true} />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }} />
-                    <Area type="monotone" dataKey="evening" name="Evening peak" stroke="#6C47FF" fill="#6C47FF" fillOpacity={0.2} />
-                    <Area type="monotone" dataKey="lunch" name="Lunch peak" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.1} />
-                    <Area type="monotone" dataKey="active" name="Active hours" stroke="#C4B8F8" fill="#C4B8F8" fillOpacity={0.1} />
-                    <Legend iconSize={8} wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {mounted && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={[
+                      { hour: '12 AM', evening: 0, lunch: 0, active: 40 },
+                      { hour: '6 AM', evening: 0, lunch: 0, active: 45 },
+                      { hour: '12 PM', evening: 0, lunch: 80, active: 50 },
+                      { hour: '6 PM', evening: 95, lunch: 0, active: 60 },
+                      { hour: '11 PM', evening: 40, lunch: 0, active: 45 },
+                    ]} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E6FF" opacity={0.3} />
+                      <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} ticks={["12 AM", "6 AM", "12 PM", "6 PM", "11 PM"]} />
+                      <YAxis hide={true} />
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }} />
+                      <Area type="monotone" dataKey="evening" name="Evening peak" stroke="#6C47FF" fill="#6C47FF" fillOpacity={0.2} />
+                      <Area type="monotone" dataKey="lunch" name="Lunch peak" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.1} />
+                      <Area type="monotone" dataKey="active" name="Active hours" stroke="#C4B8F8" fill="#C4B8F8" fillOpacity={0.1} />
+                      <Legend iconSize={8} wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </Card>
 
@@ -281,13 +283,18 @@ export default function WorkerDashboard() {
               <h4 className="text-sm font-semibold mb-3">Best Working Days (Daily Earnings)</h4>
               <div className="space-y-1.5">
                 {[
-                  { d: 'Mon', e: 408 }, { d: 'Tue', e: 432 }, { d: 'Wed', e: 456 },
-                  { d: 'Thu', e: 504 }, { d: 'Fri', e: 576 }, { d: 'Sat', e: 624 }, { d: 'Sun', e: 648 }
+                  { d: 'Mon', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 6.8) }, 
+                  { d: 'Tue', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 7.2) }, 
+                  { d: 'Wed', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 7.6) },
+                  { d: 'Thu', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 8.4) }, 
+                  { d: 'Fri', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 9.6) }, 
+                  { d: 'Sat', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 10.4) }, 
+                  { d: 'Sun', e: Math.round((profile?.avg_hourly_earnings ?? 60) * 10.8) }
                 ].map((row, i) => (
                   <div key={i} className="flex items-center gap-2 h-[28px]">
                     <span className="w-7 text-xs text-[#64748B] flex-shrink-0">{row.d}</span>
                     <div className="flex-1 h-[6px] bg-[#E8E6FF] rounded-full overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${(row.e / 648) * 100}%` }} className="h-full bg-[#6C47FF]" />
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${(row.e / ((profile?.avg_hourly_earnings ?? 60) * 11)) * 100}%` }} className="h-full bg-[#6C47FF]" />
                     </div>
                     <span className="w-10 text-right text-xs font-semibold text-[#1A1A2E] flex-shrink-0">₹{row.e}</span>
                   </div>

@@ -7,20 +7,19 @@ import { useFirestore } from '@/firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 
 const STATE_COORDINATES: Record<string, { lat: number; lng: number; zoom: number }> = {
-  "Maharashtra": { lat: 19.7515, lng: 75.7139, zoom: 7 },
-  "Tamil Nadu": { lat: 11.1271, lng: 78.6569, zoom: 7 },
-  "Karnataka": { lat: 15.3173, lng: 75.7139, zoom: 7 },
-  "Delhi": { lat: 28.7041, lng: 77.1025, zoom: 10 },
-  "Gujarat": { lat: 22.2587, lng: 71.1924, zoom: 7 },
-  "Uttar Pradesh": { lat: 26.8467, lng: 80.9462, zoom: 7 },
-  "West Bengal": { lat: 22.9868, lng: 87.8550, zoom: 7 },
+  "Maharashtra": { lat: 19.0760, lng: 72.8777, zoom: 10 },
+  "Tamil Nadu": { lat: 13.0827, lng: 80.2707, zoom: 10 },
+  "Karnataka": { lat: 12.9716, lng: 77.5946, zoom: 10 },
+  "Delhi": { lat: 28.6139, lng: 77.2090, zoom: 10 },
+  "Gujarat": { lat: 23.0225, lng: 72.5714, zoom: 10 },
+  "West Bengal": { lat: 22.5726, lng: 88.3639, zoom: 10 },
 };
 
 const DEFAULT_DISTRICTS = [
-  { id: '1', zone_name: "Mumbai", state: "Maharashtra", lat: 19.0760, lng: 72.8777, radius_m: 8000, risk_level: "extreme", risk_score: 85, rainfall_mm: 72, aqi: 210, reason: "Heavy flooding + high AQI", earning_impact: 45 },
-  { id: '2', zone_name: "Pune", state: "Maharashtra", lat: 18.5204, lng: 73.8567, radius_m: 10000, risk_level: "high", risk_score: 74, rainfall_mm: 58, aqi: 185, reason: "Waterlogging reported", earning_impact: 30 },
-  { id: '3', zone_name: "Bangalore", state: "Karnataka", lat: 12.9716, lng: 77.5946, radius_m: 9000, risk_level: "medium", risk_score: 48, rainfall_mm: 34, aqi: 148, reason: "Slow traffic + rain", earning_impact: 15 },
-  { id: '4', zone_name: "New Delhi", state: "Delhi", lat: 28.6139, lng: 77.2090, radius_m: 8000, risk_level: "extreme", risk_score: 92, rainfall_mm: 12, aqi: 410, reason: "Severe Air Pollution Alert", earning_impact: 50 },
+  { id: '1', zone_name: "Mumbai", state: "Maharashtra", lat: 19.0760, lng: 72.8777, radius_m: 2000, risk_level: "extreme", risk_score: 85, rainfall_mm: 72, aqi: 210, reason: "Heavy flooding + high AQI", earning_impact: 45 },
+  { id: '2', zone_name: "Pune", state: "Maharashtra", lat: 18.5204, lng: 73.8567, radius_m: 2000, risk_level: "high", risk_score: 74, rainfall_mm: 58, aqi: 185, reason: "Waterlogging reported", earning_impact: 30 },
+  { id: '3', zone_name: "Bangalore", state: "Karnataka", lat: 12.9716, lng: 77.5946, radius_m: 2000, risk_level: "medium", risk_score: 48, rainfall_mm: 34, aqi: 148, reason: "Slow traffic + rain", earning_impact: 15 },
+  { id: '4', zone_name: "New Delhi", state: "Delhi", lat: 28.6139, lng: 77.2090, radius_m: 2000, risk_level: "extreme", risk_score: 92, rainfall_mm: 12, aqi: 410, reason: "Severe Air Pollution Alert", earning_impact: 50 },
 ];
 
 export default function MapComponent({ searchQuery, workerState }: { searchQuery: string; workerState?: string }) {
@@ -32,6 +31,21 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
+
+    // Pulse animation keyframes
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes leaflet-pulsate {
+        0% { transform: scale(0.1, 0.1); opacity: 0.0; }
+        50% { opacity: 1.0; }
+        100% { transform: scale(1.2, 1.2); opacity: 0.0; }
+      }
+      .leaflet-pulse {
+        animation: leaflet-pulsate 1.5s ease-out;
+        animation-iteration-count: infinite;
+      }
+    `;
+    document.head.appendChild(style);
 
     const map = L.map(mapContainerRef.current, {
       center: [20.5937, 78.9629],
@@ -92,16 +106,19 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
         fillOpacity: style.opacity,
         color: style.border,
         weight: 2,
-        className: zone.risk_level === 'extreme' ? 'leaflet-pulse' : ''
+        className: (zone.risk_level === 'extreme' || zone.risk_level === 'high') ? 'leaflet-pulse' : ''
       });
 
       const popup = `
         <div style="padding: 12px; min-width: 200px; font-family: Inter, sans-serif;">
-          <h4 style="font-weight: 800; margin-bottom: 8px;">${zone.zone_name}</h4>
+          <h4 style="font-weight: 800; margin-bottom: 8px; color: #1A1A2E;">${zone.zone_name}</h4>
           <p style="font-size: 11px; color: #64748B; margin-bottom: 4px;">Rainfall: ${zone.rainfall_mm}mm | AQI: ${zone.aqi}</p>
           <p style="font-size: 11px; font-weight: 700; color: ${zone.risk_level === 'extreme' ? '#DC2626' : '#1A1A2E'}">
-            Impact: -₹${zone.earning_impact}/hr
+            Earning Impact: -₹${zone.earning_impact}/hr
           </p>
+          <div style="margin-top: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: ${style.fill}">
+            Risk: ${zone.risk_level}
+          </div>
         </div>
       `;
 
@@ -109,5 +126,15 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
     });
   }, [activeZones]);
 
-  return <div ref={mapContainerRef} style={{ width: '100%', height: '100%', borderRadius: '16px', border: '0.5px solid #E8E6FF', boxShadow: '0 2px 12px rgba(108,71,255,0.08)' }} />;
+  return (
+    <div className="w-full h-full relative">
+      <div ref={mapContainerRef} className="w-full h-full rounded-2xl border-[0.5px] border-[#E8E6FF] shadow-card overflow-hidden" />
+      <div className="absolute bottom-4 left-4 z-[1000] bg-white/90 backdrop-blur-sm p-3 rounded-xl border border-[#E8E6FF] shadow-sm space-y-2">
+        <p className="text-[10px] font-bold text-[#1A1A2E] uppercase tracking-wider mb-1">Disruption Legend</p>
+        <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full bg-[#DC2626]" /><span className="text-[10px] font-bold text-[#64748B]">EXTREME</span></div>
+        <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full bg-[#F97316]" /><span className="text-[10px] font-bold text-[#64748B]">HIGH RISK</span></div>
+        <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full bg-[#FBBF24]" /><span className="text-[10px] font-bold text-[#64748B]">CAUTION</span></div>
+      </div>
+    </div>
+  );
 }

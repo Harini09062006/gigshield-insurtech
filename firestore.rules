@@ -19,6 +19,11 @@ service cloud.firestore {
       allow read: if request.auth != null && (
         (resource != null && resource.data.worker_id == request.auth.uid) || isAdmin()
       );
+      // Allow workers to list their own claims
+      allow list: if request.auth != null && (
+        request.query.limit <= 50 && 
+        (isAdmin() || request.query.filters.worker_id == request.auth.uid)
+      );
       // Workers can create claims for simulation.
       allow create: if request.auth != null && request.resource.data.worker_id == request.auth.uid;
       // Only admins can update/delete
