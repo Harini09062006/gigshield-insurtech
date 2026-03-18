@@ -30,7 +30,6 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
   const [activeZones, setActiveZones] = useState<any[]>([]);
   const db = useFirestore();
 
-  // 1. Initialize Map Once
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
@@ -55,7 +54,6 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
     };
   }, []);
 
-  // 2. Fly to worker state on change (without re-initializing map)
   useEffect(() => {
     if (mapRef.current && workerState && STATE_COORDINATES[workerState]) {
       const { lat, lng, zoom } = STATE_COORDINATES[workerState];
@@ -63,7 +61,6 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
     }
   }, [workerState]);
 
-  // 3. Listen for Firestore zones
   useEffect(() => {
     if (!db) return;
     const unsub = onSnapshot(collection(db, "disruption_zones"), (snapshot) => {
@@ -73,7 +70,6 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
     return () => unsub();
   }, [db]);
 
-  // 4. Update markers when zones change
   useEffect(() => {
     if (!layerGroupRef.current || !mapRef.current) return;
     
@@ -95,7 +91,8 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
         fillColor: style.fill,
         fillOpacity: style.opacity,
         color: style.border,
-        weight: 2
+        weight: 2,
+        className: zone.risk_level === 'extreme' ? 'leaflet-pulse' : ''
       });
 
       const popup = `
@@ -112,5 +109,5 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
     });
   }, [activeZones]);
 
-  return <div ref={mapContainerRef} className="w-full h-full rounded-2xl shadow-card border border-[#E8E6FF]" />;
+  return <div ref={mapContainerRef} style={{ width: '100%', height: '100%', borderRadius: '16px', border: '0.5px solid #E8E6FF', boxShadow: '0 2px 12px rgba(108,71,255,0.08)' }} />;
 }

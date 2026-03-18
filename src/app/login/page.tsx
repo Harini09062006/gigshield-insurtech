@@ -21,14 +21,13 @@ export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
   const db = useFirestore();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
 
-  // If already logged in, skip to dashboard
   useEffect(() => {
-    if (user) {
+    if (user && !isUserLoading) {
       router.replace("/dashboard");
     }
-  }, [user, router]);
+  }, [user, isUserLoading, router]);
 
   function validatePhone(phone: string) {
     const cleaned = phone.replace(/\s/g, '').replace('+91', '').trim();
@@ -61,107 +60,66 @@ export default function LoginPage() {
       const userDoc = await getDoc(doc(db, 'users', uid));
       
       if (!userDoc.exists()) {
-        throw new Error('Account not found. Please register.');
+        throw new Error('Account not found. Please register first.');
       }
       
       const userData = userDoc.data();
-      if (userData.role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
-      }
+      router.push(userData.role === 'admin' ? '/admin' : '/dashboard');
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found' || 
-          error.code === 'auth/wrong-password' ||
-          error.code === 'auth/invalid-credential') {
-        setErrorMessage('No account found. Please register first.');
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setErrorMessage('No account found with this number. Please register first.');
       } else if (error.code === 'auth/too-many-requests') {
-        setErrorMessage('Too many attempts. Wait 5 minutes.');
-      } else if (error.code === 'auth/network-request-failed') {
-        setErrorMessage('Check your internet connection.');
+        setErrorMessage('Too many login attempts. Wait 5 minutes.');
       } else {
-        setErrorMessage(error.message || 'Something went wrong. Please try again.');
+        setErrorMessage('Something went wrong. Please try again.');
       }
     } finally {
       setLoading(false);
     }
   };
 
+  if (isUserLoading) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#EEEEFF] p-4 font-body">
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md space-y-10 flex flex-col items-center"
-      >
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-10 flex flex-col items-center">
         <Link href="/" className="flex flex-col items-center">
           <div className="h-16 w-16 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn mb-3">
             <Shield className="h-9 w-9 text-white" />
           </div>
-          <span className="text-4xl font-headline font-bold text-[#1A1A2E] tracking-tight">
-            GigShield
-          </span>
+          <span className="text-4xl font-headline font-bold text-[#1A1A2E] tracking-tight">GigShield</span>
         </Link>
 
         <Card className="w-full border-none shadow-card rounded-[24px] bg-white p-2">
           <CardHeader className="text-center pt-8">
-            <CardTitle className="text-3xl font-headline font-bold text-[#1A1A2E]">
-              Welcome Back
-            </CardTitle>
-            <CardDescription className="text-[#64748B] text-base mt-2">
-              Enter your phone number to continue
-            </CardDescription>
+            <CardTitle className="text-3xl font-headline font-bold text-[#1A1A2E]">Welcome Back</CardTitle>
+            <CardDescription className="text-[#64748B] text-base mt-2">Enter your phone number to continue</CardDescription>
           </CardHeader>
           
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-6 px-8 pt-4">
               <div className="space-y-3">
-                <Label htmlFor="phone" className="text-[#1A1A2E] font-semibold text-sm">
-                  Phone Number
-                </Label>
+                <Label htmlFor="phone" className="text-[#1A1A2E] font-semibold text-sm">Phone Number</Label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6C47FF]" />
-                  <Input 
-                    id="phone" 
-                    type="tel" 
-                    placeholder="9342460938" 
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="pl-12 rounded-xl h-14 border-[#E8E6FF] bg-[#F8F9FF] focus:border-[#6C47FF] text-lg font-medium transition-all"
-                    required 
-                  />
+                  <Input id="phone" type="tel" placeholder="9342460938" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-12 rounded-xl h-14 border-[#E8E6FF] bg-[#F8F9FF] focus:border-[#6C47FF] text-lg font-medium transition-all" required />
                 </div>
               </div>
 
               {errorMessage && (
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="bg-[#FEE2E2] border border-[#FECACA] rounded-lg p-3 text-[#DC2626] text-xs flex items-center gap-2"
-                >
+                <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '8px', padding: '10px 14px', marginTop: '12px', color: '#DC2626', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AlertCircle className="h-4 w-4 shrink-0" /> {errorMessage}
-                </motion.div>
+                </div>
               )}
             </CardContent>
             
             <CardFooter className="flex flex-col gap-6 px-8 pb-10 pt-2">
-              <Button 
-                className="w-full h-14 font-bold bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn rounded-xl text-white text-lg transition-all active:scale-[0.98]" 
-                type="submit" 
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                    Logging in...
-                  </>
-                ) : "Login"}
+              <Button className="w-full h-14 font-bold bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn rounded-xl text-white text-lg transition-all active:scale-[0.98]" type="submit" disabled={loading}>
+                {loading ? <><Loader2 className="animate-spin h-5 w-5 mr-2" /> Logging in...</> : "Login"}
               </Button>
-              <div className="text-center">
-                <p className="text-sm text-[#64748B]">
-                  New here? <Link href="/register" className="text-[#6C47FF] hover:underline font-bold">Get Protected &rarr;</Link>
-                </p>
-              </div>
+              <p className="text-sm text-center text-[#64748B]">
+                New here? <Link href="/register" className="text-[#6C47FF] hover:underline font-bold">Get Protected &rarr;</Link>
+              </p>
             </CardFooter>
           </form>
         </Card>
