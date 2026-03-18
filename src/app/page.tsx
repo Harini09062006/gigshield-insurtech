@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Shield, LogIn, UserPlus, Settings, ArrowRight, Loader2 } from "lucide-react";
@@ -10,14 +9,19 @@ import { useUser } from "@/firebase";
 export default function Home() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    if (!isUserLoading && user) {
-      router.push("/dashboard");
+    if (!isUserLoading) {
+      if (user) {
+        router.replace("/dashboard");
+      } else {
+        setCheckingAuth(false);
+      }
     }
   }, [user, isUserLoading, router]);
 
-  if (isUserLoading) {
+  if (isUserLoading || checkingAuth) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-bg-page">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -51,7 +55,7 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
-          <div className="bg-white p-10 rounded-card border border-border shadow-card flex flex-col items-start text-left group hover:bg-bg-card-hover transition-colors">
+          <div className="bg-white p-10 rounded-card border border-border shadow-card flex flex-col items-start text-left group hover:bg-primary-light transition-colors">
             <div className="h-14 w-14 rounded-2xl bg-primary-light flex items-center justify-center mb-8">
               <LogIn className="h-7 w-7 text-primary" />
             </div>
@@ -64,7 +68,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="bg-white p-10 rounded-card border border-border shadow-card flex flex-col items-start text-left group hover:bg-bg-card-hover transition-colors">
+          <div className="bg-white p-10 rounded-card border border-border shadow-card flex flex-col items-start text-left group hover:bg-primary-light transition-colors">
             <div className="h-14 w-14 rounded-2xl bg-primary-light flex items-center justify-center mb-8">
               <UserPlus className="h-7 w-7 text-primary" />
             </div>
@@ -77,7 +81,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="bg-white p-10 rounded-card border border-border shadow-card flex flex-col items-start text-left group hover:bg-bg-card-hover transition-colors">
+          <div className="bg-white p-10 rounded-card border border-border shadow-card flex flex-col items-start text-left group hover:bg-primary-light transition-colors">
             <div className="h-14 w-14 rounded-2xl bg-primary-light flex items-center justify-center mb-8">
               <Settings className="h-7 w-7 text-primary" />
             </div>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
@@ -57,7 +56,7 @@ export default function WorkerDashboard() {
 
   const handleLogout = async () => {
     await auth.signOut();
-    router.push("/");
+    router.replace("/");
   };
 
   const simulateWeather = async () => {
@@ -144,7 +143,7 @@ export default function WorkerDashboard() {
 
   return (
     <div className="min-h-screen bg-bg-page flex flex-col font-body">
-      <header className="px-6 py-4 flex items-center justify-between border-b border-border bg-white sticky top-0 z-50">
+      <header className="px-6 py-4 flex items-center justify-between border-b border-border bg-white sticky top-0 z-50 shadow-sm">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center shadow-btn">
             <Shield className="h-6 w-6 text-white" />
@@ -153,7 +152,7 @@ export default function WorkerDashboard() {
             Gig<span className="text-primary">Shield</span>
           </span>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <Link href="/dashboard">
             <Button variant="ghost" size="icon" className={pathname === "/dashboard" ? "text-primary bg-primary-light" : "text-body"}>
               <Home className="h-6 w-6" />
@@ -164,13 +163,18 @@ export default function WorkerDashboard() {
               <FileText className="h-6 w-6" />
             </Button>
           </Link>
+          <Link href="/heatmap">
+            <Button variant="ghost" size="icon" className={pathname === "/heatmap" ? "text-primary bg-primary-light" : "text-body"}>
+              <MapIcon className="h-6 w-6" />
+            </Button>
+          </Link>
           <Button onClick={handleLogout} variant="ghost" className="text-body font-bold gap-2">
-            <LogOut className="h-5 w-5" /> Switch
+            <LogOut className="h-5 w-5" /> Logout
           </Button>
         </div>
       </header>
 
-      <main className="flex-1 space-y-8 pb-20 p-6 lg:px-10">
+      <main className="flex-1 space-y-8 pb-20 p-6 lg:px-10 max-w-7xl mx-auto w-full">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-headline font-bold text-heading">Welcome back, {profile?.name?.split(' ')[0] || 'Worker'}</h1>
@@ -182,7 +186,7 @@ export default function WorkerDashboard() {
           <Button 
             onClick={simulateWeather} 
             disabled={isSimulating}
-            className="bg-primary hover:bg-primary-hover text-white font-bold shadow-btn rounded-btn h-11 px-6"
+            className="bg-primary hover:bg-primary-hover text-white font-bold shadow-btn rounded-btn h-11 px-6 transition-all active:scale-95"
           >
             {isSimulating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Zap className="mr-2 h-4 w-4 fill-current" />}
             Simulate Severe Weather
@@ -199,11 +203,11 @@ export default function WorkerDashboard() {
               <div className="text-2xl font-bold">{profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "PRO SHIELD"}</div>
               <p className="text-xs text-white/70">Parametric weather cover activated</p>
               <div className="grid grid-cols-2 gap-2 mt-4">
-                <div className="bg-white/10 p-2 rounded-lg">
+                <div className="bg-white/10 p-2 rounded-lg text-center">
                   <p className="text-[10px] uppercase opacity-60">Max Payout</p>
                   <p className="text-sm font-bold">₹{profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5}</p>
                 </div>
-                <div className="bg-white/10 p-2 rounded-lg">
+                <div className="bg-white/10 p-2 rounded-lg text-center">
                   <p className="text-[10px] uppercase opacity-60">Weekly Premium</p>
                   <p className="text-sm font-bold">₹{profile?.plan_id === 'max' ? 2 : 1}</p>
                 </div>
@@ -273,17 +277,17 @@ export default function WorkerDashboard() {
             </div>
           </CardHeader>
           <CardContent className="grid gap-6 md:grid-cols-3 pt-4">
-            <div className="space-y-1">
+            <div className="space-y-1 text-center md:text-left">
               <p className="text-xs font-bold text-body uppercase">Potential Income Loss</p>
               <p className="text-2xl font-bold text-danger">₹{Math.round(currentDnaRate * 6)}</p>
               <p className="text-[10px] text-body">6 hrs × ₹{currentDnaRate}/hr</p>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 text-center md:text-left">
               <p className="text-xs font-bold text-body uppercase">Insurance Coverage</p>
               <p className="text-2xl font-bold text-success">₹{profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5}</p>
               <p className="text-[10px] text-body">Capped by {profile?.plan_id?.toUpperCase() || 'PRO'} Shield limit</p>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 text-center md:text-left">
               <p className="text-xs font-bold text-body uppercase">Remaining Risk</p>
               <p className="text-2xl font-bold text-danger">₹{Math.max(0, Math.round(currentDnaRate * 6) - (profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5))}</p>
               <p className="text-[10px] text-body">Consider upgrading plan</p>
@@ -315,8 +319,8 @@ export default function WorkerDashboard() {
                   <p className="text-[9px] font-bold text-muted uppercase">Recommended Plan</p>
                   <p className="text-base font-bold text-warning">{dna?.recommended_plan || "Max Shield"}</p>
                 </div>
-                <Button variant="outline" size="sm" className="border-primary text-primary font-bold h-8 text-xs hover:bg-primary-light rounded-btn">
-                  Upgrade Plan
+                <Button variant="outline" size="sm" className="border-primary text-primary font-bold h-8 text-xs hover:bg-primary-light rounded-btn" asChild>
+                  <Link href="/plans">Upgrade Plan</Link>
                 </Button>
               </div>
             </Card>
@@ -421,7 +425,7 @@ export default function WorkerDashboard() {
               { zone: "Bandra", risk: "MEDIUM", bg: "bg-[#FFFBEA] border-[#FDE68A]", text: "text-[#D97706]" },
               { zone: "Dadar", risk: "LOW", bg: "bg-[#F0FDF4] border-[#BBF7D0]", text: "text-[#16A34A]" }
             ].map((zone, i) => (
-              <Card key={i} className={`${zone.bg} p-4 rounded-xl border flex justify-between items-center`}>
+              <Card key={i} className={`${zone.bg} p-4 rounded-xl border flex justify-between items-center transition-transform hover:scale-102`}>
                 <span className="font-bold text-heading">{zone.zone}</span>
                 <Badge className={`${zone.bg} ${zone.text} border-none font-bold text-[10px]`}>{zone.risk}</Badge>
               </Card>
@@ -431,7 +435,7 @@ export default function WorkerDashboard() {
       </main>
 
       <Link href="/support">
-        <Button className="fixed bottom-6 right-6 h-14 px-6 rounded-full shadow-btn bg-primary hover:bg-primary-hover flex items-center gap-3 z-50">
+        <Button className="fixed bottom-6 right-6 h-14 px-6 rounded-full shadow-btn bg-primary hover:bg-primary-hover flex items-center gap-3 z-50 transition-all active:scale-95">
           <Brain className="h-6 w-6 text-white" />
           <span className="font-bold">AI Support</span>
         </Button>

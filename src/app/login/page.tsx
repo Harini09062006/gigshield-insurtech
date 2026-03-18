@@ -29,20 +29,15 @@ export default function LoginPage() {
     
     setLoading(true);
     try {
-      // 1. Sign in anonymously for the prototype session
       const userCredential = await signInAnonymously(auth);
       const newUid = userCredential.user.uid;
       
-      // 2. Lookup existing profile by phone
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("phone", "==", normalizedPhone));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        // 3. Found existing user - migrate/copy profile to new UID
         const existingData = querySnapshot.docs[0].data();
-        
-        // Update the new UID with the existing profile data
         await setDoc(doc(db, "users", newUid), {
           ...existingData,
           id: newUid,
@@ -50,9 +45,8 @@ export default function LoginPage() {
         }, { merge: true });
 
         toast({ title: "Welcome Back", description: `Logged in as ${existingData.name}` });
-        router.push(existingData.role === "admin" ? "/admin" : "/dashboard");
+        router.replace(existingData.role === "admin" ? "/admin" : "/dashboard");
       } else {
-        // 4. New user - redirect to registration
         toast({ title: "New Profile", description: "Please complete your registration." });
         router.push("/register");
       }
@@ -67,7 +61,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-page p-4">
       <div className="w-full max-w-md space-y-8 flex flex-col items-center">
-        <div className="flex flex-col items-center gap-2">
+        <Link href="/" className="flex flex-col items-center gap-2">
           <div className="h-14 w-14 bg-primary rounded-xl flex items-center justify-center shadow-btn">
             <Shield className="h-8 w-8 text-white" />
           </div>
@@ -75,7 +69,7 @@ export default function LoginPage() {
             <span className="text-primary">Gig</span>
             <span className="text-heading">Shield</span>
           </span>
-        </div>
+        </Link>
 
         <Card className="w-full border-border shadow-card rounded-card bg-white">
           <CardHeader className="text-center">
@@ -104,7 +98,7 @@ export default function LoginPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-6 pt-2">
-              <Button className="w-full h-12 font-bold bg-primary hover:bg-primary-hover shadow-btn rounded-btn text-white" type="submit" disabled={loading}>
+              <Button className="w-full h-12 font-bold bg-primary hover:bg-primary-hover shadow-btn rounded-btn text-white transition-all active:scale-95" type="submit" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Login
               </Button>
