@@ -3,10 +3,8 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { AlertTriangle, Zap, Shield, CloudRain, Info } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 const STATE_COORDINATES: Record<string, { lat: number; lng: number; zoom: number }> = {
   "Maharashtra": { lat: 19.7515, lng: 75.7139, zoom: 7 },
@@ -74,7 +72,7 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
       zoom: 5,
       minZoom: 4,
       maxZoom: 16,
-      zoomControl: false, // Custom position below
+      zoomControl: false,
     });
 
     L.control.zoom({ position: 'topright' }).addTo(map);
@@ -110,12 +108,10 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
 
     if (searchQuery) {
       const queryLower = searchQuery.toLowerCase();
-      // Try to find a district first
       const districtMatch = activeZones.find(z => z.zone_name.toLowerCase().includes(queryLower));
       if (districtMatch) {
         mapInstanceRef.current.flyTo([districtMatch.lat, districtMatch.lng], 10, { duration: 1.5 });
       } else {
-        // Try state match
         const stateEntry = Object.entries(STATE_COORDINATES).find(([name]) => name.toLowerCase().includes(queryLower));
         if (stateEntry) {
           const [, coords] = stateEntry;
@@ -150,7 +146,6 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
         weight: isMatch && filter !== '' ? 4 : 2,
       });
 
-      // Rich Popup Content
       const popupContent = `
         <div class="popup-card" style="min-width:220px; font-family: Inter, sans-serif;">
           <div style="border-top: 4px solid ${config.fill}; border-radius: 8px; background: white; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1)">
@@ -186,9 +181,8 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
       circle.bindPopup(popupContent, { className: 'custom-popup' });
       circle.addTo(zonesLayerRef.current!);
 
-      // Pulsing effect for high danger zones
       if (config.pulse && (filter === '' || isMatch)) {
-        const pulseCircle = L.circle([zone.lat, zone.lng], {
+        L.circle([zone.lat, zone.lng], {
           radius: (zone.radius_m || 8000) * 1.4,
           fillColor: config.fill,
           fillOpacity: 0.08,
@@ -212,7 +206,6 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
 
   return (
     <div className="w-full h-full flex flex-col gap-4">
-      {/* Top Stats Bar */}
       <div className="flex flex-wrap gap-3 overflow-x-auto pb-2 scrollbar-hide">
         <div className="bg-[#DC2626]/10 border border-[#DC2626] text-[#DC2626] px-4 py-1.5 rounded-full flex items-center gap-2 font-bold text-xs whitespace-nowrap shadow-sm">
           <div className="h-2 w-2 rounded-full bg-[#DC2626]" /> {stats.extreme} Extreme zones
@@ -231,7 +224,6 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
       <div className="relative flex-1 w-full rounded-card overflow-hidden shadow-card border border-border bg-white" style={{ minHeight: '520px', zIndex: 1 }}>
         <div ref={mapContainerRef} className="w-full h-full" />
 
-        {/* Legend */}
         <div className="absolute bottom-6 left-6 z-[1000] bg-white/95 backdrop-blur-sm p-4 rounded-card border border-border shadow-lg min-w-[180px]">
           <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Risk Level Guide</h4>
           <div className="space-y-2">
@@ -250,7 +242,6 @@ export default function MapComponent({ searchQuery, workerState }: { searchQuery
           </div>
         </div>
 
-        {/* Sync Status Overlay */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full border border-border shadow-sm flex flex-col items-center gap-0.5">
           <span className="text-[9px] font-bold text-primary uppercase tracking-[0.2em]">Live Data Sync</span>
           <span className="text-[8px] font-mono text-muted-foreground uppercase">Updated {lastUpdated.toLocaleTimeString()}</span>

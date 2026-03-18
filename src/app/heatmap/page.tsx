@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Shield, Search, Loader2, Home, FileText, Map as MapIcon, LogOut, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
