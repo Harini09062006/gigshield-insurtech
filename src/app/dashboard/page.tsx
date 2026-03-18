@@ -26,7 +26,7 @@ export default function WorkerDashboard() {
 
   useEffect(() => {
     setMounted(true);
-    if (!isUserLoading && !user) router.replace("/login");
+    if (!isUserLoading && !user) router.replace("/");
   }, [user, isUserLoading, router]);
 
   const profileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
@@ -39,7 +39,7 @@ export default function WorkerDashboard() {
     if (!db || !user?.uid) return null;
     return query(
       collection(db, "claims"), 
-      where("userId", "==", user.uid),
+      where("worker_id", "==", user.uid),
       limit(5)
     );
   }, [db, user?.uid]);
@@ -235,7 +235,7 @@ export default function WorkerDashboard() {
           <div className="grid gap-6 md:grid-cols-3">
             <div><p className="text-xs font-bold text-[#64748B] uppercase">Potential Income Loss</p><p className="text-2xl font-bold text-[#EF4444]">₹{potentialLoss}</p><p className="text-[9px] text-[#64748B]">6 hrs disruption during peak</p></div>
             <div><p className="text-xs font-bold text-[#64748B] uppercase">Insurance Coverage</p><p className="text-2xl font-bold text-[#22C55E]">₹{coverage}</p><p className="text-[9px] text-[#64748B]">Parametric Payout Limit</p></div>
-            <div><p className="text-xs font-bold text-[#64748B] uppercase">Remaining Risk</p><p className="text-2xl font-bold text-[#EF4444]">₹{remainingRisk}</p><p className="text-[9px] text-[#64748B]">Clamped at ₹0</p></div>
+            <div><p className="text-xs font-bold text-[#64748B] uppercase">Remaining Risk</p><p className="text-2xl font-bold text-[#EF4444]">₹{remainingRisk}</p><p className="text-[9px] text-[#64748B]">Unprotected amount</p></div>
           </div>
           
           {remainingRisk <= 0 ? (
@@ -289,7 +289,7 @@ export default function WorkerDashboard() {
               <Card key={i} className="p-3 rounded-[10px] border-[#E8E6FF] shadow-sm relative overflow-hidden">
                 <div className="flex items-center gap-2 mb-1"><span className="text-sm">{slot.icon}</span><p className="text-[10px] font-bold text-[#94A3B8] uppercase">{slot.label}</p></div>
                 <p className="text-[10px] text-[#64748B]">{slot.time}</p>
-                <p className="text-base font-bold text-[#1A1A2E]">₹{Math.round(slot.rate)}/hr</p>
+                <p className="text-base font-bold text-[#1A1A2E]">₹{Math.round(slot.rate || 0)}/hr</p>
                 <p className="text-[10px] text-[#6C47FF] mt-1">{slot.mult} multiplier</p>
                 <div className="absolute bottom-0 left-0 h-[4px] w-full" style={{ backgroundColor: slot.color, opacity: 0.3 }} />
               </Card>

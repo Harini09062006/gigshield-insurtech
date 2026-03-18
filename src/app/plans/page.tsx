@@ -132,18 +132,27 @@ export default function PlansPage() {
   const [loading, setLoading] = useState(false);
 
   function calculateIncomeDNA(base: number) {
-    const morning   = Math.round(base * 0.75 * 4)
-    const afternoon = Math.round(base * 0.95 * 4)
-    const evening   = Math.round(base * 1.30 * 4)
-    const night     = Math.round(base * 0.85 * 3)
+    const m_rate = Math.round(base * 0.75)
+    const a_rate = Math.round(base * 0.95)
+    const e_rate = Math.round(base * 1.30)
+    const n_rate = Math.round(base * 0.85)
+
+    const morning   = m_rate * 4
+    const afternoon = a_rate * 4
+    const evening   = e_rate * 4
+    const night     = n_rate * 3
     const daily     = morning + afternoon + evening + night
     const weekly    = daily * 7
     
     return {
-      morning_rate:   Math.round(base * 0.75),
-      afternoon_rate: Math.round(base * 0.95),
-      evening_rate:   Math.round(base * 1.30),
-      night_rate:     Math.round(base * 0.85),
+      morning_rate:   m_rate,
+      afternoon_rate: a_rate,
+      evening_rate:   e_rate,
+      night_rate:     n_rate,
+      morning_earnings: morning,
+      afternoon_earnings: afternoon,
+      evening_earnings: evening,
+      night_earnings: night,
       daily_earnings: daily,
       weekly_earnings: weekly
     }
@@ -167,6 +176,8 @@ export default function PlansPage() {
       const dna = calculateIncomeDNA(avgEarnings);
 
       await setDoc(doc(db, "income_dna", user.uid), {
+        userId: user.uid,
+        worker_id: user.uid,
         base_rate: avgEarnings,
         ...dna,
         recommended_plan: plan?.name || "Pro Shield",
