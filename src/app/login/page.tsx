@@ -24,24 +24,23 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Normalize phone by removing spaces
     const normalizedPhone = phone.trim().replace(/\s+/g, "");
     if (!normalizedPhone) return;
     
     setLoading(true);
     try {
-      // 1. Sign in anonymously to get an auth context for the query
+      // Sign in anonymously to get context
       const userCredential = await signInAnonymously(auth);
       const newUid = userCredential.user.uid;
       
-      // 2. Query Firestore for an existing user with this phone number
+      // Look for existing profile
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("phone", "==", normalizedPhone));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        // User exists - merge their data into the current anonymous session
         const existingData = querySnapshot.docs[0].data();
+        // Bridge existing data to current session
         await setDoc(doc(db, "users", newUid), {
           ...existingData,
           id: newUid,
@@ -51,12 +50,10 @@ export default function LoginPage() {
         toast({ title: "Welcome Back", description: `Logged in as ${existingData.name}` });
         router.replace(existingData.role === "admin" ? "/admin" : "/dashboard");
       } else {
-        // New user - proceed to registration
         toast({ title: "New Profile", description: "Please complete your registration." });
         router.push("/register");
       }
     } catch (error: any) {
-      console.error("Login Error:", error);
       toast({ 
         variant: "destructive", 
         title: "Login Failed", 
@@ -70,7 +67,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-page p-4 font-body">
       <div className="w-full max-w-md space-y-10 flex flex-col items-center">
-        {/* Logo Section */}
         <Link href="/" className="flex flex-col items-center">
           <div className="h-16 w-16 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn mb-3">
             <Shield className="h-9 w-9 text-white" />
@@ -80,7 +76,6 @@ export default function LoginPage() {
           </span>
         </Link>
 
-        {/* Login Card */}
         <Card className="w-full border-none shadow-card rounded-[24px] bg-white p-2">
           <CardHeader className="text-center pt-8">
             <CardTitle className="text-3xl font-headline font-bold text-[#1A1A2E]">

@@ -39,7 +39,6 @@ export default function RegisterPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // If user is not logged in anonymously yet, redirect back to login
     if (!isUserLoading && !user) {
       router.push("/login");
     }
@@ -47,11 +46,7 @@ export default function RegisterPage() {
 
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      toast({ variant: "destructive", title: "Session Expired", description: "Please login again." });
-      router.push("/login");
-      return;
-    }
+    if (!user) return;
 
     setLoading(true);
     try {
@@ -73,7 +68,7 @@ export default function RegisterPage() {
   if (isUserLoading) return null;
 
   return (
-    <div className="min-h-screen bg-bg-page flex flex-col items-center py-10 px-4">
+    <div className="min-h-screen bg-bg-page flex flex-col items-center py-10 px-4 font-body">
       <div className="w-full max-w-lg space-y-8">
         <div className="flex flex-col items-center gap-4">
           <div className="h-12 w-12 bg-primary rounded-2xl flex items-center justify-center shadow-btn">
@@ -88,44 +83,44 @@ export default function RegisterPage() {
         </div>
 
         <Card className="border-border shadow-card rounded-card overflow-hidden bg-white">
-          <CardHeader className="bg-white">
+          <CardHeader>
             <CardTitle className="text-2xl font-headline font-bold text-heading">Tell us about yourself</CardTitle>
             <CardDescription className="text-body">This helps us customize your Income DNA profile</CardDescription>
           </CardHeader>
           <form onSubmit={handleNext}>
             <CardContent className="space-y-5">
               <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-heading">
+                <Label className="flex items-center gap-2 text-heading font-semibold">
                   <User className="h-4 w-4 text-primary" /> Full Name
                 </Label>
                 <Input 
                   placeholder="Ravi Kumar" 
                   value={formData.name}
                   onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="h-12 rounded-btn border-input focus:border-primary bg-white"
+                  className="h-12 rounded-btn border-border focus:border-primary bg-[#F8F9FF]"
                   required 
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-heading">
+                <Label className="flex items-center gap-2 text-heading font-semibold">
                   <Phone className="h-4 w-4 text-primary" /> Phone Number
                 </Label>
                 <Input 
-                  placeholder="+91 98765 43210" 
+                  placeholder="9342460938" 
                   value={formData.phone}
                   onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  className="h-12 rounded-btn border-input focus:border-primary bg-white"
+                  className="h-12 rounded-btn border-border focus:border-primary bg-[#F8F9FF]"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-heading">
+                <Label className="flex items-center gap-2 text-heading font-semibold">
                   <Briefcase className="h-4 w-4 text-primary" /> Delivery Platform
                 </Label>
                 <Select onValueChange={val => setFormData(prev => ({ ...prev, platform: val }))} required>
-                  <SelectTrigger className="h-12 rounded-btn border-input bg-white">
+                  <SelectTrigger className="h-12 rounded-btn border-border bg-[#F8F9FF]">
                     <SelectValue placeholder="Select platform" />
                   </SelectTrigger>
                   <SelectContent>
@@ -136,11 +131,11 @@ export default function RegisterPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-heading">
+                  <Label className="flex items-center gap-2 text-heading font-semibold">
                     <MapPin className="h-4 w-4 text-primary" /> State
                   </Label>
                   <Select onValueChange={val => setFormData(prev => ({ ...prev, state: val, city: "" }))} required>
-                    <SelectTrigger className="h-12 rounded-btn border-input bg-white">
+                    <SelectTrigger className="h-12 rounded-btn border-border bg-[#F8F9FF]">
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
                     <SelectContent>
@@ -149,11 +144,11 @@ export default function RegisterPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-heading">
+                  <Label className="flex items-center gap-2 text-heading font-semibold">
                     <Navigation className="h-4 w-4 text-primary" /> City
                   </Label>
                   <Select onValueChange={val => setFormData(prev => ({ ...prev, city: val }))} disabled={!formData.state} required>
-                    <SelectTrigger className="h-12 rounded-btn border-input bg-white">
+                    <SelectTrigger className="h-12 rounded-btn border-border bg-[#F8F9FF]">
                       <SelectValue placeholder="Select city" />
                     </SelectTrigger>
                     <SelectContent>
@@ -165,7 +160,7 @@ export default function RegisterPage() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="bg-bg-page/10 p-6">
+            <CardFooter className="p-6">
               <Button className="w-full h-12 font-bold bg-primary hover:bg-primary-hover shadow-btn rounded-btn text-white" type="submit" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : "Next → Choose Your Plan"}
               </Button>

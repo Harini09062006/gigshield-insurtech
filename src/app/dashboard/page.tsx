@@ -2,7 +2,7 @@
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
 import { doc, collection, query, limit, where, addDoc, serverTimestamp } from "firebase/firestore";
-import { Shield, Zap, AlertCircle, ChevronRight, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, TrendingUp, Sparkles } from "lucide-react";
+import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,10 +73,11 @@ export default function WorkerDashboard() {
       const hoursLost = 4;
       const incomeLoss = dnaRate * hoursLost;
       
-      let planCap = 120;
-      if (profile?.plan_id === 'max') planCap = 500;
-      else if (profile?.plan_id === 'pro') planCap = 240;
-      else if (profile?.plan_id === 'basic') planCap = 100;
+      // Fixed Payout Caps per plan from prompt
+      let planCap = 5;
+      if (profile?.plan_id === 'max') planCap = 25;
+      else if (profile?.plan_id === 'pro') planCap = 12;
+      else planCap = 5;
       
       const compensation = Math.min(incomeLoss, planCap);
 
@@ -139,7 +140,6 @@ export default function WorkerDashboard() {
   if (!user) return null;
 
   const currentDnaRate = dna?.evening_rate || 78;
-  const baseRate = profile?.avg_hourly_earnings || 60;
 
   return (
     <div className="min-h-screen bg-bg-page flex flex-col font-body">
@@ -251,49 +251,6 @@ export default function WorkerDashboard() {
             </CardContent>
           </Card>
         </div>
-
-        <section className="grid gap-4 md:grid-cols-4">
-          {[
-            { label: "Active Plan", value: profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "PRO SHIELD" },
-            { label: "Activation Date", value: profile?.plan_activated_at?.seconds ? format(new Date(profile.plan_activated_at.seconds * 1000), "MMM dd, yyyy") : "Recently" },
-            { label: "Coverage Period", value: "Current Week" },
-            { label: "Next Renewal", value: "Automatic", highlight: true }
-          ].map((stat, i) => (
-            <Card key={i} className="bg-white border-border shadow-sm p-4 rounded-xl">
-              <p className="text-[11px] text-muted uppercase tracking-wider font-bold mb-1">{stat.label}</p>
-              <p className={`text-lg font-bold ${stat.highlight ? "text-primary" : "text-heading"}`}>{stat.value}</p>
-              {stat.highlight && <p className="text-[10px] text-body mt-0.5">Auto-renews weekly</p>}
-            </Card>
-          ))}
-        </section>
-
-        <Card className="bg-[#EDE9FF] border-[#D4CCFF] shadow-card rounded-card overflow-hidden">
-          <CardHeader className="pb-2">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <CardTitle className="text-xl font-headline font-bold text-heading">Earnings Protection Summary</CardTitle>
-              <Badge className="bg-primary text-white border-none py-1.5 px-4 rounded-full font-bold">
-                DNA Rate Used: ₹{currentDnaRate}/hr (Evening Peak)
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-6 md:grid-cols-3 pt-4">
-            <div className="space-y-1 text-center md:text-left">
-              <p className="text-xs font-bold text-body uppercase">Potential Income Loss</p>
-              <p className="text-2xl font-bold text-danger">₹{Math.round(currentDnaRate * 6)}</p>
-              <p className="text-[10px] text-body">6 hrs × ₹{currentDnaRate}/hr</p>
-            </div>
-            <div className="space-y-1 text-center md:text-left">
-              <p className="text-xs font-bold text-body uppercase">Insurance Coverage</p>
-              <p className="text-2xl font-bold text-success">₹{profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5}</p>
-              <p className="text-[10px] text-body">Capped by {profile?.plan_id?.toUpperCase() || 'PRO'} Shield limit</p>
-            </div>
-            <div className="space-y-1 text-center md:text-left">
-              <p className="text-xs font-bold text-body uppercase">Remaining Risk</p>
-              <p className="text-2xl font-bold text-danger">₹{Math.max(0, Math.round(currentDnaRate * 6) - (profile?.plan_id === 'max' ? 25 : profile?.plan_id === 'pro' ? 12 : 5))}</p>
-              <p className="text-[10px] text-body">Consider upgrading plan</p>
-            </div>
-          </CardContent>
-        </Card>
 
         <section className="space-y-3">
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-2">
@@ -413,23 +370,6 @@ export default function WorkerDashboard() {
                 ))}
               </div>
             </Card>
-          </div>
-        </section>
-
-        <section className="space-y-6">
-          <h2 className="text-2xl font-headline font-bold text-heading">Delivery Risk Map — {profile?.city || 'Mumbai'}</h2>
-          <div className="grid gap-4 md:grid-cols-4">
-            {[
-              { zone: "South Mumbai", risk: "HIGH", bg: "bg-[#FFF0F0] border-[#FECACA]", text: "text-[#DC2626]" },
-              { zone: "Andheri", risk: "MEDIUM", bg: "bg-[#FFFBEA] border-[#FDE68A]", text: "text-[#D97706]" },
-              { zone: "Bandra", risk: "MEDIUM", bg: "bg-[#FFFBEA] border-[#FDE68A]", text: "text-[#D97706]" },
-              { zone: "Dadar", risk: "LOW", bg: "bg-[#F0FDF4] border-[#BBF7D0]", text: "text-[#16A34A]" }
-            ].map((zone, i) => (
-              <Card key={i} className={`${zone.bg} p-4 rounded-xl border flex justify-between items-center transition-transform hover:scale-102`}>
-                <span className="font-bold text-heading">{zone.zone}</span>
-                <Badge className={`${zone.bg} ${zone.text} border-none font-bold text-[10px]`}>{zone.risk}</Badge>
-              </Card>
-            ))}
           </div>
         </section>
       </main>

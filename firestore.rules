@@ -16,7 +16,7 @@ service cloud.firestore {
       allow read, write: if isOwner(uid) || isAdmin();
     }
     
-    // IMPORTANT: Allow searching for profiles by phone number during login
+    // Allow searching for profiles by phone number during login
     match /users {
       allow list: if isAuth();
     }
