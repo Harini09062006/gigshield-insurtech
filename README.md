@@ -1,41 +1,60 @@
 <div align="center">
 
-# GigShield Protection
+<br/>
 
-**AI-Powered Parametric Insurance for India's Gig Delivery Workers**
+# 🛡️ GigShield Protection
 
-*When severe weather strikes — claims trigger automatically. No forms. No waiting. No fraud.*
+### *When the storm hits — we pay. Automatically.*
+
+**AI-Powered Parametric Insurance for India's 15 Crore Gig Delivery Workers**
 
 <br/>
 
-[![Status](https://img.shields.io/badge/Status-Active-4CAF50?style=for-the-badge)](https://github.com/Harini09062006/GigShield-Protection)
-[![React](https://img.shields.io/badge/React-TypeScript-61DAFB?style=for-the-badge&logo=react)](https://reactjs.org/)
-[![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=for-the-badge&logo=firebase)](https://firebase.google.com/)
-[![Hackathon](https://img.shields.io/badge/Guidewire-DEVTrails%202026-0057A8?style=for-the-badge)](https://www.guidewire.com/)
+[![Status](https://img.shields.io/badge/Status-Active-4CAF50?style=for-the-badge&logoColor=white)](https://github.com/Harini09062006/GigShield-Protection)
+[![React](https://img.shields.io/badge/React-TypeScript-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://reactjs.org/)
+[![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![Guidewire](https://img.shields.io/badge/Guidewire-DEVTrails%202026-0057A8?style=for-the-badge&logoColor=white)](https://www.guidewire.com/)
+[![Phase](https://img.shields.io/badge/Phase%201-Seed-FF6B35?style=for-the-badge&logoColor=white)](#)
 
 <br/>
 
-[🔍 Problem](#-what-is-gigshield) &nbsp;·&nbsp; [👤 Persona](#-delivery-worker-persona) &nbsp;·&nbsp; [⚙️ Workflow](#%EF%B8%8F-application-workflow) &nbsp;·&nbsp; [🧠 AI/ML](#-aiml-integration-plan) &nbsp;·&nbsp; [📸 Screenshots](#-application-screens) &nbsp;·&nbsp; [👩‍💻 Team](#-team)
+> 💬 *"A Swiggy rider in Chennai loses ₹800 every time it floods.*
+> *GigShield pays him back — before the rain stops."*
+
+<br/>
+
+[🔍 Overview](#-what-is-gigshield) &nbsp;·&nbsp;
+[👤 Persona](#-delivery-worker-persona) &nbsp;·&nbsp;
+[⚙️ Workflow](#%EF%B8%8F-application-workflow) &nbsp;·&nbsp;
+[🧠 AI/ML](#-aiml-integration-plan) &nbsp;·&nbsp;
+[🛡️ Anti-Spoofing](#%EF%B8%8F-adversarial-defense--anti-spoofing-strategy) &nbsp;·&nbsp;
+[📸 Screens](#-application-screens) &nbsp;·&nbsp;
+[👩‍💻 Team](#-team)
+
+<br/>
 
 </div>
 
 ---
 
-<br/>
-
 ## 🔍 What is GigShield?
 
-> *"India's 15+ crore gig delivery workers lose ₹12,000+ crore every year to weather disruptions — with zero safety net."*
+India's delivery workers are the backbone of the gig economy — yet they have **zero income protection** when nature disrupts their livelihood.
 
-**GigShield** is a fully automated parametric insurance platform built for **Guidewire DEVTrails 2026**. It protects food delivery workers (Swiggy/Zomato) from income loss caused by external disruptions — with claims that trigger and pay out automatically in under 10 seconds.
+**GigShield** is a fully automated parametric insurance platform that monitors real-time weather and environmental signals, and when a disruption threshold is crossed — **the claim fires itself. The payout lands instantly. No human needed.**
+```
+The worker doesn't file a claim.
+The claim files itself.
+```
 
-- ✅ Workers register once and select a weekly plan
-- ✅ AI monitors real-time weather & pollution signals 24/7
-- ✅ When a disruption threshold is crossed, a claim **auto-triggers**
-- ✅ Payout hits the worker's account in **under 10 seconds**
-- ✅ Zero paperwork. Zero manual review. Zero fraud.
+| ✅ What GigShield Does | ❌ What It Never Does |
+|------------------------|----------------------|
+| Pays for lost income during disruptions | Health insurance |
+| Auto-triggers claims via weather data | Vehicle repair |
+| Personalizes payout via Income DNA | Life or accident cover |
+| Detects fraud without punishing honest workers | Flat one-size payouts |
 
-> **Coverage Scope:** Loss of Income ONLY. GigShield strictly excludes health, life, accident, and vehicle repair coverage — fully compliant with DEVTrails constraints.
+> **Built for Guidewire DEVTrails 2026 — fully compliant with all coverage constraints.**
 
 <br/>
 
@@ -43,19 +62,20 @@
 
 ## 👤 Delivery Worker Persona
 
-**Persona:** Food Delivery Partner — Swiggy / Zomato
+**Persona: Food Delivery Partner — Swiggy / Zomato**
 
 | Attribute | Details |
 |-----------|---------|
 | 👷 Worker Type | Full-time / Part-time food delivery partner |
-| 🏙️ Operating Cities | Chennai, Mumbai, Bengaluru, Hyderabad, Delhi |
+| 🏙️ Operating Cities | Chennai · Mumbai · Bengaluru · Hyderabad · Delhi |
 | 💰 Avg. Daily Earnings | ₹600 – ₹900/day (varies by time slot) |
-| ⏰ Peak Hours | Evening 5–9 PM (highest order density) |
-| ⚠️ Key Risks | Heavy rain, floods, extreme AQI pollution |
-| 📱 Platform | Web (accessible on mobile browser) |
+| ⏰ Peak Hours | Evening 5–9 PM — highest order density |
+| ⚠️ Key Risks | Heavy rain · Floods · Extreme AQI pollution |
+| 📱 Platform Choice | Web — works on any mobile browser, no install needed |
 
-**Why Web over Mobile?**
-Delivery workers already use their phones for Swiggy/Zomato apps. A lightweight web app requires no installation, works on low-end devices, and is faster to prototype and iterate — making it ideal for a 6-week hackathon timeline.
+**Why Web over Mobile App?**
+
+> Delivery workers already juggle Swiggy + Zomato apps on low-end phones. A lightweight progressive web app needs zero installation, loads faster on 4G, and is far quicker to build and iterate — perfect for a 6-week hackathon.
 
 <br/>
 
@@ -68,8 +88,9 @@ Delivery workers already use their phones for Swiggy/Zomato apps. A lightweight 
 | Claims take 3–7 days | Claims process in < 10 seconds |
 | Manual document submission | Fully automated triggering |
 | Flat payout regardless of earnings | Personalized via Income DNA |
-| Designed for salaried employees | Built for gig economy workers |
-| High fraud risk | GPS + Weather + Duplicate checks |
+| Designed for salaried employees | Built ground-up for gig workers |
+| High fraud risk | 3-layer anti-spoofing architecture |
+| No coverage during weather events | Auto-triggered parametric payouts |
 
 <br/>
 
@@ -77,39 +98,59 @@ Delivery workers already use their phones for Swiggy/Zomato apps. A lightweight 
 
 ## ⚙️ Application Workflow
 
-### Step-by-Step User Journey
+### 🗺️ Step-by-Step User Journey
 ```
-👤 Worker Visits GigShield
+┌─────────────────────────────────────────┐
+│   👤 Worker visits GigShield            │
+└──────────────────┬──────────────────────┘
+                   ↓
+┌─────────────────────────────────────────┐
+│   📝 Registers — Name · Phone ·         │
+│      Platform · State · City            │
+└──────────────────┬──────────────────────┘
+                   ↓
+┌─────────────────────────────────────────┐
+│   💳 Selects Weekly Plan                │
+│      Basic ₹10 / Pro ₹25 / Elite ₹50   │
+└──────────────────┬──────────────────────┘
+                   ↓
+┌─────────────────────────────────────────┐
+│   🛡️ Policy Activated Immediately       │
+└──────────────────┬──────────────────────┘
+                   ↓
+┌─────────────────────────────────────────┐
+│   📡 AI Monitors 24/7                   │
+│   Rainfall · AQI · Floods · Curfews     │
+└──────────────────┬──────────────────────┘
+                   ↓
+         ⚠️ Threshold Crossed?
+          /               \
+        YES                NO
+         ↓                  ↓
+  Claim Auto-Triggers   Keep Monitoring
          ↓
-📝 Registration (Name, Phone, Platform, City)
-         ↓
-💳 Select Weekly Plan (Basic ₹10 / Pro ₹25 / Elite ₹50)
-         ↓
-🛡️ Policy Activated — Coverage Starts Immediately
-         ↓
-📡 System Monitors Real-Time Signals 24/7
-   (Rainfall mm · AQI Index · Flood Alerts · Curfew Data)
-         ↓
-⚠️ Disruption Threshold Crossed?
-   YES → Claim Auto-Triggers
-   NO  → Continue Monitoring
-         ↓
-🧬 Income DNA Calculates Personalized Loss
-   (Base Rate × Time Multiplier × Hours Lost)
-         ↓
-🔍 Fraud Detection Checks
-   (GPS Validation · Weather Confirmation · Duplicate Check)
-         ↓
-💰 Payout Processed Instantly → Worker's Account
+┌─────────────────────────────────────────┐
+│  🧬 Income DNA Calculates Loss          │
+│  Base Rate × Time Multiplier × Hours    │
+└──────────────────┬──────────────────────┘
+                   ↓
+┌─────────────────────────────────────────┐
+│  🔍 3-Layer Fraud Check                 │
+│  GPS · Weather · Duplicate · Trust Score│
+└──────────────────┬──────────────────────┘
+                   ↓
+┌─────────────────────────────────────────┐
+│  💰 PAYOUT PROCESSED INSTANTLY ✅        │
+└─────────────────────────────────────────┘
 ```
 
-### Parametric Triggers
+### ⚡ Parametric Triggers
 
 | Trigger | Threshold | Action |
 |---------|-----------|--------|
 | 🌧️ Heavy Rainfall | > 50mm in 3 hours | Auto-claim initiated |
-| 🌊 Flood Alert | Government flood advisory issued | Auto-claim initiated |
-| 🌫️ Air Pollution | AQI > 300 (Hazardous) | Auto-claim initiated |
+| 🌊 Flood Alert | Government advisory issued | Auto-claim initiated |
+| 🌫️ Air Pollution | AQI > 300 Hazardous | Auto-claim initiated |
 | 🌡️ Extreme Heat | > 45°C for 4+ hours | Auto-claim initiated |
 | 🚧 Curfew / Strike | Official curfew declared | Auto-claim initiated |
 
@@ -119,17 +160,17 @@ Delivery workers already use their phones for Swiggy/Zomato apps. A lightweight 
 
 ## 💰 Weekly Premium Model
 
-GigShield follows a **weekly pricing model** aligned with the gig worker's earnings cycle.
+> Gig workers earn week-to-week. So GigShield charges week-to-week.
 
 | Plan | Weekly Premium | Max Payout | Best For |
 |------|----------------|------------|----------|
-| 🟢 **Basic Shield** | ₹10 / week | ₹60 | Occasional workers |
-| 🔵 **Pro Shield** ⭐ | ₹25 / week | ₹240 | Regular workers |
-| 🟣 **Elite Shield** | ₹50 / week | ₹600 | Full-time workers |
+| 🟢 **Basic Shield** | ₹10 / week | ₹60 | Occasional / part-time workers |
+| 🔵 **Pro Shield** ⭐ Recommended | ₹25 / week | ₹240 | Regular daily workers |
+| 🟣 **Elite Shield** | ₹50 / week | ₹600 | Full-time high-earning workers |
 
-- Plans auto-renew weekly for 4 weeks
-- All plans cover: **Heavy Rain · Floods · AQI Pollution · Extreme Heat · Curfews**
-- No health, life, accident, or vehicle repair coverage (excluded by design)
+- ✅ All plans cover: **Heavy Rain · Floods · AQI Pollution · Extreme Heat · Curfews**
+- ✅ Auto-renews weekly for 4 weeks
+- ❌ Strictly excludes: health · life · accident · vehicle repair
 
 <br/>
 
@@ -137,7 +178,9 @@ GigShield follows a **weekly pricing model** aligned with the gig worker's earni
 
 ## ⭐ Core Innovation — Income DNA
 
-Instead of flat payouts, GigShield builds a **personalized earning fingerprint** for every worker.
+> *Most insurance pays a flat amount. GigShield pays what you actually lost.*
+
+GigShield builds a **personalized earning fingerprint** — called **Income DNA** — for every worker, based on their real productivity across 4 time slots.
 ```
 Compensation = Base Rate × Time Multiplier × Hours Lost
 Final Payout = min(Compensation, Plan Max Payout)
@@ -150,7 +193,10 @@ Final Payout = min(Compensation, Plan Max Payout)
 | 🌆 Evening | 5 PM – 9 PM | ₹78/hr | **1.30x ← Peak** |
 | 🌙 Night | 9 PM – 12 AM | ₹51/hr | 0.85x |
 
-> A worker disrupted during **Evening Peak** gets higher compensation than one disrupted at off-peak hours — because their actual income loss is higher. **Fair. Transparent. Automated.**
+**Example:**
+> Ram works Evening Peak. 65mm rain hits at 7 PM. He loses 3 hours.
+> `₹60 × 1.30 × 3 = ₹234` → Capped at Pro Shield max → **₹234 paid instantly.**
+> No form. No call. No wait.
 
 <br/>
 
@@ -158,28 +204,138 @@ Final Payout = min(Compensation, Plan Max Payout)
 
 ## 🧠 AI/ML Integration Plan
 
-### 1. Dynamic Premium Calculation
+### 1️⃣ Dynamic Premium Calculation
 - ML model adjusts weekly premium based on hyper-local risk factors
-- Workers in flood-safe zones get lower premiums
-- Predictive weather modelling offers dynamic coverage adjustments
+- Workers in flood-safe zones get lower premiums automatically
+- Predictive weather modelling offers dynamic coverage hour adjustments
 
-### 2. Income DNA Engine
-- Analyses each worker's historical earning patterns across 4 time slots
-- Builds a personalized multiplier profile per worker
-- Used for accurate, fair compensation calculation
+### 2️⃣ Income DNA Engine
+- Analyses each worker's earning patterns across 4 daily time slots
+- Builds a personalized multiplier profile unique to each worker
+- Recalculates weekly based on order history and platform activity
 
-### 3. Intelligent Fraud Detection
+### 3️⃣ Intelligent Fraud Detection
+
 | Check | Method |
 |-------|--------|
-| GPS Validation | Verifies worker was in disrupted zone during event |
-| Weather Confirmation | Cross-references claim time with official weather data |
-| Duplicate Check | Prevents same event being claimed multiple times |
-| Anomaly Detection | Flags unusual claim patterns vs. worker's history |
+| 🛰️ GPS Validation | Verifies worker was physically in disrupted zone |
+| 🌦️ Weather Confirmation | Cross-references claim time with official weather data |
+| 🔁 Duplicate Check | Prevents same event being claimed multiple times |
+| 📊 Anomaly Detection | Flags claim patterns deviating from worker's own history |
 
-### 4. Risk Prediction Dashboard (Admin)
-- Predicts next week's likely disruption zones
-- Shows loss ratios and coverage analytics
-- Live Risk Heat Map by city and district
+### 4️⃣ Admin Risk Intelligence Dashboard
+- Predicts next week's likely disruption zones by city
+- Shows live loss ratios and coverage analytics
+- Real-time Risk Heat Map across India
+
+<br/>
+
+---
+
+## 🛡️ Adversarial Defense & Anti-Spoofing Strategy
+
+<div align="center">
+
+> 🚨 *"500 delivery partners. Fake GPS. Real payouts.*
+> *A coordinated fraud ring just drained a platform's liquidity pool.*
+> *Simple GPS verification is dead. The clock is running."*
+
+</div>
+
+GigShield doesn't rely on GPS alone. Our defense runs on **3 layers of intelligence** that a fraud ring cannot simultaneously fake.
+
+---
+
+### ❓ Q1 — How do you spot the faker from the genuinely stranded worker?
+
+A real stranded worker shows a **consistent multi-signal pattern**. A faker breaks it.
+
+| Signal | Genuine Worker ✅ | Fake Claimant ❌ |
+|--------|------------------|-----------------|
+| 📍 GPS location | Matches disrupted zone naturally | Spoofed — static or teleporting |
+| 📦 Order history | Clear drop in orders during disruption | No order history exists |
+| 📱 Device movement | Phone moving slowly or stopped in zone | Phone completely stationary |
+| 🔐 Login pattern | Regular consistent app usage history | Brand new account or sudden activity spike |
+| ⏱️ Claim timing | Filed during the active disruption window | Filed suspiciously after disruption ended |
+
+> **GigShield cross-references ALL 5 signals simultaneously.**
+> A faker can spoof GPS — but cannot fake order history, device movement, login pattern, AND claim timing all at once.
+
+---
+
+### ❓ Q2 — What data catches a fraud ring?
+
+Coordinated fraud rings leave **network-level fingerprints** that solo fraud can never replicate.
+
+| 🔴 Red Flag | What It Reveals |
+|------------|----------------|
+| Multiple claims from same Device ID | One phone filing for many workers |
+| Cluster of new accounts just before a disruption | Accounts created purely to file claims |
+| Same IP address across multiple accounts | Coordinated filing from one location |
+| Identical claim amounts across 10+ workers | Copy-paste fraud pattern |
+| Worker registered in City A claiming City B disruption | Clear location mismatch |
+| Elite Shield spike before a predicted storm | Insider weather knowledge exploitation |
+
+> **GigShield's anomaly engine** flags workers whose claim pattern deviates more than **2 standard deviations** from their own baseline — AND cross-checks against the live network graph of all active claimants in real time.
+
+---
+
+### ❓ Q3 — How do you flag bad actors without punishing honest ones?
+
+GigShield uses a **Trust Score system** — graduated response, not instant bans.
+```
+Every worker starts at Trust Score = 100
+
+Suspicious signal detected   →  Score decreases
+Genuine verified claim       →  Score increases
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Score  > 70   →   ✅ Auto-approve & pay instantly
+Score 40–70   →   ⚠️  Soft hold — 24hr review + OTP verify
+Score  < 40   →   🚫 Blocked — human admin reviews before action
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Why honest workers are safe:**
+- Strong GPS + order history + device movement = high Trust Score = instant payout ✅
+- A one-time anomaly (new city, new route) = **soft hold + OTP**, not a ban
+- Only **repeated multi-signal failures** result in blocking
+- **No worker is ever auto-banned** — every flag goes to human admin review first
+
+---
+
+### 🔐 3-Layer Anti-Spoofing Architecture
+```
+         📥 Claim Received
+                ↓
+  ┌─────────────────────────────┐
+  │  LAYER 1                    │
+  │  GPS Zone + Weather Match   │
+  │  Is worker in disrupted     │
+  │  zone during the event?     │
+  └──────────────┬──────────────┘
+                 ↓
+  ┌─────────────────────────────┐
+  │  LAYER 2                    │
+  │  Device Fingerprint +       │
+  │  Order History Validation   │
+  │  Does behaviour match a     │
+  │  real disrupted worker?     │
+  └──────────────┬──────────────┘
+                 ↓
+  ┌─────────────────────────────┐
+  │  LAYER 3                    │
+  │  Network Fraud Ring Check   │
+  │  IP · Device · Cluster      │
+  │  Analysis across all claims │
+  └──────────────┬──────────────┘
+                 ↓
+       Trust Score Calculated
+                 ↓
+    > 70  →  ✅ Instant Payout
+   40–70  →  ⚠️  24hr Hold + OTP
+    < 40  →  🚫 Blocked + Admin
+```
 
 <br/>
 
@@ -187,11 +343,11 @@ Final Payout = min(Compensation, Plan Max Payout)
 
 ## 🧩 Guidewire Insurance Suite Alignment
 
-| Guidewire Product | GigShield Module | Description |
-|-------------------|-----------------|-------------|
-| **PolicyCenter** | Plan Management | Worker subscription, plan selection, and full policy lifecycle |
-| **ClaimCenter** | Auto-Claim Engine | Parametric claim triggers based on real-time environmental thresholds |
-| **BillingCenter** | Premium Engine | Weekly auto-renewal, payment collection, and billing management |
+| Guidewire Product | GigShield Module | What It Does |
+|-------------------|-----------------|--------------|
+| **PolicyCenter** | Plan Management | Worker onboarding, plan subscription, and full policy lifecycle |
+| **ClaimCenter** | Auto-Claim Engine | Parametric triggers, fraud checks, and automated claim resolution |
+| **BillingCenter** | Premium Engine | Weekly auto-renewal, premium collection, and billing management |
 
 <br/>
 
@@ -200,21 +356,21 @@ Final Payout = min(Compensation, Plan Max Payout)
 ## 🖥️ Application Screens
 
 ### 🏠 Landing Page
-*"Instant Weather Protection for Delivery Workers"* — hero section with Login, Register, and Admin Portal entry points.
+*"Instant Weather Protection for Delivery Workers"* — bold hero with Login, Register, and Admin Portal entry points.
 
 <img width="1896" height="709" alt="Landing" src="https://github.com/user-attachments/assets/57b97aed-6591-4e15-8a1b-d92882ca5b10" />
 
 <br/>
 
 ### 🔐 Worker Entry Portal
-Three-card entry: **Login** · **I'm New Here** · **Admin Portal**
+Three-card entry — **Login** · **I'm New Here** · **Admin Portal**
 
 <img width="1784" height="735" alt="Entry" src="https://github.com/user-attachments/assets/90a58d51-c7cf-437e-9f02-1bc3dc3cfaf9" />
 
 <br/>
 
 ### 📝 Registration — 3-Step Onboarding
-Step 1 → Basic Info (Name, Phone, Platform, City) · Step 2 → Choose Plan · Step 3 → Done & Protected
+Step 1 → Basic Info · Step 2 → Choose Plan · Step 3 → Protected ✅
 
 <img width="1812" height="886" alt="Register" src="https://github.com/user-attachments/assets/6b63b9a9-f169-46de-99df-4a5dd4cda98c" />
 
@@ -228,35 +384,35 @@ Side-by-side plan comparison. Pro Shield highlighted as recommended. Live avg. h
 <br/>
 
 ### 📊 Worker Dashboard
-Active plan · AI Risk Prediction · Commitment Status · Earnings Protection Summary with Income DNA rate
+Active plan · AI Risk Prediction · Commitment Status · Earnings Protection Summary with live Income DNA rate
 
 <img width="1902" height="909" alt="Dashboard" src="https://github.com/user-attachments/assets/a5638f61-644e-4920-8232-967999f78ffb" />
 
 <br/>
 
 ### 🧬 Income DNA Profile
-24-hour earning breakdown · Peak Earning Hours chart · Expected weekly earnings: ₹6,111 · Smart upgrade recommendation
+24-hour earning breakdown · Peak Earning Hours chart · Expected weekly earnings ₹6,111 · Smart upgrade recommendation
 
 <img width="1882" height="905" alt="Income DNA" src="https://github.com/user-attachments/assets/35a2710e-9561-4ee9-a2f7-08c0dfd11ed7" />
 
 <br/>
 
 ### 📄 Automated Claims
-Trigger: Severe Rainfall (65mm) → Income DNA Verified → GPS Validated → ₹240 **PAID INSTANTLY** ✅
+Trigger: Severe Rainfall 65mm → Income DNA Verified → GPS Validated → ₹240 **PAID INSTANTLY** ✅
 
 <img width="1692" height="649" alt="Claims" src="https://github.com/user-attachments/assets/84cf6f73-7a7a-4ea0-b488-a9ef9cbcf74d" />
 
 <br/>
 
 ### 🤖 AI Support Assistant
-Multilingual chatbot (English + regional languages · Voice ON/OFF) with live rain prediction per city
+Multilingual chatbot · English + regional languages · Voice ON/OFF · Live rain prediction per city
 
 <img width="1913" height="906" alt="Chatbot" src="https://github.com/user-attachments/assets/694453b3-482f-4bde-b8c1-27be8e13ec58" />
 
 <br/>
 
 ### 🗺️ Admin Risk Heat Map
-Live Risk Heat Intelligence · Color-coded severity · Built on Leaflet + OpenStreetMap
+Live Risk Heat Intelligence · Chennai syncing · Color-coded severity · Leaflet + OpenStreetMap
 
 <img width="1898" height="804" alt="Risk Map" src="https://github.com/user-attachments/assets/c76fc7f4-87e4-4ae1-9a98-6be43c07561f" />
 
@@ -274,19 +430,19 @@ Live Risk Heat Intelligence · Color-coded severity · Built on Leaflet + OpenSt
 | Authentication | Firebase Auth |
 | Maps | Leaflet + OpenStreetMap |
 | AI/ML | Income DNA Engine (custom logic) |
-| Weather Data | Mock APIs (real integration in Phase 2) |
+| Weather Data | Mock APIs → Live integration in Phase 2 |
 
 <br/>
 
 ---
 
-## 🚀 Development Plan
+## 🚀 Development Roadmap
 
 | Phase | Timeline | Theme | Deliverables |
 |-------|----------|-------|-------------|
-| ✅ **Phase 1** | Mar 4–20 | Ideation & Foundation | README · Prototype · 2-min video |
-| 🔜 **Phase 2** | Mar 21–Apr 4 | Automation & Protection | Live weather APIs · Dynamic premium · Claims management |
-| 🔜 **Phase 3** | Apr 5–17 | Scale & Optimise | Advanced fraud detection · Mock payment gateway · Final pitch deck |
+| ✅ **Phase 1** | Mar 4 – 20 | Ideation & Foundation | README · Working Prototype · 2-min video |
+| 🔜 **Phase 2** | Mar 21 – Apr 4 | Automation & Protection | Live weather APIs · Dynamic ML premium · Claims engine |
+| 🔜 **Phase 3** | Apr 5 – 17 | Scale & Optimise | Advanced fraud detection · Mock payment gateway · Final pitch deck |
 
 <br/>
 
@@ -305,7 +461,7 @@ cd GigShield-Protection
 npm install
 ```
 
-**3. Configure Firebase** — Create a `.env` file:
+**3. Configure Firebase** — Create `.env` in root:
 ```env
 VITE_FIREBASE_API_KEY=your_api_key
 VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
@@ -349,10 +505,11 @@ This project is licensed under the [MIT License](LICENSE).
 
 **GigShield Protection — Guidewire DEVTrails 2026**
 
-*Built for India's 15 crore gig workers — because every rupee of their income matters.*
+*Built with ❤️ for India's 15 crore gig workers.*
+*Because every rupee of their income matters.*
 
 <br/>
 
-⭐ If this project helped you, please give it a star!
+⭐ **Star this repo if you believe every worker deserves a safety net!**
 
 </div>
