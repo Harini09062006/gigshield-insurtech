@@ -507,6 +507,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 *Built with ❤️ for India's 15 crore gig workers.*
 *Because every rupee of their income matters.*
+*— Team Innovatrix 🚀*
 
 <br/>
 
