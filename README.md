@@ -10,7 +10,7 @@
 
 <br/>
 
-[![Status](https://img.shields.io/badge/Status-Active-4CAF50?style=for-the-badge&logoColor=white)](https://github.com/Harini09062006/GigShield-Protection)
+[![Status](https://img.shields.io/badge/Status-Active-4CAF50?style=for-the-badge&logoColor=white)](https://github.com/Harini09062006/gigshield-insurtech)
 [![React](https://img.shields.io/badge/React-TypeScript-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://reactjs.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![Guidewire](https://img.shields.io/badge/Guidewire-DEVTrails%202026-0057A8?style=for-the-badge&logoColor=white)](https://www.guidewire.com/)
@@ -452,8 +452,8 @@ Live Risk Heat Intelligence · Chennai syncing · Color-coded severity · Leafle
 
 **1. Clone the Repository**
 ```bash
-git clone https://github.com/Harini09062006/GigShield-Protection.git
-cd GigShield-Protection
+git clone https://github.com/Harini09062006/gigshield-insurtech.git
+cd gigshield-insurtech
 ```
 
 **2. Install Dependencies**
