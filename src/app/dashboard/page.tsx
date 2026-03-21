@@ -14,6 +14,7 @@ import { format, addDays, differenceInDays, startOfDay } from "date-fns";
 import React, { useMemo, useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
+import { getCityRainfall } from "@/services/weatherService";
 
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
@@ -23,6 +24,10 @@ export default function WorkerDashboard() {
   const { toast } = useToast();
   const [isSimulating, setIsSimulating] = useState(false);
   const [mounted, setMounted] = useState(false);
+  
+  // Weather state
+  const [rainfall, setRainfall] = useState<number>(0);
+  const [isWeatherLoading, setIsWeatherLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -34,6 +39,31 @@ export default function WorkerDashboard() {
   
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
   const { data: dna, isLoading: isDnaLoading } = useDoc(dnaRef);
+
+  // Live Weather Fetch Logic
+  useEffect(() => {
+    if (!profile?.city) return;
+
+    const fetchWeather = async () => {
+      const mm = await getCityRainfall(profile.city);
+      setRainfall(mm);
+      setIsWeatherLoading(false);
+    };
+
+    fetchWeather();
+    
+    // Auto-refresh every 5 minutes as per Phase 2 requirements
+    const interval = setInterval(fetchWeather, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [profile?.city]);
+
+  // Risk Logic Mapping
+  const riskInfo = useMemo(() => {
+    if (rainfall >= 50) return { percent: 95, label: "Severe Rainfall Detected!", badgeClass: "bg-[#FEE2E2] text-[#EF4444]" };
+    if (rainfall >= 30) return { percent: 75, label: "Heavy Rain Warning", badgeClass: "bg-[#FEF3C7] text-[#F59E0B]" };
+    if (rainfall >= 10) return { percent: 45, label: "Moderate Rain", badgeClass: "bg-[#DBEAFE] text-[#3B82F6]" };
+    return { percent: 20, label: "Clear Conditions", badgeClass: "bg-[#DCFCE7] text-[#22C55E]" };
+  }, [rainfall]);
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
@@ -185,15 +215,22 @@ export default function WorkerDashboard() {
           <Card className="bg-white border-[#E8E6FF] shadow-card rounded-[20px] p-6">
             <div className="flex justify-between items-start mb-4">
               <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">AI Risk Prediction</p>
-              <Brain className="h-5 w-5 text-[#6C47FF]" />
+              <Brain className={`h-5 w-5 ${rainfall > 30 ? 'text-[#EF4444] animate-bounce' : 'text-[#6C47FF]'}`} />
             </div>
             <div className="flex justify-between items-end mb-4">
-              <div className="text-3xl font-bold text-[#1A1A2E]">12mm</div>
-              <Badge className="bg-[#DBEAFE] text-[#3B82F6] border-none font-bold">Light Rain</Badge>
+              <div className="text-3xl font-bold text-[#1A1A2E]">
+                {isWeatherLoading ? "..." : `${rainfall.toFixed(1)}mm`}
+              </div>
+              <Badge className={`${riskInfo.badgeClass} border-none font-bold`}>
+                {isWeatherLoading ? "Syncing..." : riskInfo.label}
+              </Badge>
             </div>
             <div className="space-y-2">
-              <div className="flex justify-between text-[10px] font-bold text-[#64748B]"><span>Disruption Risk</span><span>35%</span></div>
-              <Progress value={35} className="h-1.5 bg-[#EEEEFF]" />
+              <div className="flex justify-between text-[10px] font-bold text-[#64748B]">
+                <span>Disruption Risk</span>
+                <span>{isWeatherLoading ? "--" : `${riskInfo.percent}%`}</span>
+              </div>
+              <Progress value={riskInfo.percent} className="h-1.5 bg-[#EEEEFF]" />
             </div>
           </Card>
 
