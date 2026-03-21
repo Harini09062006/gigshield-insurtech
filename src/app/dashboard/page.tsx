@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
@@ -77,16 +78,26 @@ export default function WorkerDashboard() {
   const { data: claims } = useCollection(claimsQuery);
 
   const policyInfo = useMemo(() => {
-    if (!profile?.plan_activated_at?.seconds) return null;
+    const premiums: Record<string, number> = { basic: 10, pro: 25, elite: 50 };
+    const maxPayouts: Record<string, number> = { basic: 60, pro: 240, elite: 600 };
+    
+    if (!profile?.plan_activated_at?.seconds) {
+      return {
+        startDate: new Date(),
+        currentWeek: 1,
+        nextRenewalDate: addDays(new Date(), 7),
+        premiumAmount: premiums[profile?.plan_id || 'pro'] || 25,
+        maxPayout: maxPayouts[profile?.plan_id || 'pro'] || 240,
+        isRenewingTomorrow: false
+      };
+    }
+
     const start = new Date(profile.plan_activated_at.seconds * 1000);
     const today = new Date();
     const diffDays = differenceInDays(startOfDay(today), startOfDay(start));
     const currentWeek = Math.floor(diffDays / 7) + 1;
     const nextRenewal = addDays(start, currentWeek * 7);
     const isRenewingTomorrow = (diffDays % 7 === 6);
-    
-    const premiums: Record<string, number> = { basic: 10, pro: 25, elite: 50 };
-    const maxPayouts: Record<string, number> = { basic: 60, pro: 240, elite: 600 };
     
     return {
       startDate: start,
@@ -98,37 +109,60 @@ export default function WorkerDashboard() {
     };
   }, [profile]);
 
+  const getIncomeDNASlot = () => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 10) return { name: "Morning Peak", mult: 0.75 };
+    if (hour >= 12 && hour < 16) return { name: "Afternoon Peak", mult: 0.95 };
+    if (hour >= 17 && hour < 21) return { name: "Evening Peak", mult: 1.30 };
+    if (hour >= 21 || hour < 6) return { name: "Night Peak", mult: 0.85 };
+    return { name: "Standard Hours", mult: 1.0 };
+  };
+
   const simulateWeather = async () => {
     if (!user?.uid || !profile || !db) return;
     
     setIsSimulating(true);
     try {
+      // 1. Logic Setup
+      const slot = getIncomeDNASlot();
       const baseRate = profile.avg_hourly_earnings || 60;
-      const slotMultiplier = 1.3;
-      const dnaRate = Math.round(baseRate * slotMultiplier);
-      const hoursLost = 4;
+      const dnaRate = Math.round(baseRate * slot.mult);
+      const hoursLost = 3; // Fixed 3 hours for simulation
       const incomeLoss = dnaRate * hoursLost;
-      const maxPayout = policyInfo?.maxPayout || 240;
+      const maxPayout = policyInfo.maxPayout;
       const compensation = Math.min(incomeLoss, maxPayout);
 
+      // 2. Save to Firestore
       await addDoc(collection(db, "claims"), {
         userId: user.uid,
         worker_id: user.uid,
-        claim_number: `${Math.floor(10000 + Math.random() * 90000)}`,
+        claim_number: `GS-${Math.floor(100000 + Math.random() * 900000)}`,
         trigger_type: "weather",
         trigger_description: "Severe Rainfall (65mm) Detected",
-        dna_time_slot: "Evening Peak",
+        dna_time_slot: slot.name,
         registered_rate: baseRate,
-        time_multiplier: slotMultiplier,
+        time_multiplier: slot.mult,
         dna_hourly_rate: dnaRate,
         hours_lost: hoursLost,
         income_loss: incomeLoss,
         compensation: Math.round(compensation),
         plan_max_payout: maxPayout,
         status: "paid",
+        fraud_checks: {
+          gps_validation: "PASSED",
+          weather_confirmed: "PASSED",
+          duplicate_check: "PASSED",
+          device_check: "PASSED",
+          trust_score: 95
+        },
         created_at: serverTimestamp()
       });
-      toast({ title: "Simulation Success", description: "Severe weather detected. Payout processed!" });
+
+      // 3. Feedback
+      toast({ 
+        title: "Simulation Success", 
+        description: `Severe weather detected. ₹${Math.round(compensation)} PAID INSTANTLY!` 
+      });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Simulation Failed", description: e.message });
     } finally {
@@ -150,9 +184,10 @@ export default function WorkerDashboard() {
     );
   }
 
-  const dnaRate = Math.round((profile?.avg_hourly_earnings ?? 60) * 1.3);
-  const potentialLoss = dnaRate * 6;
-  const coverage = policyInfo?.maxPayout ?? 240;
+  const slot = getIncomeDNASlot();
+  const dnaRate = Math.round((profile?.avg_hourly_earnings ?? 60) * slot.mult);
+  const potentialLoss = dnaRate * 6; // Calculating potential loss for 6 hours
+  const coverage = policyInfo.maxPayout;
   const remainingRisk = Math.max(0, potentialLoss - coverage);
 
   return (
@@ -171,7 +206,7 @@ export default function WorkerDashboard() {
       </header>
 
       <main className="flex-1 space-y-8 p-6 lg:px-10 max-w-7xl mx-auto w-full">
-        {policyInfo?.isRenewingTomorrow && (
+        {policyInfo.isRenewingTomorrow && (
           <div className="bg-[#FEF3C7] border border-[#F59E0B]/30 p-4 rounded-xl flex items-center gap-4 shadow-sm">
             <AlertCircle className="h-6 w-6 text-[#F59E0B]" />
             <p className="font-bold text-[#1A1A2E] text-sm">⚠️ Your plan renews tomorrow. ₹{policyInfo.premiumAmount} will be auto-deducted.</p>
@@ -203,11 +238,11 @@ export default function WorkerDashboard() {
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/10 p-3 rounded-xl">
                 <p className="text-[9px] uppercase opacity-60">Max Payout</p>
-                <p className="text-lg font-bold">₹{policyInfo?.maxPayout ?? 240}</p>
+                <p className="text-lg font-bold">₹{policyInfo.maxPayout}</p>
               </div>
               <div className="bg-white/10 p-3 rounded-xl">
                 <p className="text-[9px] uppercase opacity-60">Premium</p>
-                <p className="text-lg font-bold">₹{policyInfo?.premiumAmount ?? 25}</p>
+                <p className="text-lg font-bold">₹{policyInfo.premiumAmount}</p>
               </div>
             </div>
           </Card>
@@ -240,21 +275,21 @@ export default function WorkerDashboard() {
               <RefreshCcw className="h-5 w-5 text-[#F59E0B]" />
             </div>
             <div className="flex justify-between items-end mb-2">
-              <div className="text-xl font-bold text-[#1A1A2E]">Week {policyInfo?.currentWeek ?? 1} of 4</div>
+              <div className="text-xl font-bold text-[#1A1A2E]">Week {policyInfo.currentWeek} of 4</div>
               <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">Renewal ON</Badge>
             </div>
-            <p className="text-[10px] text-[#64748B] italic">Next Renewal: {policyInfo ? format(policyInfo.nextRenewalDate, "dd MMM") : "-"}</p>
+            <p className="text-[10px] text-[#64748B] italic">Next Renewal: {format(policyInfo.nextRenewalDate, "dd MMM")}</p>
           </Card>
         </div>
 
         <section className="space-y-4">
-          <h2 className="text-lg font-bold text-[#1A1A2E]">Policy Management</h2>
+          <h2 className="text-lg font-bold text-[#1A1A2E]">Policy Status</h2>
           <div className="grid gap-4 md:grid-cols-4">
             {[
-              { label: "Activation Date", value: policyInfo ? format(policyInfo.startDate, "MMM dd, yyyy") : "-", icon: Calendar },
-              { label: "Next Renewal", value: policyInfo ? format(policyInfo.nextRenewalDate, "dd MMM") : "-", icon: RefreshCcw },
-              { label: "Renewal Amount", value: policyInfo ? `₹${policyInfo.premiumAmount}` : "-", icon: IndianRupee },
-              { label: "Commitment", value: "Week " + (policyInfo?.currentWeek || 1) + "/4", icon: Info }
+              { label: "Activation Date", value: format(policyInfo.startDate, "MMM dd, yyyy"), icon: Calendar },
+              { label: "Next Renewal", value: format(policyInfo.nextRenewalDate, "dd MMM"), icon: RefreshCcw },
+              { label: "Premium", value: `₹${policyInfo.premiumAmount}/week`, icon: IndianRupee },
+              { label: "Commitment", value: "Week " + policyInfo.currentWeek + "/4", icon: Info }
             ].map((stat, i) => (
               <Card key={i} className="bg-white border-[#E8E6FF] shadow-sm p-4 rounded-xl flex items-center gap-4">
                 <div className="h-10 w-10 bg-[#EDE9FF] rounded-lg flex items-center justify-center text-[#6C47FF]"><stat.icon className="h-5 w-5" /></div>
@@ -267,7 +302,7 @@ export default function WorkerDashboard() {
         <Card className="bg-[#EDE9FF] border-[#D4CCFF] shadow-card rounded-[20px] p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <h3 className="text-lg font-bold text-[#1A1A2E]">Earnings Protection Summary</h3>
-            <Badge className="bg-[#6C47FF] text-white border-none py-1.5 px-4 rounded-full font-bold text-[10px]">DNA Rate: ₹{dnaRate}/hr (Evening Peak)</Badge>
+            <Badge className="bg-[#6C47FF] text-white border-none py-1.5 px-4 rounded-full font-bold text-[10px]">DNA Rate: ₹{dnaRate}/hr ({slot.name})</Badge>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
             <div><p className="text-xs font-bold text-[#64748B] uppercase">Potential Income Loss</p><p className="text-2xl font-bold text-[#EF4444]">₹{potentialLoss}</p><p className="text-[9px] text-[#64748B]">6 hrs disruption during peak</p></div>
