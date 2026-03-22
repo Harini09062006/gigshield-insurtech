@@ -26,6 +26,7 @@ export default function WorkerClaims() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
+    // Security rules require filtering by worker_id or userId
     return query(
       collection(db, "claims"), 
       where("worker_id", "==", user.uid), 
@@ -119,7 +120,6 @@ export default function WorkerClaims() {
                         </div>
                       </div>
 
-                      {/* FIX 6: FRAUD DETECTION BADGES */}
                       <div style={{
                         borderTop: '1px solid #E8E6FF',
                         paddingTop: '14px',
@@ -174,7 +174,6 @@ export default function WorkerClaims() {
                       <div className="text-3xl font-bold text-[#6C47FF] mb-1">₹{claim.compensation}</div>
                       <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">✓ PAID INSTANTLY</Badge>
                       
-                      {/* FIX 6: PAYMENT STATUS CARD */}
                       <div style={{
                         background: '#F0FDF4',
                         border: '1px solid #BBF7D0',

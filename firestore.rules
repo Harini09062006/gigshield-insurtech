@@ -12,7 +12,8 @@ service cloud.firestore {
     function isOwner(data) {
       return request.auth != null && (
         data.worker_id == request.auth.uid || 
-        data.userId == request.auth.uid
+        data.userId == request.auth.uid ||
+        data.id == request.auth.uid
       );
     }
 
