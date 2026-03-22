@@ -5,23 +5,25 @@ service cloud.firestore {
     // Helper function to check if user has admin role
     function isAdmin() {
       return request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Helper to check ownership
+    function isOwner(data) {
+      return request.auth != null && (
+        data.worker_id == request.auth.uid || 
+        data.userId == request.auth.uid
+      );
     }
 
     match /users/{uid} {
       // Users can read/write their own data. Admins can manage all users.
-      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
-      allow write: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow read, write: if request.auth != null && (request.auth.uid == uid || isAdmin());
     }
     
     match /claims/{id} {
-      // Allow read if user is the worker (matching either field) or an admin
-      allow read: if request.auth != null && (
-        isAdmin() || 
-        resource.data.worker_id == request.auth.uid || 
-        resource.data.userId == request.auth.uid
-      );
+      // Allow read if user is the worker (owner) or an admin
+      allow read: if request.auth != null && (isAdmin() || isOwner(resource.data));
       // Create: workers can file claims
       allow create: if request.auth != null;
       // Update/Delete: only admins can manage claims
@@ -29,8 +31,7 @@ service cloud.firestore {
     }
     
     match /income_dna/{uid} {
-      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
-      allow write: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow read, write: if request.auth != null && (request.auth.uid == uid || isAdmin());
     }
     
     match /weather_events/{id} {

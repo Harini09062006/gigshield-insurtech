@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
@@ -26,7 +25,6 @@ export default function WorkerDashboard() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [mounted, setMounted] = useState(false);
   
-  // Weather state
   const [rainfall, setRainfall] = useState<number>(0);
   const [isWeatherLoading, setIsWeatherLoading] = useState(true);
 
@@ -41,7 +39,6 @@ export default function WorkerDashboard() {
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
   const { data: dna, isLoading: isDnaLoading } = useDoc(dnaRef);
 
-  // Live Weather Fetch Logic
   useEffect(() => {
     if (!profile?.city) return;
 
@@ -52,13 +49,10 @@ export default function WorkerDashboard() {
     };
 
     fetchWeather();
-    
-    // Auto-refresh every 5 minutes as per Phase 2 requirements
     const interval = setInterval(fetchWeather, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [profile?.city]);
 
-  // Risk Logic Mapping
   const riskInfo = useMemo(() => {
     if (rainfall >= 50) return { percent: 95, label: "Severe Rainfall Detected!", badgeClass: "bg-[#FEE2E2] text-[#EF4444]" };
     if (rainfall >= 30) return { percent: 75, label: "Heavy Rain Warning", badgeClass: "bg-[#FEF3C7] text-[#F59E0B]" };
@@ -123,16 +117,14 @@ export default function WorkerDashboard() {
     
     setIsSimulating(true);
     try {
-      // 1. Logic Setup
       const slot = getIncomeDNASlot();
       const baseRate = profile.avg_hourly_earnings || 60;
       const dnaRate = Math.round(baseRate * slot.mult);
-      const hoursLost = 3; // Fixed 3 hours for simulation
+      const hoursLost = 3;
       const incomeLoss = dnaRate * hoursLost;
       const maxPayout = policyInfo.maxPayout;
       const compensation = Math.min(incomeLoss, maxPayout);
 
-      // 2. Save to Firestore
       await addDoc(collection(db, "claims"), {
         userId: user.uid,
         worker_id: user.uid,
@@ -158,7 +150,6 @@ export default function WorkerDashboard() {
         created_at: serverTimestamp()
       });
 
-      // 3. Feedback
       toast({ 
         title: "Simulation Success", 
         description: `Severe weather detected. ₹${Math.round(compensation)} PAID INSTANTLY!` 
@@ -186,7 +177,7 @@ export default function WorkerDashboard() {
 
   const slot = getIncomeDNASlot();
   const dnaRate = Math.round((profile?.avg_hourly_earnings ?? 60) * slot.mult);
-  const potentialLoss = dnaRate * 6; // Calculating potential loss for 6 hours
+  const potentialLoss = dnaRate * 6;
   const coverage = policyInfo.maxPayout;
   const remainingRisk = Math.max(0, potentialLoss - coverage);
 
