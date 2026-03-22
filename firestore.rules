@@ -1,31 +1,51 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper function to check if user has admin role
+    function isAdmin() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     match /users/{uid} {
-      allow read, write: if request.auth != null
-        && request.auth.uid == uid;
+      // Users can read/write their own data. Admins can manage all users.
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if request.auth != null && (request.auth.uid == uid || isAdmin());
     }
+    
     match /claims/{id} {
+      // Allow read if user is the worker (matching either field) or an admin
       allow read: if request.auth != null && (
-        resource.data.worker_id == request.auth.uid
+        isAdmin() || 
+        resource.data.worker_id == request.auth.uid || 
+        resource.data.userId == request.auth.uid
       );
-      allow write: if request.auth != null;
+      // Create: workers can file claims
+      allow create: if request.auth != null;
+      // Update/Delete: only admins can manage claims
+      allow update, delete: if isAdmin();
     }
+    
     match /income_dna/{uid} {
-      allow read, write: if request.auth != null
-        && request.auth.uid == uid;
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if request.auth != null && (request.auth.uid == uid || isAdmin());
     }
+    
     match /weather_events/{id} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
+    
     match /disruption_zones/{id} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
+    
     match /insurance_plans/{id} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 }

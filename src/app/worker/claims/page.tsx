@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, limit } from "firebase/firestore"; // ❗ removed orderBy
+import { collection, query, where, limit } from "firebase/firestore";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Calendar, Loader2, Zap, AlertCircle } from "lucide-react";
@@ -16,10 +16,11 @@ export default function WorkerClaims() {
     // ✅ Safety check
     if (!db || !user?.uid) return null;
 
+    // Filter by worker_id to satisfy security rules
     return query(
       collection(db, "claims"),
-      where("userId", "==", user.uid), // ✅ filter by user
-      limit(50) // ✅ keep limit
+      where("worker_id", "==", user.uid),
+      limit(50)
     );
   }, [db, user?.uid]);
 
@@ -48,7 +49,7 @@ export default function WorkerClaims() {
         <div>
           <h2 className="text-xl font-bold text-heading">Access Denied</h2>
           <p className="text-body max-w-xs mx-auto mt-2">
-            Unable to load claims. Please ensure you are logged in correctly.
+            Unable to load claims. Please ensure you are logged in correctly and have an active policy.
           </p>
         </div>
       </div>

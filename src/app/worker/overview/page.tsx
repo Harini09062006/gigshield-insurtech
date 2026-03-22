@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
@@ -32,12 +30,12 @@ export default function WorkerOverview() {
   const { data: profile } = useDoc(profileRef);
   const { data: dna } = useDoc(dnaRef);
 
-  // Filtered query for security rules
+  // Filtered query matching firestore.rules requirements (worker_id)
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return query(
       collection(db, "claims"), 
-      where("userId", "==", user.uid), // Standardized ownership field
+      where("worker_id", "==", user.uid),
       limit(5)
     );
   }, [db, user?.uid]);
@@ -97,11 +95,11 @@ export default function WorkerOverview() {
                 <div className="grid grid-cols-2 gap-2 mt-4">
                   <div className="bg-white/10 p-2 rounded-lg">
                     <p className="text-[10px] uppercase opacity-60">Max Payout</p>
-                    <p className="text-sm font-bold">₹12</p>
+                    <p className="text-sm font-bold">₹{profile?.max_payout || 240}</p>
                   </div>
                   <div className="bg-white/10 p-2 rounded-lg">
                     <p className="text-[10px] uppercase opacity-60">Weekly Premium</p>
-                    <p className="text-sm font-bold">₹1</p>
+                    <p className="text-sm font-bold">₹{profile?.premium || 25}</p>
                   </div>
                 </div>
               </CardContent>
@@ -186,12 +184,12 @@ export default function WorkerOverview() {
             </div>
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Remaining Risk</p>
-              <p className="text-2xl font-bold text-danger">₹{Math.round(currentDnaRate * 6) - 240}</p>
+              <p className="text-2xl font-bold text-danger">₹{Math.max(0, Math.round(currentDnaRate * 6) - 240)}</p>
               <p className="text-[10px] text-body">Consider upgrading plan</p>
             </div>
             <div className="md:col-span-3 bg-warning-bg p-3 rounded-lg border border-warning/20 flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-warning" />
-              <p className="text-sm font-medium text-warning">Consider upgrading to Max Shield to cover your income completely during severe outages.</p>
+              <p className="text-sm font-medium text-warning">Consider upgrading to Elite Shield to cover your income completely during severe outages.</p>
             </div>
           </CardContent>
         </Card>
@@ -242,17 +240,19 @@ export default function WorkerOverview() {
             <Card className="bg-white border-border shadow-card rounded-card p-6 flex flex-col justify-between">
               <div>
                 <p className="text-xs font-bold text-muted uppercase tracking-widest mb-2">Expected Weekly Earnings</p>
-                <div className="text-5xl font-bold text-primary">₹{dna?.weekly_earnings || 3120}</div>
+                <div className="text-5xl font-bold text-primary">₹{dna?.weekly_earnings || 6111}</div>
                 <p className="text-xs text-body mt-2">Derived from your Income DNA earning pattern</p>
               </div>
               <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-bold text-muted uppercase mb-1">Recommended Plan</p>
-                  <p className="text-lg font-bold text-warning">{dna?.recommended_plan || "Max Shield"}</p>
+                  <p className="text-lg font-bold text-warning">{dna?.recommended_plan || "Elite Shield"}</p>
                 </div>
-                <Button variant="outline" className="border-primary text-primary font-bold hover:bg-primary-light rounded-btn">
-                  Upgrade Plan
-                </Button>
+                <Link href="/plans">
+                  <Button variant="outline" className="border-primary text-primary font-bold hover:bg-primary-light rounded-btn">
+                    Upgrade Plan
+                  </Button>
+                </Link>
               </div>
             </Card>
 
@@ -338,7 +338,7 @@ export default function WorkerOverview() {
         </section>
       </div>
 
-      <Link href="/worker/support">
+      <Link href="/support">
         <Button className="fixed bottom-6 right-6 h-14 px-6 rounded-full shadow-btn bg-primary hover:bg-primary-hover flex items-center gap-3">
           <Brain className="h-6 w-6 text-white" />
           <span className="font-bold">AI Support</span>
