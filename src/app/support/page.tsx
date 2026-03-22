@@ -1,32 +1,31 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
-  Brain, Send, Loader2, Home, FileText, LogOut, Shield, 
-  IndianRupee, Zap, CloudRain, ShieldCheck, History, 
+  Brain, Send, Loader2, Home, LogOut, Shield, 
   AlertTriangle, PhoneCall, MapPin, Trophy, Star, 
-  TrendingUp, BarChart3, Languages, Calculator, Info
+  TrendingUp, BarChart3, Languages, Calculator,
+  Mic, MicOff, CheckCircle2, Clock, Zap, Info, ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser, useAuth, useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, collection, query, where, orderBy, limit, addDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import { doc, collection, query, where, limit, addDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getCityRainfall } from "@/services/weatherService";
-import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
-// Types for Rich Message Content
-type MessageType = "text" | "risk_meter" | "calculator" | "sos" | "report" | "points" | "advisor" | "claim_action";
+type MessageType = "text" | "risk_meter" | "calculator" | "sos" | "report" | "points" | "advisor" | "plan";
 
 interface Message {
   role: "bot" | "user";
   text: string;
   type?: MessageType;
   data?: any;
+  timestamp: string;
 }
 
 export default function SupportPage() {
@@ -38,11 +37,30 @@ export default function SupportPage() {
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(false);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Data Fetching
+  const placeholders = [
+    "Ask me about coverage...",
+    "Check rain risk...",
+    "Calculate earnings...",
+    "View claims history...",
+    "Check my points..."
+  ];
+
+  // Fetch worker name for personalized greeting
+  const [workerName, setWorkerName] = useState('Worker');
+  useEffect(() => {
+    if (user?.uid && db) {
+      getDoc(doc(db, 'users', user.uid)).then(snap => {
+        if (snap.exists()) setWorkerName(snap.data().name?.split(' ')[0] || 'Worker');
+      });
+    }
+  }, [user, db]);
+
+  // Data References
   const profileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const dnaRef = useMemoFirebase(() => (db && user ? doc(db, "income_dna", user.uid) : null), [db, user]);
   const { data: profile } = useDoc(profileRef);
@@ -50,57 +68,57 @@ export default function SupportPage() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
-    return query(collection(db, "claims"), where("worker_id", "==", user.uid), orderBy("created_at", "desc"), limit(5));
+    return query(collection(db, "claims"), where("worker_id", "==", user.uid), limit(5));
   }, [db, user?.uid]);
   const { data: recentClaims } = useCollection(claimsQuery);
 
-  // Initial Greeting
+  // Auto-scroll and placeholder rotation
   useEffect(() => {
-    if (profile && messages.length === 0) {
-      const firstName = profile.name?.split(' ')[0] || 'Worker';
-      setMessages([{ 
-        role: "bot", 
-        text: `Hi ${firstName}! I'm your GigShield Intelligence Assistant. I have analyzed your Income DNA and local weather. How can I help you protect your earnings today?` 
-      }]);
-    }
-  }, [profile]);
+    const interval = setInterval(() => setPlaceholderIdx(prev => (prev + 1) % placeholders.length), 3000);
+    return () => clearInterval(interval);
+  }, []);
 
-  // Auto-scroll
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isTyping]);
 
-  // --- FEATURE 4: SOS Auto-Trigger ---
+  // Initial Greeting
+  useEffect(() => {
+    if (workerName && messages.length === 0) {
+      setMessages([{ 
+        role: "bot", 
+        text: `Hi ${workerName}! 👋 I'm your GigShield AI Assistant! I'm here to ensure your income stays protected, no matter the weather.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
+    }
+  }, [workerName]);
+
   const handleSOS = async () => {
     setIsTyping(true);
-    const rainfall = await getCityRainfall(profile?.city || "");
-    const city = profile?.city || "your city";
-    
-    let statusMsg = `Checking conditions in ${city}... Currently ${rainfall.toFixed(1)}mm.`;
-    
-    if (rainfall > 50) {
-      statusMsg += "\n\n🚨 SEVERE DISRUPTION DETECTED! I am auto-triggering your claim right now. Please find a safe location immediately.";
-      // Trigger Claim logic
-      handleClaimProcess(profile?.maxPayout || 240, `SOS Trigger: ${rainfall.toFixed(1)}mm Rain`);
-    } else {
-      statusMsg += "\n\n✅ You are currently safe. Rainfall is below the danger threshold. I am monitoring the situation for you.";
-    }
+    try {
+      const rainfall = await getCityRainfall(profile?.city || "Chennai");
+      const city = profile?.city || "your city";
+      
+      setMessages(prev => [...prev, { 
+        role: "bot", 
+        text: "Checking your situation right now...",
+        type: "sos",
+        data: { rainfall, city, status: rainfall > 50 ? "triggered" : "safe" },
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
 
-    setMessages(prev => [...prev, { 
-      role: "bot", 
-      text: statusMsg,
-      type: "sos",
-      data: { rainfall, city, contacts: ["112 (Emergency)", "100 (Police)"] }
-    }]);
-    setIsTyping(false);
+      if (rainfall > 50) {
+        await handleClaimProcess(profile?.maxPayout || 240, `SOS Trigger: ${rainfall.toFixed(1)}mm Rain`);
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Emergency", description: "Call 112 for immediate assistance." });
+    } finally {
+      setIsTyping(false);
+    }
   };
 
-  // --- FEATURE 10: Claim Processing ---
   const handleClaimProcess = async (amount: number, reason: string) => {
     if (!user || !db) return;
-    setLoading(true);
     try {
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
@@ -112,107 +130,79 @@ export default function SupportPage() {
         status: "paid",
         created_at: serverTimestamp()
       });
-      toast({ title: "Claim Successful", description: `₹${amount} paid instantly!` });
+      toast({ title: "✅ Payout Success", description: `₹${amount} paid instantly!` });
     } catch (e) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to process claim." });
-    } finally {
-      setLoading(false);
+      console.error(e);
     }
   };
 
-  // --- CORE RESPONSE LOGIC ---
-  const generateResponse = async (queryStr: string) => {
+  const generateResponse = async (queryStr: string): Promise<Message | null> => {
     const lowQuery = queryStr.toLowerCase();
-    const workerName = profile?.name?.split(' ')[0] || 'Worker';
-    
-    // Feature 9: Multilingual Detection
-    const isTamil = /[\u0B80-\u0BFF]/.test(queryStr) || lowQuery.includes("plan என்ன") || lowQuery.includes("மழை");
-    const isHindi = /[\u0900-\u097F]/.test(queryStr) || lowQuery.includes("मेरा plan") || lowQuery.includes("बारिश");
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 1. Rain Risk Meter (Feature 2)
-    if (lowQuery.includes("rain") || lowQuery.includes("risk") || lowQuery.includes("weather") || lowQuery.includes("மழை") || lowQuery.includes("बारिश")) {
-      const rainfall = await getCityRainfall(profile?.city || "");
+    if (lowQuery.includes("rain") || lowQuery.includes("risk") || lowQuery.includes("weather")) {
+      const rainfall = await getCityRainfall(profile?.city || "Chennai");
       const riskPercent = Math.min(100, Math.round((rainfall / 50) * 100));
       return {
         role: "bot",
-        text: isTamil ? `தற்போது உங்கள் பகுதியில் மழையளவு ${rainfall.toFixed(1)}mm. பாதிப்பு அபாயம் ${riskPercent}%.` : 
-              isHindi ? `आपके क्षेत्र में अभी ${rainfall.toFixed(1)}mm बारिश हो रही है। जोखिम स्तर ${riskPercent}% है।` :
-              `Here is your Live Risk Meter for ${profile?.city || 'India'}:`,
+        text: `Here is your Live Risk Intelligence for ${profile?.city || 'Chennai'}:`,
         type: "risk_meter",
-        data: { rainfall, riskPercent, city: profile?.city }
+        data: { rainfall, riskPercent, city: profile?.city },
+        timestamp: ts
       };
     }
 
-    // 2. Earnings Calculator (Feature 3)
-    if (lowQuery.includes("earn") || lowQuery.includes("calc") || lowQuery.includes("income") || lowQuery.includes("कमाई")) {
+    if (lowQuery.includes("earn") || lowQuery.includes("calc") || lowQuery.includes("income")) {
       return {
         role: "bot",
-        text: `I've opened the Income Calculator based on your personal Income DNA (Base: ₹${profile?.hourlyRate || 60}/hr):`,
+        text: "Interactive Income DNA Calculator enabled:",
         type: "calculator",
-        data: { baseRate: profile?.hourlyRate || 60 }
+        data: { baseRate: profile?.avg_hourly_earnings || 60 },
+        timestamp: ts
       };
     }
 
-    // 3. Weekly Report (Feature 5)
-    if (lowQuery.includes("week") || lowQuery.includes("report") || lowQuery.includes("grade")) {
+    if (lowQuery.includes("week") || lowQuery.includes("report")) {
       const totalEarned = dna?.weekly_earnings || 6111;
       const grade = totalEarned > 7000 ? "A+" : totalEarned > 5000 ? "A" : "B";
       return {
         role: "bot",
-        text: `Your Weekly Performance Report is ready, ${workerName}:`,
+        text: "Weekly Performance Analytics ready:",
         type: "report",
-        data: { totalEarned, grade, saved: 240, safeDays: 5, rainDays: 2 }
+        data: { totalEarned, grade, saved: 240, safeDays: 5, rainDays: 2 },
+        timestamp: ts
       };
     }
 
-    // 4. Points Card (Feature 6)
-    if (lowQuery.includes("point") || lowQuery.includes("reward") || lowQuery.includes("game")) {
+    if (lowQuery.includes("point") || lowQuery.includes("reward")) {
       return {
         role: "bot",
-        text: `You are doing great! You have earned significant protection points this month:`,
+        text: "Your current achievement status:",
         type: "points",
-        data: { points: profile?.points || 1250 }
+        data: { points: profile?.points || 1250 },
+        timestamp: ts
       };
     }
 
-    // 5. Upgrade Advisor (Feature 7)
-    if (lowQuery.includes("upgrade") || lowQuery.includes("elite") || lowQuery.includes("better")) {
+    if (lowQuery.includes("plan") || lowQuery.includes("coverage")) {
       return {
         role: "bot",
-        text: `I've analyzed your last 4 weeks of claims and potential gaps in coverage:`,
-        type: "advisor",
-        data: { incomeLost: 4500, covered: 960, extraCover: 1440 }
+        text: "Your current protection details:",
+        type: "plan",
+        data: { plan: profile?.plan_id || 'Pro', premium: profile?.premium || 25, payout: profile?.max_payout || 240 },
+        timestamp: ts
       };
     }
 
-    // 6. SOS (Feature 4)
     if (lowQuery.includes("sos") || lowQuery.includes("emergency") || lowQuery.includes("help")) {
       handleSOS();
       return null;
     }
 
-    // 7. General Questions (Feature 8)
-    if (lowQuery.includes("plan")) {
-      return {
-        role: "bot",
-        text: `Your ${profile?.plan || 'Pro'} Shield is ACTIVE ✅\nWeekly Premium: ₹${profile?.premium || 25}\nMax Payout: ₹${profile?.maxPayout || 240}\nStatus: Week 1 of 4`
-      };
-    }
-
-    if (lowQuery.includes("claim history") || lowQuery.includes("history")) {
-      if (!recentClaims || recentClaims.length === 0) return { role: "bot", text: "You haven't filed any claims yet!" };
-      const list = recentClaims.map(c => `• ₹${c.compensation} (${c.trigger_description || 'Rain'}) - ${c.status}`).join("\n");
-      return { role: "bot", text: `Your Last 5 Claims:\n${list}` };
-    }
-
-    if (lowQuery.includes("trust") || lowQuery.includes("score")) {
-      return { role: "bot", text: `Your Trust Score is ${profile?.trustScore || 95}/100 ✅\nAll 8 Fraud Checks: PASSED` };
-    }
-
-    // Default Fallback (Feature 10)
     return {
       role: "bot",
-      text: `I didn't quite catch that, ${workerName}. 😊 Here is what I can help you with precisely:`
+      text: "I didn't quite catch that! I'm best at rain risks, earnings DNA, and plan management. Try a button below!",
+      timestamp: ts
     };
   };
 
@@ -221,97 +211,99 @@ export default function SupportPage() {
     if (!userMsg) return;
 
     setInput("");
-    setMessages(prev => [...prev, { role: "user", text: userMsg }]);
+    setMessages(prev => [...prev, { 
+      role: "user", 
+      text: userMsg, 
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+    }]);
     setIsTyping(true);
 
     const botResp = await generateResponse(userMsg);
-    
-    // Simulate thinking time
     setTimeout(() => {
-      if (botResp) {
-        setMessages(prev => [...prev, botResp as Message]);
-      }
+      if (botResp) setMessages(prev => [...prev, botResp]);
       setIsTyping(false);
-    }, 800);
+    }, 1000);
   };
 
   const quickPills = [
-    { label: '🌧️ Rain Risk?', text: 'What is my risk now?' },
-    { label: '💰 Earnings?', text: 'Calculate my earnings' },
-    { label: '📊 Report', text: 'Show my weekly report' },
-    { label: '🆘 SOS Help', text: 'SOS EMERGENCY' },
-    { label: '🎮 Points', text: 'What are my points?' },
-    { label: '🛡️ My Plan', text: 'What is my plan?' },
-    { label: '📋 Claims', text: 'Show my claims history' },
-    { label: '🚀 Upgrade?', text: 'Should I upgrade to Elite?' }
+    { label: '🌧️ Rain Risk', text: 'Rain risk today?', color: 'bg-blue-500' },
+    { label: '💰 Earnings', text: 'Calculate my earnings', color: 'bg-green-500' },
+    { label: '📋 Claims', text: 'Show my claims', color: 'bg-purple-500' },
+    { label: '🛡️ My Plan', text: 'What is my plan?', color: 'bg-indigo-600' },
+    { label: '⚡ File Claim', text: 'emergency', color: 'bg-orange-500' },
+    { label: '🆘 SOS Help', text: 'emergency', color: 'bg-red-500' },
+    { label: '🎮 My Points', text: 'What are my points?', color: 'bg-pink-500' },
+    { label: '📊 Report', text: 'Show weekly report', color: 'bg-teal-500' }
   ];
 
-  if (isUserLoading) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
+  if (isUserLoading) return <div className="h-screen flex items-center justify-center bg-[#1A1A2E]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
 
   return (
-    <div className="h-screen bg-[#EEEEFF] flex flex-col font-body overflow-hidden">
+    <div className="h-screen bg-[#0F0F1E] flex flex-col font-body overflow-hidden text-white">
+      
       {/* Header */}
-      <header className="px-6 py-4 flex items-center justify-between border-b border-[#E8E6FF] bg-white shadow-sm shrink-0 z-10">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
-            <Shield className="h-6 w-6 text-white" />
+      <header className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-[#1A1A2E]/80 backdrop-blur-xl sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="h-12 w-12 bg-gradient-to-tr from-[#6C47FF] to-[#8E66FF] rounded-2xl flex items-center justify-center shadow-lg border border-white/10">
+              <Brain className="text-white h-7 w-7" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 border-[#1A1A2E] animate-pulse" />
           </div>
-          <span className="text-2xl font-headline font-bold text-[#1A1A2E]">Gig<span className="text-[#6C47FF]">Shield</span></span>
-        </Link>
+          <div>
+            <h1 className="text-lg font-bold leading-tight">GigShield AI Assistant</h1>
+            <p className="text-[10px] text-white/50 uppercase tracking-widest font-bold">Powered by Income DNA Intelligence</p>
+          </div>
+        </div>
         <div className="flex gap-2">
-          <Link href="/dashboard"><Button variant="ghost" size="icon" className="text-[#64748B] hover:bg-[#F5F3FF] rounded-xl"><Home /></Button></Link>
-          <Button onClick={() => auth.signOut().then(() => router.push("/"))} variant="ghost" size="icon" className="text-[#EF4444] hover:bg-[#FEE2E2] rounded-xl"><LogOut /></Button>
+          <select className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none cursor-pointer hover:bg-white/10 transition-all">
+            <option value="en" className="bg-[#1A1A2E]">EN ▼</option>
+            <option value="hi" className="bg-[#1A1A2E]">Hindi</option>
+            <option value="ta" className="bg-[#1A1A2E]">Tamil</option>
+          </select>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setVoiceOn(!voiceOn)}
+            className={`text-white hover:bg-white/10 rounded-lg text-xs gap-2 ${voiceOn ? 'bg-[#6C47FF]/20 border border-[#6C47FF]/50' : ''}`}
+          >
+            {voiceOn ? <><Zap className="h-3 w-3 fill-white" /> 🔊 ON</> : <><MicOff className="h-3 w-3" /> OFF</>}
+          </Button>
+          <Link href="/dashboard">
+            <Button variant="ghost" size="icon" className="text-white/60 hover:bg-white/5 rounded-xl"><Home className="h-5 w-5" /></Button>
+          </Link>
         </div>
       </header>
 
-      {/* Sub-Header Branding */}
-      <div className="bg-[#6C47FF] px-6 py-3 flex items-center justify-between shadow-lg shrink-0 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
-        <div className="flex items-center gap-3 z-10">
-          <div className="h-10 w-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30">
-            <Brain className="text-white h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-white font-bold leading-tight flex items-center gap-2">
-              AI Support Intelligence
-              <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-            </h1>
-            <p className="text-white/70 text-[10px] uppercase font-bold tracking-widest">Deep DNA Analysis Active</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 z-10">
-          <div className="bg-white/10 px-3 py-1 rounded-lg border border-white/20 flex items-center gap-2">
-            <Languages className="h-3 w-3 text-white" />
-            <span className="text-[10px] text-white font-bold">AUTO-DETECT LANG</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 max-w-4xl mx-auto w-full scroll-smooth no-scrollbar" ref={scrollRef}>
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 scroll-smooth" ref={scrollRef}>
         <AnimatePresence initial={false}>
           {messages.map((m, i) => (
             <motion.div 
               key={i} 
               initial={{ opacity: 0, y: 20, scale: 0.95 }} 
               animate={{ opacity: 1, y: 0, scale: 1 }} 
-              className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}
             >
-              <div className={`max-w-[90%] md:max-w-[80%] space-y-2`}>
-                <div className={`p-4 rounded-2xl shadow-sm text-sm whitespace-pre-line leading-relaxed relative ${
-                  m.role === "user" 
-                    ? "bg-[#6C47FF] text-white rounded-tr-none" 
-                    : "bg-white text-[#1A1A2E] rounded-tl-none border border-[#E8E6FF]"
-                }`}>
-                  {m.text}
-                  
-                  {/* FEATURE RENDERING */}
-                  {m.type === "risk_meter" && <RiskMeter data={m.data} />}
-                  {m.type === "calculator" && <IncomeCalculator data={m.data} />}
-                  {m.type === "sos" && <SOSCard data={m.data} />}
-                  {m.type === "report" && <WeeklyReportCard data={m.data} />}
-                  {m.type === "points" && <PointsCard data={m.data} />}
-                  {m.type === "advisor" && <UpgradeAdvisor data={m.data} onUpgrade={() => router.push('/worker/plans')} />}
+              <div className={`flex gap-3 max-w-[85%] ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                <div className={`h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xl border border-white/5 ${m.role === "user" ? "bg-gradient-to-br from-[#6C47FF] to-[#5535E8]" : "bg-[#1A1A2E]"}`}>
+                  {m.role === "user" ? <span className="font-bold text-xs">Me</span> : <Brain className="h-5 w-5" />}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <div className={`p-4 rounded-[24px] shadow-2xl backdrop-blur-md text-sm leading-relaxed ${
+                    m.role === "user" 
+                      ? "bg-gradient-to-br from-[#6C47FF]/90 to-[#5535E8]/90 text-white rounded-tr-none border border-white/10" 
+                      : "bg-[#1A1A2E]/90 text-white/90 rounded-tl-none border border-white/5"
+                  }`}>
+                    {m.text}
+                    {m.type === "risk_meter" && <RiskMeter data={m.data} />}
+                    {m.type === "calculator" && <IncomeCalculator data={m.data} />}
+                    {m.type === "sos" && <SOSCard data={m.data} />}
+                    {m.type === "report" && <WeeklyReportCard data={m.data} />}
+                    {m.type === "points" && <PointsCard data={m.data} />}
+                    {m.type === "plan" && <PlanCard data={m.data} onUpgrade={() => router.push('/worker/plans')} />}
+                  </div>
+                  <span className="text-[10px] text-white/30 font-medium px-2">{m.timestamp}</span>
                 </div>
               </div>
             </motion.div>
@@ -319,52 +311,62 @@ export default function SupportPage() {
         </AnimatePresence>
         
         {isTyping && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-[#6C47FF] text-xs font-bold px-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="animate-pulse">Analyzing patterns...</span>
-          </motion.div>
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-2xl flex items-center justify-center bg-[#1A1A2E] border border-white/5">
+              <Brain className="h-5 w-5 animate-pulse text-[#6C47FF]" />
+            </div>
+            <div className="bg-[#1A1A2E]/50 p-4 rounded-[20px] rounded-tl-none border border-white/5 flex gap-1.5">
+              <span className="h-1.5 w-1.5 bg-[#6C47FF] rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 bg-[#6C47FF] rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 bg-[#6C47FF] rounded-full animate-bounce" />
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Input Section */}
-      <div className="bg-white border-t border-[#E8E6FF] shrink-0 pb-safe">
-        {/* Feature 1: Quick Pills */}
-        <div className="flex gap-2 overflow-x-auto p-3 no-scrollbar border-b border-[#E8E6FF]">
+      {/* Input Bar Section */}
+      <div className="bg-[#1A1A2E]/80 backdrop-blur-2xl border-t border-white/5 p-4 flex flex-col gap-4">
+        
+        {/* Quick Pills */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
           {quickPills.map(q => (
-            <button
+            <motion.button
               key={q.label}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => handleSend(q.text)}
-              className="whitespace-nowrap bg-white border border-[#E8E6FF] hover:border-[#6C47FF] hover:bg-[#F5F3FF] hover:text-[#6C47FF] rounded-full px-4 py-2 text-[11px] font-bold transition-all shrink-0 shadow-sm active:scale-95"
+              className={`whitespace-nowrap ${q.color} text-white px-4 py-2 text-[11px] font-bold rounded-full transition-all shadow-lg shadow-black/20 flex-shrink-0 flex items-center gap-2 border border-white/10`}
             >
               {q.label}
-            </button>
+            </motion.button>
           ))}
         </div>
 
-        <div className="p-4 max-w-4xl mx-auto flex items-center gap-3">
+        {/* Input Control */}
+        <div className="max-w-4xl mx-auto w-full flex items-center gap-3">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="rounded-full h-12 w-12 bg-[#F5F3FF] text-[#6C47FF] hover:bg-[#6C47FF] hover:text-white transition-all shrink-0"
-            onClick={() => toast({ title: "Smart Calculator", description: "Use the calculator tool above for precise earnings." })}
+            className="rounded-2xl h-12 w-12 bg-white/5 border border-white/10 text-white hover:bg-white/10"
+            onClick={() => handleSend('Calculate my earnings')}
           >
-            <Calculator className="h-6 w-6" />
+            <Mic className="h-5 w-5" />
           </Button>
-          <div className="flex-1 relative">
+          <div className="flex-1 relative group">
             <Input 
-              placeholder="Ask about earnings, rain risk, or safety..." 
+              placeholder={placeholders[placeholderIdx]}
               value={input} 
               onChange={(e) => setInput(e.target.value)} 
               onKeyDown={(e) => e.key === "Enter" && handleSend()} 
-              className="rounded-full border-2 border-[#E8E6FF] h-12 pr-12 focus:border-[#6C47FF] transition-all bg-[#F8F9FF] text-sm" 
+              className="rounded-2xl border-white/10 h-12 pr-12 focus:ring-[#6C47FF] bg-white/5 text-white placeholder:text-white/20 transition-all text-sm group-hover:bg-white/10 focus:bg-white/10" 
             />
             <Button 
               size="icon" 
               onClick={() => handleSend()} 
-              disabled={!input.trim() || loading}
-              className="absolute right-1 top-1 rounded-full h-10 w-10 bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn shrink-0"
+              disabled={!input.trim()}
+              className="absolute right-1 top-1 rounded-xl h-10 w-10 bg-[#6C47FF] hover:bg-[#5535E8] shadow-lg shadow-[#6C47FF]/20"
             >
-              <Send className="h-5 w-5" />
+              <Send className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -373,37 +375,47 @@ export default function SupportPage() {
   );
 }
 
-// --- SUB-COMPONENTS FOR RICH MESSAGES ---
+// ── SUB-COMPONENTS ──────────────────────────────────────
 
 function RiskMeter({ data }: { data: any }) {
   const color = data.riskPercent > 60 ? "#EF4444" : data.riskPercent > 30 ? "#F59E0B" : "#22C55E";
   return (
-    <div className="mt-4 p-4 rounded-xl border border-[#E8E6FF] bg-[#F8F9FF] space-y-3">
+    <div className="mt-4 p-5 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl space-y-4 min-w-[260px]">
       <div className="flex justify-between items-center">
-        <span className="text-[10px] font-bold text-[#64748B] uppercase">🌦️ Live Risk Meter</span>
-        <span className="text-[10px] font-mono text-[#6C47FF] animate-pulse">UPDATING LIVE</span>
-      </div>
-      <div className="h-3 w-full bg-[#E8E6FF] rounded-full overflow-hidden">
-        <motion.div 
-          initial={{ width: 0 }} 
-          animate={{ width: `${data.riskPercent}%` }} 
-          style={{ backgroundColor: color }}
-          className="h-full transition-all duration-1000" 
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-2 text-xs font-medium">
-        <div className="bg-white p-2 rounded-lg border border-[#E8E6FF]">
-          <p className="text-[9px] text-[#94A3B8] uppercase">Rainfall</p>
-          <p className="font-bold">{data.rainfall.toFixed(1)}mm</p>
-        </div>
-        <div className="bg-white p-2 rounded-lg border border-[#E8E6FF]">
-          <p className="text-[9px] text-[#94A3B8] uppercase">Risk Level</p>
-          <p className="font-bold" style={{ color }}>{data.riskPercent}%</p>
+        <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">🌦️ Live Intelligence</span>
+        <div className="flex items-center gap-1.5">
+          <div className="h-1.5 w-1.5 bg-red-500 rounded-full animate-pulse" />
+          <span className="text-[10px] font-mono text-red-500 font-bold">REALTIME</span>
         </div>
       </div>
-      <div className={`p-2 rounded-lg text-[10px] font-bold text-center ${data.riskPercent > 60 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-        {data.riskPercent > 60 ? '⚠️ CLAIM MAY FIRE SOON!' : '✓ PROTECTION ACTIVE & SAFE'}
+      <div className="space-y-2">
+        <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+          <motion.div 
+            initial={{ width: 0 }} 
+            animate={{ width: `${data.riskPercent}%` }} 
+            style={{ backgroundColor: color }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+            className="h-full shadow-[0_0_15px_rgba(0,0,0,0.5)]" 
+          />
+        </div>
+        <div className="flex justify-between items-center text-[10px] font-bold">
+          <span style={{ color }}>{data.riskPercent > 60 ? 'HIGH RISK' : data.riskPercent > 30 ? 'MEDIUM RISK' : 'LOW RISK'}</span>
+          <span className="text-white/40">{data.riskPercent}%</span>
+        </div>
       </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+          <p className="text-[9px] text-white/30 uppercase font-bold">Rainfall</p>
+          <p className="font-bold text-white text-lg">{data.rainfall.toFixed(1)}<span className="text-[10px] ml-0.5 text-white/40">mm</span></p>
+        </div>
+        <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+          <p className="text-[9px] text-white/30 uppercase font-bold">Threshold</p>
+          <p className="font-bold text-white/60 text-lg">50.0<span className="text-[10px] ml-0.5 text-white/40">mm</span></p>
+        </div>
+      </div>
+      <p className="text-[11px] text-white/60 leading-relaxed font-medium">
+        {data.riskPercent > 60 ? '⚠️ Severe rainfall detected. Claim threshold approaching rapidly.' : '✓ Weather remains within safe delivery parameters.'}
+      </p>
     </div>
   );
 }
@@ -415,48 +427,36 @@ function IncomeCalculator({ data }: { data: any }) {
   const expected = Math.round(data.baseRate * mults[slot] * hours);
 
   return (
-    <div className="mt-4 p-4 rounded-xl border-2 border-[#6C47FF]/20 bg-white space-y-4">
-      <div className="flex items-center gap-2 text-[#6C47FF] font-bold text-xs uppercase">
-        <Calculator className="h-4 w-4" /> Income Calculator
+    <div className="mt-4 p-5 rounded-3xl border border-white/10 bg-[#1A1A2E] shadow-2xl space-y-5 min-w-[280px]">
+      <div className="flex items-center gap-2 text-[#6C47FF] font-bold text-xs uppercase tracking-widest">
+        <Calculator className="h-4 w-4" /> Income Predictor
       </div>
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div>
-          <p className="text-[9px] text-[#94A3B8] uppercase font-bold mb-1">Select Time Slot</p>
-          <div className="flex gap-1">
+          <p className="text-[9px] text-white/30 uppercase font-bold mb-2">Select Time Slot</p>
+          <div className="grid grid-cols-2 gap-1.5">
             {Object.keys(mults).map(s => (
-              <button 
-                key={s} 
-                onClick={() => setSlot(s)}
-                className={`flex-1 py-1 text-[10px] font-bold rounded-md border transition-all ${slot === s ? 'bg-[#6C47FF] text-white border-[#6C47FF]' : 'bg-white text-[#64748B] border-[#E8E6FF]'}`}
-              >
-                {s}
-              </button>
+              <button key={s} onClick={() => setSlot(s)} className={`py-2 text-[10px] font-bold rounded-xl border transition-all ${slot === s ? 'bg-[#6C47FF] text-white border-[#6C47FF] shadow-lg shadow-[#6C47FF]/20' : 'bg-white/5 text-white/40 border-white/5 hover:border-white/10 hover:text-white/60'}`}>{s}</button>
             ))}
           </div>
         </div>
         <div>
-          <p className="text-[9px] text-[#94A3B8] uppercase font-bold mb-1">Hours to Work</p>
-          <div className="flex gap-1">
+          <p className="text-[9px] text-white/30 uppercase font-bold mb-2">Duration (Hours)</p>
+          <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map(h => (
-              <button 
-                key={h} 
-                onClick={() => setHours(h)}
-                className={`flex-1 py-1 text-[10px] font-bold rounded-md border transition-all ${hours === h ? 'bg-[#6C47FF] text-white border-[#6C47FF]' : 'bg-white text-[#64748B] border-[#E8E6FF]'}`}
-              >
-                {h}h
-              </button>
+              <button key={h} onClick={() => setHours(h)} className={`flex-1 py-2 text-[10px] font-bold rounded-xl border transition-all ${hours === h ? 'bg-[#6C47FF] text-white border-[#6C47FF]' : 'bg-white/5 text-white/40 border-white/5 hover:border-white/10'}`}>{h}h</button>
             ))}
           </div>
         </div>
       </div>
-      <div className="pt-3 border-t border-[#E8E6FF] flex justify-between items-end">
+      <div className="pt-4 border-t border-white/5 flex justify-between items-end">
         <div>
-          <p className="text-[9px] text-[#94A3B8] uppercase">Expected Earnings</p>
-          <p className="text-xl font-bold text-[#6C47FF]">₹{expected}</p>
+          <p className="text-[9px] text-white/30 uppercase font-bold mb-1">Expected Earning</p>
+          <motion.p key={expected} initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="text-3xl font-bold text-white">₹{expected}</motion.p>
         </div>
         <div className="text-right">
-          <p className="text-[9px] text-[#22C55E] uppercase font-bold">Protected</p>
-          <p className="text-xs font-bold text-[#22C55E]">100% COVERED ✅</p>
+          <p className="text-[9px] text-green-400 uppercase font-bold">Risk Covered</p>
+          <p className="text-xs font-bold text-green-400">100% SECURE</p>
         </div>
       </div>
     </div>
@@ -464,19 +464,40 @@ function IncomeCalculator({ data }: { data: any }) {
 }
 
 function SOSCard({ data }: { data: any }) {
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setProgress(p => Math.min(100, p + 25)), 400);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="mt-4 p-4 rounded-xl border-2 border-red-500 bg-red-50 space-y-4">
-      <div className="flex items-center gap-2 text-red-600 font-bold text-sm uppercase">
-        <AlertTriangle className="h-5 w-5 animate-bounce" /> SOS MODE ACTIVE
+    <div className="mt-4 p-5 rounded-3xl border-2 border-red-500/50 bg-red-500/5 backdrop-blur-2xl space-y-5 min-w-[280px] relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-full bg-red-500/5 animate-pulse pointer-events-none" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-red-500 font-bold text-sm uppercase tracking-widest">
+          <AlertTriangle className="h-5 w-5 animate-bounce" /> EMERGENCY MODE
+        </div>
+        <span className="text-[10px] font-bold text-red-500/60 uppercase">{progress}%</span>
       </div>
-      <div className="space-y-2">
-        {data.contacts.map((c: string) => (
-          <Button key={c} variant="outline" className="w-full bg-white border-red-200 text-red-600 h-10 gap-2 font-bold text-xs">
-            <PhoneCall className="h-4 w-4" /> {c}
-          </Button>
-        ))}
-        <Button className="w-full bg-red-600 hover:bg-red-700 text-white h-10 gap-2 font-bold text-xs">
-          <MapPin className="h-4 w-4" /> Find Nearest Shelter
+      
+      <div className="space-y-3">
+        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+          <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className="h-full bg-red-500" />
+        </div>
+        <div className="space-y-2 text-[11px] font-bold uppercase tracking-wider">
+          <div className={`flex items-center gap-2 ${progress >= 25 ? 'text-red-500' : 'text-white/20'}`}><CheckCircle2 className="h-3 w-3" /> Weather Verified</div>
+          <div className={`flex items-center gap-2 ${progress >= 50 ? 'text-red-500' : 'text-white/20'}`}><CheckCircle2 className="h-3 w-3" /> Plan Authenticated</div>
+          <div className={`flex items-center gap-2 ${progress >= 75 ? 'text-red-500' : 'text-white/20'}`}><CheckCircle2 className="h-3 w-3" /> Claim Triggered</div>
+          <div className={`flex items-center gap-2 ${progress >= 100 ? 'text-red-500' : 'text-white/20'}`}><CheckCircle2 className="h-3 w-3" /> Payout Initiated</div>
+        </div>
+      </div>
+
+      <div className="space-y-2 pt-2">
+        <Button className="w-full bg-red-500 hover:bg-red-600 text-white font-bold h-12 rounded-2xl gap-3 shadow-xl shadow-red-500/20">
+          <PhoneCall className="h-5 w-5" /> CALL EMERGENCY (112)
+        </Button>
+        <Button variant="outline" className="w-full border-white/10 text-white font-bold h-12 rounded-2xl bg-white/5">
+          <MapPin className="h-5 w-5 mr-2" /> FIND NEAREST SHELTER
         </Button>
       </div>
     </div>
@@ -485,89 +506,97 @@ function SOSCard({ data }: { data: any }) {
 
 function WeeklyReportCard({ data }: { data: any }) {
   return (
-    <div className="mt-4 p-4 rounded-xl border border-[#E8E6FF] bg-gradient-to-br from-white to-[#F5F3FF] space-y-4">
+    <div className="mt-4 p-5 rounded-3xl border border-white/10 bg-gradient-to-br from-[#1A1A2E] to-[#0F0F1E] space-y-5 min-w-[280px] shadow-2xl">
       <div className="flex justify-between items-start">
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Weekly Report Card</span>
-          <span className="text-lg font-bold text-[#1A1A2E]">Grade: {data.grade} 🏆</span>
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Weekly Performance</span>
+          <p className="text-2xl font-bold text-white">Grade: <span className="text-[#6C47FF]">{data.grade}</span> 🏆</p>
         </div>
-        <div className="h-10 w-10 bg-[#EDE9FF] rounded-full flex items-center justify-center text-[#6C47FF]">
-          <BarChart3 className="h-5 w-5" />
+        <div className="h-12 w-12 bg-[#6C47FF]/10 rounded-2xl flex items-center justify-center text-[#6C47FF] border border-[#6C47FF]/20 shadow-xl shadow-[#6C47FF]/5">
+          <BarChart3 className="h-6 w-6" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 text-xs">
-        <div className="space-y-1">
-          <p className="text-[#94A3B8] text-[9px] uppercase">Total Earned</p>
-          <p className="font-bold text-[#1A1A2E]">₹{data.totalEarned}</p>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+          <p className="text-white/30 text-[9px] font-bold uppercase mb-1">Earned</p>
+          <p className="font-bold text-white text-lg">₹{data.totalEarned}</p>
         </div>
-        <div className="space-y-1">
-          <p className="text-[#22C55E] text-[9px] uppercase">Shield Saved</p>
-          <p className="font-bold text-[#22C55E]">₹{data.saved}</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[#94A3B8] text-[9px] uppercase">Safe Days</p>
-          <p className="font-bold text-[#1A1A2E]">{data.safeDays}</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[#F59E0B] text-[9px] uppercase">Rain Days</p>
-          <p className="font-bold text-[#F59E0B]">{data.rainDays}</p>
+        <div className="bg-green-500/5 p-3 rounded-2xl border border-green-500/10">
+          <p className="text-green-400 text-[9px] font-bold uppercase mb-1">Savings</p>
+          <p className="font-bold text-green-400 text-lg">₹{data.saved}</p>
         </div>
       </div>
-      <Button variant="ghost" className="w-full text-[#6C47FF] font-bold text-[10px] h-8 hover:bg-[#EDE9FF]">SEE FULL ANALYSIS →</Button>
+      <div className="flex justify-between items-center text-[11px] font-bold text-white/40 pt-2 border-t border-white/5">
+        <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {data.safeDays} Active Days</span>
+        <span className="flex items-center gap-1.5"><Zap className="h-3 w-3" /> {data.rainDays} Rain Events</span>
+      </div>
     </div>
   );
 }
 
 function PointsCard({ data }: { data: any }) {
   return (
-    <div className="mt-4 p-4 rounded-xl border border-[#E8E6FF] bg-[#1A1A2E] text-white space-y-4 relative overflow-hidden">
-      <div className="absolute -top-4 -right-4 h-20 w-20 bg-[#6C47FF] opacity-20 blur-2xl" />
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-          <Trophy className="text-white h-5 w-5" />
+    <div className="mt-4 p-5 rounded-3xl border border-white/10 bg-[#1A1A2E] text-white space-y-5 min-w-[280px] relative overflow-hidden shadow-2xl">
+      <div className="absolute -top-10 -right-10 h-32 w-32 bg-[#6C47FF] opacity-10 blur-3xl pointer-events-none" />
+      <div className="flex items-center gap-4">
+        <div className="h-14 w-14 bg-gradient-to-tr from-yellow-400/20 to-orange-500/20 rounded-2xl flex items-center justify-center border border-white/10 shadow-inner">
+          <Trophy className="text-yellow-400 h-7 w-7" />
         </div>
         <div>
-          <p className="text-[10px] text-white/60 uppercase font-bold">Total Points</p>
-          <p className="text-xl font-bold">{data.points.toLocaleString()} 🏆</p>
+          <p className="text-[10px] text-white/40 uppercase font-bold tracking-widest">Available Points</p>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-3xl font-bold">{data.points.toLocaleString()}</motion.p>
         </div>
       </div>
-      <div className="space-y-2">
-        <div className="flex justify-between text-[10px] font-bold">
-          <span className="text-white/60 uppercase">Progress to Next Reward</span>
-          <span className="text-orange-400">750 pts to GO!</span>
+      <div className="space-y-3">
+        <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+          <span className="text-white/40">Progress to Free Week</span>
+          <span className="text-yellow-400">750 pts left</span>
         </div>
-        <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden border border-white/5">
-          <div className="h-full w-[65%] bg-gradient-to-r from-orange-400 to-yellow-400" />
+        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+          <motion.div initial={{ width: 0 }} animate={{ width: "65%" }} className="h-full bg-gradient-to-r from-orange-400 to-yellow-400 shadow-[0_0_10px_rgba(251,191,36,0.3)]" />
         </div>
       </div>
-      <div className="bg-white/5 p-2 rounded-lg border border-white/10 flex items-center justify-between text-[10px] font-medium">
-        <span className="text-white/80">Next: FREE PROTECTION WEEK</span>
-        <Star className="h-3 w-3 text-yellow-400 fill-current" />
+      <div className="bg-white/5 p-3 rounded-2xl border border-white/5 flex items-center justify-between text-[10px] font-bold">
+        <span className="text-white/60 uppercase">Claim Rewards Market</span>
+        <ChevronRight className="h-4 w-4 text-[#6C47FF]" />
       </div>
     </div>
   );
 }
 
-function UpgradeAdvisor({ data, onUpgrade }: { data: any, onUpgrade: () => void }) {
+function PlanCard({ data, onUpgrade }: { data: any, onUpgrade: () => void }) {
   return (
-    <div className="mt-4 p-4 rounded-xl border-2 border-dashed border-[#6C47FF]/40 bg-[#F5F3FF] space-y-4">
-      <div className="flex items-center gap-2 text-[#6C47FF] font-bold text-xs uppercase">
-        <TrendingUp className="h-4 w-4" /> Smart Upgrade Advisor
+    <div className="mt-4 p-5 rounded-3xl border border-white/10 bg-white shadow-2xl min-w-[280px] space-y-5 text-[#1A1A2E]">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[#6C47FF] font-bold text-xs uppercase tracking-widest">
+          <Shield className="h-4 w-4" /> Active Policy
+        </div>
+        <div className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider">Verified</div>
       </div>
       <div className="space-y-3">
-        <div className="text-[11px] text-[#64748B] leading-relaxed">
-          I analyzed your last 4 weeks. You lost <b>₹{data.incomeLost}</b> due to rain, but only <b>₹{data.covered}</b> was covered.
+        <div className="flex justify-between text-sm font-bold border-b border-[#1A1A2E]/5 pb-2">
+          <span className="text-[#1A1A2E]/40 font-medium">Plan Type</span>
+          <span className="capitalize">{data.plan} Shield</span>
         </div>
-        <div className="p-3 bg-white rounded-lg border border-[#E8E6FF] flex justify-between items-center">
-          <div>
-            <p className="text-[9px] text-[#94A3B8] uppercase">Potential ROI</p>
-            <p className="text-lg font-bold text-[#6C47FF]">14x Return! 🚀</p>
-          </div>
-          <Button onClick={onUpgrade} className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold h-10 px-4 text-xs rounded-xl shadow-md">
-            UPGRADE NOW
-          </Button>
+        <div className="flex justify-between text-sm font-bold border-b border-[#1A1A2E]/5 pb-2">
+          <span className="text-[#1A1A2E]/40 font-medium">Weekly Premium</span>
+          <span>₹{data.premium}</span>
+        </div>
+        <div className="flex justify-between text-sm font-bold border-b border-[#1A1A2E]/5 pb-2">
+          <span className="text-[#1A1A2E]/40 font-medium">Max Payout</span>
+          <span>₹{data.payout}</span>
+        </div>
+        <div className="flex justify-between text-sm font-bold">
+          <span className="text-[#1A1A2E]/40 font-medium">Status</span>
+          <span className="text-green-600">● Active</span>
         </div>
       </div>
+      <Button 
+        onClick={onUpgrade}
+        className="w-full bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold h-12 rounded-[20px] shadow-xl shadow-[#6C47FF]/30 transition-all active:scale-[0.98]"
+      >
+        RENEW / UPGRADE PLAN
+      </Button>
     </div>
   );
 }
