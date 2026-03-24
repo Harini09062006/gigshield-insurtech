@@ -89,32 +89,40 @@ export default function SupportPage() {
     }
   }, [messages, isTyping]);
 
-  // Voice Recording Setup
+  // Voice Recording Logic Fix
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
-      
+      recognition.maxAlternatives = 1;
+
       recognition.onstart = () => {
         setIsRecording(true);
         setIsProcessingSpeech(false);
       };
 
       recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0])
-          .map((result: any) => result.transcript)
-          .join("");
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
         setInput(transcript);
       };
 
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error);
+        if (event.error !== 'aborted') {
+          toast({ 
+            variant: "destructive", 
+            title: "Microphone Error", 
+            description: "Could not understand audio. Please check permissions." 
+          });
+        }
         setIsRecording(false);
         setIsProcessingSpeech(false);
-        toast({ variant: "destructive", title: "Mic Error", description: "Could not understand audio. Please try again." });
       };
 
       recognition.onend = () => {
@@ -126,9 +134,11 @@ export default function SupportPage() {
     }
 
     return () => {
-      if (recognitionRef.current) recognitionRef.current.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
     };
-  }, []);
+  }, [language]);
 
   const toggleRecording = () => {
     if (!recognitionRef.current) {
@@ -139,8 +149,14 @@ export default function SupportPage() {
     if (isRecording) {
       recognitionRef.current.stop();
     } else {
-      recognitionRef.current.lang = language;
-      recognitionRef.current.start();
+      try {
+        recognitionRef.current.lang = language;
+        recognitionRef.current.start();
+      } catch (err) {
+        // Recognition might already be started or in a weird state
+        recognitionRef.current.abort();
+        setTimeout(() => recognitionRef.current.start(), 100);
+      }
     }
   };
 
