@@ -52,7 +52,7 @@ export default function MapComponent({ searchQuery, riskFilter, dataType, active
     }).addTo(map);
 
     mapRef.current = map;
-    layerGroupRef.current = L.LayerGroup().addTo(map);
+    layerGroupRef.current = L.layerGroup().addTo(map);
 
     return () => {
       if (mapRef.current) {
