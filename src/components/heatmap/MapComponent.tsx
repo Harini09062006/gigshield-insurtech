@@ -18,35 +18,35 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Center on India with restricted bounds
+    // Strict India-centric bounds
     const map = L.map(mapContainerRef.current, {
       center: [20.5937, 78.9629],
       zoom: 5,
       zoomControl: false,
       minZoom: 4,
-      maxZoom: 12,
+      maxZoom: 10,
       maxBounds: [
-        [6.0, 68.0], // Southwest India
-        [37.0, 97.0]  // Northeast India
+        [6.0, 68.0],
+        [37.0, 97.0]
       ],
       maxBoundsViscosity: 1.0
     });
 
-    // Base Layer
+    // Base Layer - Light OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // Default Rain Overlay
+    // Rain Tile Overlay
     L.tileLayer(
       `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=be5f61ff6b261dedfa89e321d466a063`,
-      { opacity: 0.6 }
+      { opacity: 0.4 }
     ).addTo(map);
 
     mapRef.current = map;
     layerGroupRef.current = L.layerGroup().addTo(map);
 
-    // Expose map to window for search functionality
+    // Expose for search
     (window as any).leafletMap = map;
 
     return () => {
@@ -74,40 +74,37 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
       
       const color = riskColors[city.riskLevel] || '#64748B';
       
-      // Professional Pin Marker
+      // Clean 20px Mini-Pin
       const icon = L.divIcon({
         className: 'custom-pin-container',
         html: `
-          <div class="pin" style="background-color: ${color}; box-shadow: 0 0 15px ${color}66;">
+          <div class="pin" style="background-color: ${color}; box-shadow: 0 2px 8px ${color}44;">
             <div class="pin-inner"></div>
           </div>
         `,
-        iconSize: [30, 30],
-        iconAnchor: [15, 30],
-        popupAnchor: [0, -30]
+        iconSize: [20, 20],
+        iconAnchor: [10, 20],
+        popupAnchor: [0, -20]
       });
 
       const popupHtml = `
         <div class="cute-popup">
           <div class="popup-header" style="background: #6C47FF">
-            📍 ${city.name.toUpperCase()} — ${city.riskLevel}
+            📍 ${city.name.toUpperCase()}
           </div>
           <div class="popup-body">
-            <div class="data-row"><span>🌧️ Rainfall</span> <b>${city.rainfall}mm</b></div>
-            <div class="data-row"><span>💨 AQI</span> <b>${city.aqi} (${city.aqiLabel})</b></div>
+            <div class="data-row"><span>🌧️ Rain</span> <b>${city.rainfall}mm</b></div>
+            <div class="data-row"><span>💨 AQI</span> <b>${city.aqi}</b></div>
             <div class="data-row"><span>🌡️ Temp</span> <b>${city.temp}°C</b></div>
-            <div class="data-row"><span>💧 Humidity</span> <b>${city.humidity}%</b></div>
-            <div class="data-row"><span>🌦️ Condition</span> <b>${city.condition}</b></div>
             
             <div class="risk-bar-container">
-              <div class="risk-label">Protection Threshold (50mm)</div>
               <div class="progress-bg">
                 <div class="progress-fill" style="width: ${city.percent}%; background: ${color}"></div>
               </div>
             </div>
 
             <div class="status-badge" style="background: ${color}11; color: ${color}">
-              ${city.riskLevel === 'SAFE' || city.riskLevel === 'LOW' ? '🟢 SAFE FOR DELIVERY' : city.riskLevel === 'MEDIUM' ? '🟡 CAUTION ADVISED' : '🔴 HIGH DISRUPTION RISK'}
+              ${city.riskLevel} RISK
             </div>
           </div>
         </div>
@@ -115,7 +112,7 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
 
       const marker = L.marker([city.lat, city.lng], { icon })
         .addTo(layerGroupRef.current!)
-        .bindPopup(popupHtml, { maxWidth: 280, className: 'leaflet-cute-popup' });
+        .bindPopup(popupHtml, { maxWidth: 220, className: 'leaflet-cute-popup' });
 
       if (!(window as any).cityMarkers) (window as any).cityMarkers = {};
       (window as any).cityMarkers[city.name.toLowerCase()] = marker;
@@ -126,42 +123,42 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
     <div className="w-full h-full relative">
       <style jsx global>{`
         .pin {
-          width: 30px;
-          height: 30px;
+          width: 20px;
+          height: 20px;
           border-radius: 50% 50% 50% 0;
           transform: rotate(-45deg);
           position: relative;
           display: block;
           transition: transform 0.2s ease;
+          border: 1px solid white;
         }
-        .pin:hover { transform: rotate(-45deg) scale(1.2); z-index: 1000; }
+        .pin:hover { transform: rotate(-45deg) scale(1.3); z-index: 1000; }
         .pin-inner {
-          width: 12px;
-          height: 12px;
+          width: 8px;
+          height: 8px;
           background: white;
           border-radius: 50%;
           position: absolute;
-          top: 9px;
-          left: 9px;
+          top: 5px;
+          left: 5px;
         }
         .custom-pin-container { background: none; border: none; }
         .leaflet-cute-popup .leaflet-popup-content-wrapper { 
           padding: 0; 
           overflow: hidden; 
-          border-radius: 16px; 
+          border-radius: 12px; 
           border: 1px solid #E8E6FF; 
-          box-shadow: 0 8px 30px rgba(108,71,255,0.15); 
+          box-shadow: 0 4px 20px rgba(108,71,255,0.1); 
         }
-        .leaflet-cute-popup .leaflet-popup-content { margin: 0; width: 260px !important; }
+        .leaflet-cute-popup .leaflet-popup-content { margin: 0; width: 200px !important; }
         .cute-popup { font-family: 'Inter', sans-serif; }
-        .popup-header { color: white; padding: 12px 16px; font-weight: 800; font-size: 13px; letter-spacing: 0.5px; }
-        .popup-body { padding: 16px; font-size: 13px; color: #1A1A2E; }
-        .data-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
-        .risk-bar-container { margin-top: 16px; margin-bottom: 12px; }
-        .risk-label { font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; margin-bottom: 4px; }
-        .progress-bg { height: 8px; background: #EEEEFF; border-radius: 4px; overflow: hidden; }
-        .progress-fill { height: 100%; border-radius: 4px; transition: width 1s ease-out; }
-        .status-badge { margin-top: 12px; padding: 8px; border-radius: 8px; text-align: center; font-weight: 800; font-size: 11px; }
+        .popup-header { color: white; padding: 8px 12px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; }
+        .popup-body { padding: 12px; font-size: 11px; color: #1A1A2E; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .risk-bar-container { margin-top: 10px; margin-bottom: 8px; }
+        .progress-bg { height: 6px; background: #EEEEFF; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 3px; transition: width 1s ease-out; }
+        .status-badge { margin-top: 8px; padding: 6px; border-radius: 6px; text-align: center; font-weight: 800; font-size: 10px; }
       `}</style>
       <div ref={mapContainerRef} className="w-full h-full" />
     </div>
