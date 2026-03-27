@@ -1,5 +1,5 @@
 /**
- * @fileOverview Weather service for fetching live rainfall and AQI data.
+ * @fileOverview Weather service for fetching live rainfall, temperature, and AQI data.
  * Uses OpenWeatherMap API to get precipitation and pollution levels.
  */
 
@@ -16,6 +16,18 @@ export interface AQIData {
   aqi: number;
   label: string;
   color: string;
+}
+
+export interface CityRiskData extends WeatherData {
+  name: string;
+  lat: number;
+  lng: number;
+  aqi: number;
+  aqiLabel: string;
+  riskLevel: 'EXTREME' | 'HIGH' | 'MEDIUM' | 'LOW' | 'SAFE';
+  riskColor: string;
+  riskEmoji: string;
+  percent: number;
 }
 
 /**
@@ -66,18 +78,25 @@ export async function getAQIByCoords(lat: number, lon: number): Promise<AQIData>
     );
     if (!response.ok) throw new Error("AQI failed");
     const data = await response.json();
-    const aqi = data.list[0].main.aqi; // 1-5
+    const aqiValue = data.list[0].main.aqi; // 1-5
     
-    // Map 1-5 scale to labels
     const labels = ["Good", "Fair", "Moderate", "Poor", "Very Poor"];
     const colors = ["#22C55E", "#EAB308", "#F59E0B", "#F97316", "#EF4444"];
     
     return {
-      aqi: aqi * 50, // Mock 0-500 scale for UI
-      label: labels[aqi - 1] || "Unknown",
-      color: colors[aqi - 1] || "#64748B"
+      aqi: aqiValue,
+      label: labels[aqiValue - 1] || "Unknown",
+      color: colors[aqiValue - 1] || "#64748B"
     };
   } catch (err) {
-    return { aqi: 50, label: "Good", color: "#22C55E" };
+    return { aqi: 1, label: "Good", color: "#22C55E" };
   }
+}
+
+export function calculateRisk(rainfall: number) {
+  if (rainfall > 50) return { level: 'EXTREME', color: '#EF4444', emoji: '🔴', percent: 100 };
+  if (rainfall > 30) return { level: 'HIGH', color: '#F59E0B', emoji: '🟠', percent: Math.round((rainfall/50)*100) };
+  if (rainfall > 10) return { level: 'MEDIUM', color: '#EAB308', emoji: '🟡', percent: Math.round((rainfall/50)*100) };
+  if (rainfall > 0) return { level: 'LOW', color: '#22C55E', emoji: '🟢', percent: Math.round((rainfall/50)*100) };
+  return { level: 'SAFE', color: '#64748B', emoji: '⚫', percent: 0 };
 }

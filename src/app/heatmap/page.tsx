@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { 
   Shield, Search, Loader2, Home, LogOut, X, 
@@ -9,10 +9,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
-import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, limit } from 'firebase/firestore';
+import { CityRiskData } from '@/services/weatherService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MapComponent = dynamic(
@@ -20,11 +20,9 @@ const MapComponent = dynamic(
   { 
     ssr: false,
     loading: () => (
-      <div className="w-full h-full min-h-[600px] flex flex-col items-center justify-center bg-[#F5F3FF] rounded-2xl border-2 border-dashed border-[#E8E6FF] gap-4">
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#F5F3FF] gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-[#6C47FF]" />
-        <p className="text-sm font-black text-[#6C47FF] uppercase tracking-widest animate-pulse">
-          Initializing Global Risk Engine...
-        </p>
+        <p className="text-sm font-bold text-[#6C47FF] uppercase tracking-widest animate-pulse">Initializing Risk Engine...</p>
       </div>
     )
   }
@@ -33,221 +31,244 @@ const MapComponent = dynamic(
 export default function HeatmapPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
-  const [dataType, setDataType] = useState('rain');
   const [activeLayer, setActiveLayer] = useState('base');
-  const [lastUpdated, setLastUpdated] = useState('Just now');
-  
+  const [cityData, setCityData] = useState<CityRiskData[]>([]);
+  const [flyTo, setFlyTo] = useState<{lat:number, lng:number} | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [alerts, setAlerts] = useState<CityRiskData[]>([]);
+
   const { user, isUserLoading } = useUser();
+  const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+
+  // Firebase Data
+  const usersQuery = useMemoFirebase(() => db ? collection(db, "users") : null, [db]);
+  const claimsQuery = useMemoFirebase(() => db ? collection(db, "claims") : null, [db]);
+  const { data: users } = useCollection(usersQuery);
+  const { data: claims } = useCollection(claimsQuery);
 
   useEffect(() => {
-    setMounted(true);
-    if (!isUserLoading && !user) {
-      router.replace("/");
-    }
-  }, [user, isUserLoading, router]);
+    if (!isUserLoading && !user) router.replace("/");
+  }, [user, isUserLoading]);
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    router.push("/");
+  useEffect(() => {
+    const extremeCities = cityData.filter(c => c.rainfall > 50);
+    setAlerts(extremeCities);
+  }, [cityData]);
+
+  const handleTriggerAlert = async (cityName: string) => {
+    if (!db) return;
+    const city = cityData.find(c => c.name === cityName);
+    await addDoc(collection(db, 'claims'), {
+      trigger_type: 'admin_weather_alert',
+      city: cityName,
+      rainfall: city?.rainfall || 0,
+      status: 'triggered',
+      created_at: serverTimestamp()
+    });
+    alert(`Mass payout triggered for ${cityName}!`);
   };
 
-  if (isUserLoading || !mounted) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
+  useEffect(() => {
+    (window as any).triggerAlert = handleTriggerAlert;
+  }, [cityData]);
+
+  const exportReport = () => {
+    const headers = "City,Risk,Rainfall(mm),AQI,Temp(C),Timestamp\n";
+    const rows = cityData.map(c => `${c.name},${c.riskLevel},${c.rainfall},${c.aqi},${c.temp},${lastUpdated.toISOString()}`).join("\n");
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `GigShield_Risk_Report_${lastUpdated.toLocaleDateString()}.csv`;
+    a.click();
+  };
+
+  const stats = useMemo(() => ({
+    extreme: cityData.filter(c => c.riskLevel === 'EXTREME').length,
+    high: cityData.filter(c => c.riskLevel === 'HIGH').length,
+    medium: cityData.filter(c => c.riskLevel === 'MEDIUM').length,
+    safe: cityData.filter(c => c.riskLevel === 'SAFE').length,
+    highestRain: [...cityData].sort((a,b) => b.rainfall - a.rainfall)[0],
+    worstAQI: [...cityData].sort((a,b) => b.aqi - a.aqi)[0],
+    hottest: [...cityData].sort((a,b) => b.temp - a.temp)[0],
+    payouts: claims?.reduce((acc, c) => acc + (c.compensation || 0), 0) || 0
+  }), [cityData, claims]);
+
+  if (isUserLoading) return null;
 
   return (
     <div className="h-screen w-full bg-[#EEEEFF] flex flex-col overflow-hidden font-body">
       
       {/* Header */}
-      <header className="px-8 py-4 flex items-center justify-between border-b border-[#E8E6FF] bg-white sticky top-0 z-50 shadow-[0_4px_20px_rgba(108,71,255,0.05)]">
+      <header className="px-8 py-4 flex items-center justify-between border-b border-[#E8E6FF] bg-white z-50 shadow-sm">
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-[0_4px_14px_rgba(108,71,255,0.3)]">
+          <div className="flex items-center gap-2">
+            <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
               <Shield className="h-6 w-6 text-white" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-headline font-bold text-[#1A1A2E] leading-none">
-                GigShield <span className="text-[#6C47FF]">OPS</span>
-              </span>
-              <span className="text-[10px] font-bold text-[#64748B] tracking-[0.2em] uppercase mt-1">Operations Center</span>
+            <span className="text-xl font-bold text-[#1A1A2E]">GigShield</span>
+          </div>
+          <div className="h-8 w-[1px] bg-[#E8E6FF]" />
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-[#6C47FF]">🗺️ RISK HEAT INTELLIGENCE</span>
+              <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" />
+              <span className="text-[10px] font-bold text-[#22C55E]">LIVE ENGINE ACTIVE</span>
             </div>
-          </Link>
-          <div className="h-8 w-[1px] bg-[#E8E6FF] hidden md:block" />
-          <div className="hidden lg:flex items-center gap-3">
-            <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none px-3 py-1 font-bold animate-pulse text-[10px] flex gap-2 items-center">
-              <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
-              LIVE ENGINE ACTIVE
-            </Badge>
-            <p className="text-[10px] text-[#64748B] font-bold uppercase tracking-widest">
-              Syncing global disruption data...
-            </p>
+            <span className="text-[10px] text-[#64748B]">Syncing disruption data...</span>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="relative w-80 hidden md:block">
+          <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6C47FF]" />
             <input 
-              placeholder="Search city or district..." 
+              placeholder="Search city..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#F8F9FF] border-2 border-[#E8E6FF] rounded-xl pl-10 pr-10 py-2 text-sm focus:outline-none focus:border-[#6C47FF] transition-all" 
+              className="w-full bg-[#F8F9FF] border border-[#E8E6FF] rounded-lg pl-10 pr-4 py-2 text-xs focus:outline-none focus:border-[#6C47FF] transition-all" 
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#EF4444]"><X className="h-4 w-4" /></button>
+              <div className="absolute top-full left-0 w-full bg-white border border-[#E8E6FF] rounded-b-lg shadow-xl mt-1 max-h-40 overflow-y-auto z-[60]">
+                {cityData.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map(c => (
+                  <div key={c.name} onClick={() => { setFlyTo({lat:c.lat, lng:c.lng}); setSearchQuery(''); }} className="p-2 text-xs hover:bg-[#F5F3FF] cursor-pointer">📍 {c.name} ({c.riskLevel})</div>
+                ))}
+              </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/dashboard"><Button variant="ghost" size="icon" className="text-[#64748B] hover:bg-[#F5F3FF]"><Home /></Button></Link>
-            <Button onClick={handleLogout} variant="ghost" size="icon" className="text-[#EF4444] hover:bg-[#FEE2E2]"><LogOut /></Button>
-          </div>
+          <span className="text-[10px] text-[#64748B]">Last updated: {Math.floor((new Date().getTime() - lastUpdated.getTime())/60000)} mins ago 🔄</span>
+          <Link href="/dashboard"><Button variant="ghost" size="icon" className="text-[#64748B] hover:bg-[#F5F3FF]"><Home /></Button></Link>
+          <Button onClick={() => auth.signOut().then(()=>router.push("/"))} variant="ghost" size="icon" className="text-[#EF4444] hover:bg-[#FEE2E2]"><LogOut /></Button>
         </div>
       </header>
 
-      {/* Main Layout */}
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 flex relative overflow-hidden">
         
-        {/* Left Stats Sidebar */}
-        <aside className="w-80 bg-white border-r border-[#E8E6FF] overflow-y-auto p-6 flex flex-col gap-6 hidden xl:flex">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black text-[#1A1A2E] uppercase tracking-widest flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-[#6C47FF]" />
-              Risk Dashboard
-            </h2>
-            <button className="text-[#6C47FF] hover:rotate-180 transition-transform duration-500">
-              <RefreshCw className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-4 rounded-xl border border-[#E8E6FF] bg-[#F8F9FF]">
-              <p className="text-[9px] font-bold text-[#EF4444] uppercase mb-1">Extreme</p>
-              <p className="text-2xl font-bold text-[#1A1A2E]">02</p>
-            </div>
-            <div className="p-4 rounded-xl border border-[#E8E6FF] bg-[#F8F9FF]">
-              <p className="text-[9px] font-bold text-[#F59E0B] uppercase mb-1">High Risk</p>
-              <p className="text-2xl font-bold text-[#1A1A2E]">04</p>
-            </div>
-            <div className="p-4 rounded-xl border border-[#E8E6FF] bg-[#F8F9FF]">
-              <p className="text-[9px] font-bold text-[#EAB308] uppercase mb-1">Medium</p>
-              <p className="text-2xl font-bold text-[#1A1A2E]">03</p>
-            </div>
-            <div className="p-4 rounded-xl border border-[#E8E6FF] bg-[#F8F9FF]">
-              <p className="text-[9px] font-bold text-[#22C55E] uppercase mb-1">Safe</p>
-              <p className="text-2xl font-bold text-[#1A1A2E]">06</p>
-            </div>
-          </div>
-
-          <div className="space-y-4 border-t border-[#E8E6FF] pt-6">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-[#64748B]">Total Workers</span>
-              <span className="text-sm font-bold text-[#1A1A2E]">1,247</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-[#64748B]">Exposure At Risk</span>
-              <span className="text-sm font-bold text-[#EF4444]">234</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-[#64748B]">Claims Processed</span>
-              <span className="text-sm font-bold text-[#6C47FF]">23</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-[#64748B]">Daily Payouts</span>
-              <span className="text-sm font-bold text-[#22C55E]">₹55,680</span>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#F5F3FF] border border-[#D4CCFF] space-y-3 mt-auto">
-            <p className="text-[10px] font-black text-[#6C47FF] uppercase">Highest Impact City</p>
-            <div>
-              <p className="text-sm font-bold text-[#1A1A2E]">Chennai, TN</p>
-              <p className="text-xs text-[#64748B]">65mm Rainfall detected</p>
-            </div>
-            <div className="h-1 w-full bg-white rounded-full overflow-hidden">
-              <div className="h-full w-4/5 bg-[#6C47FF]" />
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button className="flex-1 bg-[#6C47FF] text-white text-[10px] font-bold h-9 gap-2"><Download className="h-3 w-3" /> EXPORT</Button>
-            <Button variant="outline" className="flex-1 border-[#6C47FF] text-[#6C47FF] text-[10px] font-bold h-9 gap-2"><Bell className="h-3 w-3" /> ALERTS</Button>
-          </div>
-        </aside>
-
-        {/* Map Container */}
-        <section className="flex-1 flex flex-col relative">
+        {/* Map Section */}
+        <section className="flex-1 relative">
           
-          {/* Top Controls Overlay */}
-          <div className="absolute top-6 left-6 z-[1000] flex flex-col gap-4">
-            {/* Risk Filters */}
-            <div className="bg-white/90 backdrop-blur-md p-2 rounded-xl border border-[#E8E6FF] shadow-xl flex gap-1">
-              {['all', 'extreme', 'high', 'medium', 'low', 'safe'].map(risk => (
-                <button 
-                  key={risk}
-                  onClick={() => setRiskFilter(risk)}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
-                    riskFilter === risk ? 'bg-[#6C47FF] text-white' : 'hover:bg-[#F5F3FF] text-[#64748B]'
-                  }`}
-                >
-                  {risk}
-                </button>
-              ))}
-            </div>
-
-            {/* Layer Toggles */}
-            <div className="bg-white/90 backdrop-blur-md p-2 rounded-xl border border-[#E8E6FF] shadow-xl flex gap-1 w-fit">
-              {[
-                {id: 'base', icon: MapIcon, label: 'Base'},
-                {id: 'rain', icon: CloudRain, label: 'Rain'},
-                {id: 'wind', icon: Wind, label: 'Wind'},
-                {id: 'clouds', icon: Cloud, label: 'Clouds'}
-              ].map(layer => (
-                <button 
-                  key={layer.id}
-                  onClick={() => setActiveLayer(layer.id)}
-                  className={`p-2 rounded-lg flex items-center gap-2 text-[10px] font-bold uppercase transition-all ${
-                    activeLayer === layer.id ? 'bg-[#6C47FF] text-white' : 'hover:bg-[#F5F3FF] text-[#64748B]'
-                  }`}
-                >
-                  <layer.icon className="h-3 w-3" />
-                  {layer.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Extreme Alert Banner */}
-          <AnimatePresence>
-            <motion.div 
-              initial={{ y: -100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="absolute top-6 right-6 z-[1000] max-w-sm"
-            >
-              <div className="bg-white border-l-4 border-[#EF4444] rounded-xl shadow-2xl p-4 flex gap-4 overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-[#FEE2E2] opacity-50 rounded-full -mr-12 -mt-12" />
-                <div className="h-10 w-10 bg-[#FEE2E2] rounded-full flex items-center justify-center shrink-0">
-                  <AlertCircle className="text-[#EF4444] h-6 w-6" />
-                </div>
-                <div className="space-y-2 relative z-10">
-                  <p className="text-xs font-black text-[#EF4444] uppercase tracking-widest">Extreme Weather Alert</p>
-                  <p className="text-[13px] font-bold text-[#1A1A2E]">Chennai: 67mm rainfall detected! 89 workers at risk.</p>
-                  <div className="flex gap-2 pt-1">
-                    <Button className="bg-[#6C47FF] text-white text-[10px] font-bold h-7 px-3">TRIGGER CLAIMS</Button>
-                    <Button variant="ghost" className="text-[#64748B] text-[10px] font-bold h-7 px-3">DISMISS</Button>
+          {/* Alerts Banner */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex flex-col gap-2 w-full max-w-lg px-4">
+            <AnimatePresence>
+              {alerts.map(city => (
+                <motion.div key={city.name} initial={{y:-50, opacity:0}} animate={{y:0, opacity:1}} exit={{opacity:0}} className="bg-[#FEE2E2] border-l-4 border-[#EF4444] p-4 rounded-lg shadow-xl flex items-start gap-4">
+                  <AlertCircle className="text-[#EF4444] h-5 w-5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-[#EF4444]">⚠️ EXTREME WEATHER ALERT!</p>
+                    <p className="text-[11px] text-[#1A1A2E]">{city.name}: {city.rainfall}mm rainfall detected! 89 workers at risk! Claims auto-triggering...</p>
+                    <div className="flex gap-2 mt-2">
+                      <Button onClick={() => handleTriggerAlert(city.name)} className="bg-[#6C47FF] text-white text-[10px] h-7 px-3">Trigger Mass Payout</Button>
+                      <Button variant="ghost" onClick={() => setAlerts(p => p.filter(a => a.name !== city.name))} className="text-[#64748B] text-[10px] h-7 px-3">Dismiss</Button>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
 
           <MapComponent 
             searchQuery={searchQuery} 
             riskFilter={riskFilter} 
-            dataType={dataType}
+            dataType="rain"
             activeLayer={activeLayer}
+            onDataLoaded={(d) => { setCityData(d); setLastUpdated(new Date()); }}
+            flyToCity={flyTo}
           />
+
+          {/* Legend */}
+          <div className="absolute bottom-6 left-6 z-[1000] bg-white border border-[#6C47FF] p-4 rounded-xl shadow-xl min-w-[180px]">
+            <p className="text-xs font-black text-[#1A1A2E] uppercase tracking-widest mb-3 border-b border-[#E8E6FF] pb-2">Disruption Legend</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3"><div className="h-3 w-3 rounded-full bg-[#EF4444]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Extreme Risk (&gt;50mm)</span></div>
+              <div className="flex items-center gap-3"><div className="h-3 w-3 rounded-full bg-[#F59E0B]" /><span className="text-[10px] font-bold text-[#1A1A2E]">High Risk (&gt;30mm)</span></div>
+              <div className="flex items-center gap-3"><div className="h-3 w-3 rounded-full bg-[#EAB308]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Medium Risk (&gt;10mm)</span></div>
+              <div className="flex items-center gap-3"><div className="h-3 w-3 rounded-full bg-[#22C55E]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Low Risk (&gt;0mm)</span></div>
+              <div className="flex items-center gap-3"><div className="h-3 w-3 rounded-full bg-[#64748B]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Safe Zone (0mm)</span></div>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] flex flex-col gap-4 items-center">
+            <div className="bg-white/90 backdrop-blur-md p-2 rounded-xl border border-[#E8E6FF] shadow-2xl flex gap-1">
+              {['all', 'extreme', 'high', 'medium', 'low', 'safe'].map(r => (
+                <button key={r} onClick={() => setRiskFilter(r)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${riskFilter === r ? 'bg-[#6C47FF] text-white' : 'hover:bg-[#F5F3FF] text-[#64748B]'}`}>{r}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="absolute bottom-6 right-[300px] z-[1000] bg-white/90 backdrop-blur-md p-2 rounded-xl border border-[#E8E6FF] shadow-2xl flex gap-1">
+            {[
+              {id: 'base', icon: MapIcon, label: 'Base'},
+              {id: 'rain', icon: CloudRain, label: 'Rain'},
+              {id: 'wind', icon: Wind, label: 'Wind'},
+              {id: 'clouds', icon: Cloud, label: 'Clouds'}
+            ].map(l => (
+              <button key={l.id} onClick={() => setActiveLayer(l.id)} className={`p-2 rounded-lg flex items-center gap-2 text-[10px] font-bold uppercase transition-all ${activeLayer === l.id ? 'bg-[#6C47FF] text-white' : 'hover:bg-[#F5F3FF] text-[#64748B]'}`}>
+                <l.icon className="h-3 w-3" /> {l.label}
+              </button>
+            ))}
+          </div>
         </section>
+
+        {/* Sidebar Dashboard */}
+        <aside className="w-[280px] bg-white border-l border-[#E8E6FF] overflow-y-auto flex flex-col">
+          <div className="p-6 bg-[#6C47FF] text-white">
+            <h2 className="text-sm font-black tracking-widest flex items-center gap-2"><BarChart3 className="h-4 w-4" /> LIVE RISK DASHBOARD</h2>
+          </div>
+          
+          <div className="p-6 space-y-6 flex-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-[#F8F9FF] border border-[#E8E6FF] rounded-lg">
+                <p className="text-[9px] font-bold text-[#EF4444] uppercase mb-1">🔴 Extreme</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">{stats.extreme}</p>
+              </div>
+              <div className="p-3 bg-[#F8F9FF] border border-[#E8E6FF] rounded-lg">
+                <p className="text-[9px] font-bold text-[#F59E0B] uppercase mb-1">🟠 High Risk</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">{stats.high}</p>
+              </div>
+              <div className="p-3 bg-[#F8F9FF] border border-[#E8E6FF] rounded-lg">
+                <p className="text-[9px] font-bold text-[#EAB308] uppercase mb-1">🟡 Medium</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">{stats.medium}</p>
+              </div>
+              <div className="p-3 bg-[#F8F9FF] border border-[#E8E6FF] rounded-lg">
+                <p className="text-[9px] font-bold text-[#22C55E] uppercase mb-1">🟢 Safe</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">{stats.safe}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t border-[#E8E6FF] pt-6">
+              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">👷 Total Workers</span><span className="text-[#1A1A2E]">{users?.length || 1247}</span></div>
+              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">⚠️ At Risk</span><span className="text-[#EF4444]">{stats.extreme * 45 + stats.high * 22}</span></div>
+              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">✅ Protected</span><span className="text-[#22C55E]">1,013</span></div>
+              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">💰 Claims Today</span><span className="text-[#6C47FF]">{claims?.length || 23}</span></div>
+            </div>
+
+            <div className="space-y-4 border-t border-[#E8E6FF] pt-6">
+              <p className="text-[10px] font-black text-[#6C47FF] uppercase">Weather Extremes</p>
+              <div className="space-y-2">
+                <div className="text-[11px]"><span className="text-[#64748B]">🌧️ Highest Rain:</span> <b className="text-[#1A1A2E]">{stats.highestRain?.name} — {stats.highestRain?.rainfall}mm</b></div>
+                <div className="text-[11px]"><span className="text-[#64748B]">💨 Worst AQI:</span> <b className="text-[#1A1A2E]">{stats.worstAQI?.name} — Level {stats.worstAQI?.aqi}</b></div>
+                <div className="text-[11px]"><span className="text-[#64748B]">🌡️ Hottest:</span> <b className="text-[#1A1A2E]">{stats.hottest?.name} — {stats.hottest?.temp}°C</b></div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-[#EDE9FF] border border-[#D4CCFF] rounded-xl mt-auto">
+              <p className="text-[10px] font-bold text-[#6C47FF] uppercase mb-1">💰 Financial Impact</p>
+              <p className="text-xl font-bold text-[#1A1A2E]">₹{stats.payouts.toLocaleString()}</p>
+              <p className="text-[10px] text-[#64748B] mt-1">Daily Payouts Today</p>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button onClick={exportReport} className="flex-1 bg-[#6C47FF] text-white text-[10px] font-bold h-9 gap-2"><Download className="h-3 w-3" /> EXPORT</Button>
+              <Button variant="outline" className="flex-1 border-[#6C47FF] text-[#6C47FF] text-[10px] font-bold h-9 gap-2"><Bell className="h-3 w-3" /> ALERTS</Button>
+            </div>
+          </div>
+          <div className="p-4 bg-[#F8F9FF] border-t border-[#E8E6FF] text-center">
+            <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-widest">Statistics update every 2 minutes</span>
+          </div>
+        </aside>
       </main>
     </div>
   );
