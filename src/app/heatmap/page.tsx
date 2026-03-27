@@ -31,7 +31,6 @@ export default function HeatmapPage() {
   const router = useRouter();
   const [data, setData] = useState<CityRiskData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<string>('ALL');
   
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,12 +68,6 @@ export default function HeatmapPage() {
     const interval = setInterval(fetchAllData, 120000);
     return () => clearInterval(interval);
   }, []);
-
-  // Filter Logic
-  const filteredData = useMemo(() => {
-    if (activeFilter === 'ALL') return data;
-    return data.filter(city => city.riskLevel.toUpperCase() === activeFilter.toUpperCase());
-  }, [data, activeFilter]);
 
   // Search Logic
   const handleSearchChange = (val: string) => {
@@ -185,7 +178,7 @@ export default function HeatmapPage() {
       
       {/* Full Width Map Main View */}
       <main className="w-full h-full">
-        <MapComponent data={filteredData} searchResult={selectedCity} />
+        <MapComponent data={data} searchResult={selectedCity} />
       </main>
 
       {/* Small Compact Legend (Bottom Left) */}
@@ -203,25 +196,6 @@ export default function HeatmapPage() {
               <div className="h-2.5 w-2.5 rounded-full shadow-sm" style={{ backgroundColor: item.color }} />
               <span className="text-[10px] font-bold text-[#64748B]">{item.label}</span>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Filter Control Bar (Bottom Center) */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[1000]">
-        <div className="bg-white/95 backdrop-blur-md p-1.5 rounded-full border border-[#E8E6FF] shadow-lg flex gap-1 items-center">
-          {['ALL', 'EXTREME', 'HIGH', 'MEDIUM', 'LOW', 'SAFE'].map(r => (
-            <button 
-              key={r} 
-              onClick={() => setActiveFilter(r)} 
-              className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all duration-200 ${
-                activeFilter === r 
-                  ? 'bg-[#6C47FF] text-white shadow-md scale-105' 
-                  : 'hover:bg-[#F5F3FF] text-[#64748B]'
-              }`}
-            >
-              {r}
-            </button>
           ))}
         </div>
       </div>
