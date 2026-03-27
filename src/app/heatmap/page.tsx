@@ -103,24 +103,6 @@ export default function HeatmapPage() {
   return (
     <div className="h-screen w-full bg-[#EEEEFF] relative overflow-hidden font-body">
       
-      {/* RIGHT-SIDE FLOATING NAVIGATION */}
-      <div className="fixed right-5 top-1/2 -translate-y-1/2 z-[3000] flex flex-col gap-3 bg-white p-2 rounded-[16px] shadow-card border border-[#E8E6FF]">
-        <button 
-          onClick={() => router.back()}
-          className="h-10 w-10 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all hover:scale-110 active:scale-95"
-          title="Go Back"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <button 
-          onClick={() => router.push('/')}
-          className="h-10 w-10 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all hover:scale-110 active:scale-95"
-          title="Go Home"
-        >
-          <Home className="h-5 w-5" />
-        </button>
-      </div>
-
       {/* HEADER COMMAND BAR */}
       <header className="absolute top-0 left-0 right-0 z-[2000] bg-white/95 backdrop-blur-md border-b border-[#E8E6FF] px-6 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
@@ -138,20 +120,20 @@ export default function HeatmapPage() {
           <p className="text-[9px] font-bold text-[#64748B] uppercase tracking-widest mt-0.5">Live Engine Active • Syncing Disruption Data</p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="relative w-64">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
               <input 
                 type="text"
-                placeholder="Search city or state..."
+                placeholder="Search city..."
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full bg-[#F8F9FF] border border-[#E8E6FF] rounded-full py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:border-[#6C47FF] focus:ring-2 focus:ring-[#6C47FF]/10 transition-all"
               />
               {searchQuery && (
                 <button onClick={() => {setSearchQuery(""); setSuggestions([]);}} className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <X className="h-3.3 w-3.3 text-[#64748B] hover:text-[#1A1A2E]" />
+                  <X className="h-3 w-3 text-[#64748B] hover:text-[#1A1A2E]" />
                 </button>
               )}
             </div>
@@ -175,10 +157,28 @@ export default function HeatmapPage() {
               </div>
             )}
           </div>
+
+          {/* NAVIGATION CONTROLS */}
+          <div className="flex items-center gap-2 border-l border-[#E8E6FF] pl-3 ml-1">
+            <button 
+              onClick={() => router.push('/')}
+              className="h-9 w-9 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all hover:scale-105 active:scale-95 shadow-sm"
+              title="Go Home"
+            >
+              <Home className="h-4.5 w-4.5" />
+            </button>
+            <button 
+              onClick={() => router.back()}
+              className="h-9 w-9 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all hover:scale-105 active:scale-95 shadow-sm"
+              title="Go Back"
+            >
+              <ArrowLeft className="h-4.5 w-4.5" />
+            </button>
+          </div>
           
-          <div className="hidden lg:flex flex-col items-end">
-            <p className="text-[9px] font-black text-[#64748B] uppercase tracking-tighter">Last Updated</p>
-            <p className="text-[10px] font-bold text-[#1A1A2E]">{minsAgo === 0 ? 'Just now' : `${minsAgo}m ago`} 🔄</p>
+          <div className="hidden lg:flex flex-col items-end border-l border-[#E8E6FF] pl-3 ml-1">
+            <p className="text-[9px] font-black text-[#64748B] uppercase tracking-tighter">Sync State</p>
+            <p className="text-[10px] font-bold text-[#1A1A2E]">{minsAgo === 0 ? 'Fresh' : `${minsAgo}m ago`} 🔄</p>
           </div>
         </div>
       </header>
