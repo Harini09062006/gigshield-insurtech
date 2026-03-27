@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Loader2, Shield, Search, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Loader2, Shield, Search, X, ChevronLeft, Home } from 'lucide-react';
 import { 
   CITIES_LIST,
   getWeatherByCoords,
@@ -27,6 +28,7 @@ const MapComponent = dynamic(
 );
 
 export default function HeatmapPage() {
+  const router = useRouter();
   const [data, setData] = useState<CityRiskData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
@@ -103,11 +105,31 @@ export default function HeatmapPage() {
       
       {/* HEADER COMMAND BAR */}
       <header className="absolute top-0 left-0 right-0 z-[2000] bg-white/95 backdrop-blur-md border-b border-[#E8E6FF] px-6 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 bg-[#6C47FF] rounded-lg flex items-center justify-center shadow-btn">
-            <Shield className="h-5 w-5 text-white" />
+        <div className="flex items-center gap-3">
+          {/* NAVIGATION BUTTONS */}
+          <div className="flex items-center gap-2 pr-2 border-r border-[#E8E6FF]">
+            <button 
+              onClick={() => router.back()}
+              className="h-9 w-9 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all active:scale-95"
+              title="Go Back"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button 
+              onClick={() => router.push('/')}
+              className="h-9 w-9 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all active:scale-95"
+              title="Go Home"
+            >
+              <Home className="h-5 w-5" />
+            </button>
           </div>
-          <span className="text-lg font-black text-[#1A1A2E] tracking-tight">GigShield</span>
+
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 bg-[#6C47FF] rounded-lg flex items-center justify-center shadow-btn">
+              <Shield className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-lg font-black text-[#1A1A2E] tracking-tight">GigShield</span>
+          </div>
         </div>
 
         <div className="hidden md:flex flex-col items-center">
