@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // Helper function to check if the current user is an administrator
-    // Note: Used carefully to avoid infinite recursion when fetching the user's own doc
+    // Note: We use this carefully to avoid recursion in the /users match
     function isAdmin() {
       return request.auth != null && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
@@ -12,16 +12,16 @@ service cloud.firestore {
 
     // User profiles: Workers can manage their own, admins can manage all
     match /users/{uid} {
-      // Direct owner check first - this is the "base case" that prevents recursion
+      // Direct owner check first - this prevents recursion when isAdmin() is called
       allow read, write: if request.auth != null && request.auth.uid == uid;
-      // Admin check only for documents other than the requester's own
-      allow read, write: if request.auth != null && request.auth.uid != uid && isAdmin();
+      // Admin check for all other documents
+      allow read, write: if isAdmin();
     }
     
     // Claims: parametric payout logs
     match /claims/{id} {
       allow create: if request.auth != null;
-      // Split read access helps the query analyzer verify worker-specific queries instantly
+      // Separate rules to help the Firestore query analyzer
       allow read: if request.auth != null && resource.data.worker_id == request.auth.uid;
       allow read: if isAdmin();
       allow update, delete: if isAdmin();
@@ -30,7 +30,7 @@ service cloud.firestore {
     // Support Messages: Hybrid bot/admin chat logs
     match /support_messages/{id} {
       allow create: if request.auth != null;
-      // Separate worker and admin read rules to simplify query validation
+      // Split worker and admin access to simplify query validation
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       allow read: if isAdmin();
       
@@ -41,7 +41,7 @@ service cloud.firestore {
     // Income DNA: AI-generated earning patterns
     match /income_dna/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
-      allow read, write: if request.auth != null && request.auth.uid != uid && isAdmin();
+      allow read, write: if isAdmin();
     }
     
     // Weather Events: Dynamic triggers for claims

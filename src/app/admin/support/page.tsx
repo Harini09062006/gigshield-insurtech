@@ -49,7 +49,7 @@ export default function AdminSupport() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // Fetch all recent support messages - Gated by isAdmin and checkingAdmin
+  // Fetch all recent support messages - CRITICAL: Gated by confirmed isAdmin
   const allMessagesQuery = useMemoFirebase(() => {
     if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "support_messages"), orderBy("timestamp", "desc"));
@@ -105,7 +105,14 @@ export default function AdminSupport() {
     setActiveChatUserId(null);
   };
 
-  if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
+  if (isUserLoading || checkingAdmin) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
+        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
+      </div>
+    );
+  }
+
   if (!isAdmin) return null;
 
   return (
