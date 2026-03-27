@@ -3,56 +3,61 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper function to check if the current user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     // Helper function to check if the current user is an administrator
-    // Note: We use this carefully to avoid recursion in the /users match
     function isAdmin() {
-      return request.auth != null && 
+      return isSignedIn() && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // User profiles: Workers can manage their own, admins can manage all
     match /users/{uid} {
-      // Direct owner check first - this prevents recursion when isAdmin() is called
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-      // Admin check for all other documents
+      // Owner check first to prevent recursion and save read units
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
       allow read, write: if isAdmin();
     }
     
     // Claims: parametric payout logs
     match /claims/{id} {
-      allow create: if request.auth != null;
-      // Separate rules to help the Firestore query analyzer
-      allow read: if request.auth != null && resource.data.worker_id == request.auth.uid;
-      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      // Split list rules to help the query analyzer verify filtered queries
+      allow list: if isSignedIn() && resource.data.worker_id == request.auth.uid;
+      allow list: if isAdmin();
+      // Get/Update rules
+      allow get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
       allow update, delete: if isAdmin();
     }
 
     // Support Messages: Hybrid bot/admin chat logs
     match /support_messages/{id} {
-      allow create: if request.auth != null;
-      // Split worker and admin access to simplify query validation
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow read: if isAdmin();
-      
-      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow update: if isAdmin();
+      allow create: if isSignedIn();
+      // Split list rules: workers can only list their own, admins can list all
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isAdmin();
+      // Get/Update rules
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
     }
     
     // Income DNA: AI-generated earning patterns
     match /income_dna/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-      allow read, write: if isAdmin();
+      allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
     }
     
     // Weather Events: Dynamic triggers for claims
     match /weather_events/{id} {
-      allow read: if request.auth != null;
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
     
     // Disruption Zones: Live map data points
     match /disruption_zones/{id} {
-      allow read: if request.auth != null;
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
     
