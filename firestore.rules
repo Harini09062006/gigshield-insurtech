@@ -18,7 +18,9 @@ service cloud.firestore {
     match /users/{uid} {
       // Owner check first to prevent recursion and save read units
       allow read, write: if isSignedIn() && request.auth.uid == uid;
-      allow read, write: if isAdmin();
+      // Admin check: only evaluate if we are checking a DIFFERENT user's document
+      // to avoid infinite loops during isAdmin() evaluation
+      allow read, write: if isSignedIn() && request.auth.uid != uid && isAdmin();
     }
     
     // Claims: parametric payout logs
@@ -27,7 +29,7 @@ service cloud.firestore {
       // Split list rules to help the query analyzer verify filtered queries
       allow list: if isSignedIn() && resource.data.worker_id == request.auth.uid;
       allow list: if isAdmin();
-      // Get/Update rules
+      
       allow get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
       allow update, delete: if isAdmin();
     }
@@ -38,7 +40,7 @@ service cloud.firestore {
       // Split list rules: workers can only list their own, admins can list all
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow list: if isAdmin();
-      // Get/Update rules
+      
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
