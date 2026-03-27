@@ -10,12 +10,12 @@ import { CityRiskData } from '@/services/weatherService';
 
 interface MapProps {
   data: CityRiskData[];
-  riskFilter: string;
+  activeFilter: string;
 }
 
 const API_KEY = "be5f61ff6b261dedfa89e321d466a063";
 
-export default function MapComponent({ data, riskFilter }: MapProps) {
+export default function MapComponent({ data, activeFilter }: MapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -78,7 +78,11 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
     
     clusterGroupRef.current.clearLayers();
 
-    const filtered = data.filter(c => riskFilter === 'all' || c.riskLevel.toLowerCase() === riskFilter.toLowerCase());
+    const filtered = activeFilter === 'ALL' 
+      ? data 
+      : data.filter(c => c.riskLevel === activeFilter);
+
+    console.log(`Active Filter: ${activeFilter}`, filtered);
 
     filtered.forEach(city => {
       const riskColors: Record<string, string> = {
@@ -164,7 +168,7 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
       if (!(window as any).cityMarkers) (window as any).cityMarkers = {};
       (window as any).cityMarkers[city.name.toLowerCase()] = marker;
     });
-  }, [data, riskFilter]);
+  }, [data, activeFilter]);
 
   return (
     <div className="w-full h-full relative">

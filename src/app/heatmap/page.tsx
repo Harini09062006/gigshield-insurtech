@@ -37,7 +37,7 @@ const MapComponent = dynamic(
 export default function HeatmapPage() {
   const [data, setData] = useState<CityRiskData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [riskFilter, setRiskFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [suggestions, setSuggestions] = useState<typeof CITIES_LIST>([]);
@@ -150,7 +150,7 @@ export default function HeatmapPage() {
         
         {/* Full Screen Tactical Map */}
         <section className="absolute inset-0">
-          <MapComponent data={data} riskFilter={riskFilter} />
+          <MapComponent data={data} activeFilter={activeFilter} />
 
           {/* Tactical Legend (Bottom Left) */}
           <div className="absolute bottom-5 left-5 z-[1000] bg-white/95 backdrop-blur-md border border-[#E8E6FF] p-4 rounded-xl shadow-lg min-w-[180px]">
@@ -167,11 +167,11 @@ export default function HeatmapPage() {
           {/* Tactical Filter Bar (Bottom Center) */}
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[1000]">
             <div className="bg-white/95 backdrop-blur-md p-2 rounded-full border border-[#E8E6FF] shadow-lg flex gap-1 items-center">
-              {['all', 'extreme', 'high', 'medium', 'low', 'safe'].map(r => (
+              {['ALL', 'EXTREME', 'HIGH', 'MEDIUM', 'LOW', 'SAFE'].map(r => (
                 <button 
                   key={r} 
-                  onClick={() => setRiskFilter(r)} 
-                  className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${riskFilter === r ? 'bg-[#6C47FF] text-white shadow-md' : 'hover:bg-[#F5F3FF] text-[#64748B]'}`}
+                  onClick={() => setActiveFilter(r)} 
+                  className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${activeFilter === r ? 'bg-[#6C47FF] text-white shadow-md' : 'hover:bg-[#F5F3FF] text-[#64748B]'}`}
                 >
                   {r}
                 </button>
