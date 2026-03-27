@@ -2,9 +2,9 @@
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, addDoc, where } from "firebase/firestore";
+import { collection, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, addDoc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Bell, Users, LogOut, Loader2, Headphones, Send, MessageSquare, CheckCircle2, User } from "lucide-react";
+import { Shield, LayoutDashboard, Users, LogOut, Loader2, Headphones, Send, MessageSquare, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ export default function AdminSupport() {
   const router = useRouter();
   
   const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -27,14 +28,22 @@ export default function AdminSupport() {
   useEffect(() => {
     async function checkRole() {
       if (user) {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists() && userDoc.data().role === "admin") {
-          setIsAdmin(true);
-        } else {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists() && userDoc.data().role === "admin") {
+            setIsAdmin(true);
+          } else {
+            router.replace("/");
+          }
+        } catch (error) {
+          console.error("Role check failed", error);
           router.replace("/");
+        } finally {
+          setCheckingAdmin(false);
         }
       } else if (!isUserLoading) {
         router.replace("/");
+        setCheckingAdmin(false);
       }
     }
     checkRole();
@@ -42,9 +51,9 @@ export default function AdminSupport() {
 
   // Fetch all recent support messages
   const allMessagesQuery = useMemoFirebase(() => {
-    if (!db || !isAdmin) return null;
+    if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "support_messages"), orderBy("timestamp", "desc"));
-  }, [db, isAdmin]);
+  }, [db, isAdmin, checkingAdmin]);
 
   const { data: allMessages } = useCollection(allMessagesQuery);
 
@@ -96,7 +105,8 @@ export default function AdminSupport() {
     setActiveChatUserId(null);
   };
 
-  if (!isAdmin) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[#6C47FF]" /></div>;
+  if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
+  if (!isAdmin) return null;
 
   return (
     <SidebarProvider>
