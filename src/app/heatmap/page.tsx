@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { collection, addDoc, serverTimestamp, query, where, limit } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, limit, getDoc, doc } from 'firebase/firestore';
 import { CityRiskData } from '@/services/weatherService';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -42,15 +42,40 @@ export default function HeatmapPage() {
   const auth = useAuth();
   const router = useRouter();
 
-  // Firebase Data
-  const usersQuery = useMemoFirebase(() => db ? collection(db, "users") : null, [db]);
-  const claimsQuery = useMemoFirebase(() => db ? collection(db, "claims") : null, [db]);
-  const { data: users } = useCollection(usersQuery);
-  const { data: claims } = useCollection(claimsQuery);
+  // Role verification state
+  const [isAdminConfirmed, setIsAdminConfirmed] = useState(false);
+  const [checkingRole, setCheckingRole] = useState(true);
 
   useEffect(() => {
-    if (!isUserLoading && !user) router.replace("/");
-  }, [user, isUserLoading]);
+    async function checkRole() {
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists() && userDoc.data().role === "admin") {
+            setIsAdminConfirmed(true);
+          } else {
+            // Redirect non-admins to worker dashboard
+            router.replace("/dashboard");
+          }
+        } catch (error) {
+          console.error("Role check failed", error);
+          router.replace("/dashboard");
+        } finally {
+          setCheckingRole(false);
+        }
+      } else if (!isUserLoading) {
+        router.replace("/");
+        setCheckingRole(false);
+      }
+    }
+    checkRole();
+  }, [user, isUserLoading, db, router]);
+
+  // Firebase Data - Gated by isAdminConfirmed to satisfy security rules
+  const usersQuery = useMemoFirebase(() => (db && isAdminConfirmed) ? collection(db, "users") : null, [db, isAdminConfirmed]);
+  const claimsQuery = useMemoFirebase(() => (db && isAdminConfirmed) ? collection(db, "claims") : null, [db, isAdminConfirmed]);
+  const { data: users } = useCollection(usersQuery);
+  const { data: claims } = useCollection(claimsQuery);
 
   useEffect(() => {
     const extremeCities = cityData.filter(c => c.rainfall > 50);
@@ -58,7 +83,7 @@ export default function HeatmapPage() {
   }, [cityData]);
 
   const handleTriggerAlert = async (cityName: string) => {
-    if (!db) return;
+    if (!db || !isAdminConfirmed) return;
     const city = cityData.find(c => c.name === cityName);
     await addDoc(collection(db, 'claims'), {
       trigger_type: 'admin_weather_alert',
@@ -72,7 +97,7 @@ export default function HeatmapPage() {
 
   useEffect(() => {
     (window as any).triggerAlert = handleTriggerAlert;
-  }, [cityData]);
+  }, [cityData, isAdminConfirmed]);
 
   const exportReport = () => {
     const headers = "City,Risk,Rainfall(mm),AQI,Temp(C),Timestamp\n";
@@ -96,7 +121,15 @@ export default function HeatmapPage() {
     payouts: claims?.reduce((acc, c) => acc + (c.compensation || 0), 0) || 0
   }), [cityData, claims]);
 
-  if (isUserLoading) return null;
+  if (isUserLoading || checkingRole) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
+        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
+      </div>
+    );
+  }
+
+  if (!isAdminConfirmed) return null;
 
   return (
     <div className="h-screen w-full bg-[#EEEEFF] flex flex-col overflow-hidden font-body">
@@ -239,10 +272,10 @@ export default function HeatmapPage() {
             </div>
 
             <div className="space-y-3 border-t border-[#E8E6FF] pt-6">
-              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">👷 Total Workers</span><span className="text-[#1A1A2E]">{users?.length || 1247}</span></div>
+              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">👷 Total Workers</span><span className="text-[#1A1A2E]">{users?.length || 0}</span></div>
               <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">⚠️ At Risk</span><span className="text-[#EF4444]">{stats.extreme * 45 + stats.high * 22}</span></div>
-              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">✅ Protected</span><span className="text-[#22C55E]">1,013</span></div>
-              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">💰 Claims Today</span><span className="text-[#6C47FF]">{claims?.length || 23}</span></div>
+              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">✅ Protected</span><span className="text-[#22C55E]">{users ? Math.round(users.length * 0.8) : 0}</span></div>
+              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">💰 Claims Today</span><span className="text-[#6C47FF]">{claims?.length || 0}</span></div>
             </div>
 
             <div className="space-y-4 border-t border-[#E8E6FF] pt-6">
