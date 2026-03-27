@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -50,9 +49,7 @@ export default function SupportPage() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // ✅ CRITICAL: All hooks must be called at the top level before any early returns.
-  // We use stable references even if data is not yet available.
-  
+  // 1. ALL HOOKS MUST BE AT THE TOP LEVEL
   const profileRef = useMemoFirebase(
     () => (db && user ? doc(db, "users", user.uid) : null),
     [db, user?.uid]
@@ -62,6 +59,7 @@ export default function SupportPage() {
 
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
+    // This query requires a composite index: userId (Asc), timestamp (Asc)
     return query(
       collection(db, "support_messages"),
       where("userId", "==", user.uid),
@@ -72,15 +70,20 @@ export default function SupportPage() {
 
   const { data: messages } = useCollection<Message>(messagesQuery);
 
-  // 🔽 AUTO SCROLL EFFECT
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // 🔥 SAFE EARLY RETURN: Now that all hooks are registered, we can return the loading state.
-  if (isUserLoading || !user || !db) {
+  // 2. CHECK AUTH STATE AFTER HOOK DEFINITIONS
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace("/login");
+    }
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading || !user) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
         <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
@@ -154,7 +157,7 @@ export default function SupportPage() {
               <Home className="h-5 w-5" />
             </Button>
           </Link>
-          <Button variant="ghost" size="icon" className="text-[#EF4444] hover:bg-[#FEE2E2]" onClick={() => auth.signOut().then(() => router.push("/"))}>
+          <Button variant="ghost" size="icon" className="text-[#EF4444] hover:bg-[#FEE2E2]" onClick={() => auth.signOut()}>
             <LogOut className="h-5 w-5" />
           </Button>
         </div>
