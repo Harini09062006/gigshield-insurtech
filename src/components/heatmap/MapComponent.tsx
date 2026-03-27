@@ -21,13 +21,13 @@ export default function MapComponent({ data, searchResult }: MapProps) {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Initialize Map with India Focus
+    // Initialize Map with India Focus - FIXED INITIAL ZOOM
     const map = L.map(mapContainerRef.current, {
       center: [20.5937, 78.9629],
       zoom: 5,
       zoomControl: false,
       minZoom: 4,
-      maxZoom: 12,
+      maxZoom: 10, // Limited zoom as per requirement
       maxBounds: [
         [6.0, 68.0],
         [37.0, 97.0]
@@ -60,7 +60,7 @@ export default function MapComponent({ data, searchResult }: MapProps) {
     };
   }, []);
 
-  // ── RENDER MARKERS ON DATA CHANGE ──────────────────────────
+  // ── RENDER MARKERS ON DATA CHANGE (NO ZOOM CHANGE) ─────────
   useEffect(() => {
     if (!mapRef.current || !markerLayerGroupRef.current) return;
     
@@ -81,7 +81,7 @@ export default function MapComponent({ data, searchResult }: MapProps) {
       const rainfall = city.rainfall || 0;
       const progress = Math.min(100, (rainfall / 50) * 100);
 
-      // Custom Location Pin (Google style teardrop)
+      // Custom Location Pin
       const icon = L.divIcon({
         className: 'custom-pin-container',
         html: `
@@ -89,9 +89,9 @@ export default function MapComponent({ data, searchResult }: MapProps) {
             <div class="pin-inner"></div>
           </div>
         `,
-        iconSize: [24, 24],
-        iconAnchor: [12, 24],
-        popupAnchor: [0, -24]
+        iconSize: [20, 20],
+        iconAnchor: [10, 20],
+        popupAnchor: [0, -20]
       });
 
       const recommendation = rainfall > 50 ? '🚫 Deliveries Suspended' : rainfall > 30 ? '⚠️ Exercise Caution' : '✅ Safe for Delivery';
@@ -132,18 +132,22 @@ export default function MapComponent({ data, searchResult }: MapProps) {
     });
   }, [data]);
 
-  // ── HANDLE SEARCH NAVIGATION ──────────────────────────────
+  // ── HANDLE SEARCH NAVIGATION (ONLY ZOOM ON SEARCH) ─────────
   useEffect(() => {
+    // Only trigger if searchResult exists and is valid
     if (searchResult && mapRef.current && markerRefsMap.current[searchResult.name]) {
       const city = searchResult;
+      
+      // Perform flyTo as requested
       mapRef.current.flyTo([city.lat, city.lng], 10, {
-        duration: 1.5,
-        easeLinearity: 0.25
+        duration: 1.5
       });
       
-      // Delay popup opening slightly to allow flyTo to complete or be mostly there
+      // Open popup after a short delay
       setTimeout(() => {
-        markerRefsMap.current[city.name].openPopup();
+        if (markerRefsMap.current[city.name]) {
+          markerRefsMap.current[city.name].openPopup();
+        }
       }, 1000);
     }
   }, [searchResult]);
@@ -152,8 +156,8 @@ export default function MapComponent({ data, searchResult }: MapProps) {
     <div className="w-full h-full relative">
       <style jsx global>{`
         .pin {
-          width: 24px;
-          height: 24px;
+          width: 20px;
+          height: 20px;
           border-radius: 50% 50% 50% 0;
           transform: rotate(-45deg);
           position: relative;
@@ -165,13 +169,13 @@ export default function MapComponent({ data, searchResult }: MapProps) {
           z-index: 1000;
         }
         .pin-inner {
-          width: 10px;
-          height: 10px;
+          width: 8px;
+          height: 8px;
           background: white;
           border-radius: 50%;
           position: absolute;
-          top: 5px;
-          left: 5px;
+          top: 4px;
+          left: 4px;
         }
         .custom-pin-container { background: none; border: none; }
         
