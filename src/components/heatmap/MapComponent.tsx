@@ -64,19 +64,27 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
     const filtered = data.filter(c => riskFilter === 'all' || c.riskLevel.toLowerCase() === riskFilter.toLowerCase());
 
     filtered.forEach(city => {
-      const size = city.riskLevel === 'EXTREME' ? 50 : city.riskLevel === 'HIGH' ? 40 : city.riskLevel === 'MEDIUM' ? 30 : city.riskLevel === 'LOW' ? 25 : 20;
-      const isAnimated = city.riskLevel === 'EXTREME' || city.riskLevel === 'HIGH';
+      // Risk Colors as per strict requirements
+      const riskColors: Record<string, string> = {
+        'EXTREME': '#EF4444',
+        'HIGH': '#F59E0B',
+        'MEDIUM': '#EAB308',
+        'LOW': '#22C55E',
+        'SAFE': '#64748B'
+      };
       
+      const color = riskColors[city.riskLevel] || '#64748B';
+      
+      // Create Location Pin Icon structure
       const icon = L.divIcon({
-        className: 'custom-marker',
+        className: 'custom-pin-container',
         html: `
-          <div class="marker-container" style="width: ${size}px; height: ${size}px;">
-            ${isAnimated ? `<div class="pulse-ring" style="background: ${city.riskColor}44;"></div>` : ''}
-            <div class="center-dot" style="background: ${city.riskColor}; width: ${size * 0.4}px; height: ${size * 0.4}px;"></div>
+          <div class="pin" style="background-color: ${color}; box-shadow: 0 0 12px ${color}88, 0 4px 10px rgba(0,0,0,0.3);">
+            <div class="pin-inner"></div>
           </div>
         `,
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2]
+        iconSize: [30, 30],
+        iconAnchor: [15, 30] // Tip of the pin is at the bottom center
       });
 
       const popupHtml = `
@@ -93,11 +101,11 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
             <div class="risk-bar-container">
               <div class="risk-label">Protection Threshold (50mm)</div>
               <div class="progress-bg">
-                <div class="progress-fill" style="width: ${city.percent}%; background: ${city.riskColor}"></div>
+                <div class="progress-fill" style="width: ${city.percent}%; background: ${color}"></div>
               </div>
             </div>
 
-            <div class="status-badge" style="background: ${city.riskColor}11; color: ${city.riskColor}">
+            <div class="status-badge" style="background: ${color}11; color: ${color}">
               ${city.riskLevel === 'SAFE' || city.riskLevel === 'LOW' ? '🟢 SAFE FOR DELIVERY' : '⚠️ CAUTION ADVISED'}
             </div>
           </div>
@@ -117,12 +125,39 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
   return (
     <div className="w-full h-full relative">
       <style jsx global>{`
-        .marker-container { position: relative; display: flex; align-items: center; justify-content: center; }
-        .pulse-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; animation: marker-pulse 2s infinite; border: 2px solid currentColor; }
-        .center-dot { border-radius: 50%; border: 2px solid white; z-index: 2; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        @keyframes marker-pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
+        /* Pin Shape Design */
+        .pin {
+          width: 30px;
+          height: 30px;
+          border-radius: 50% 50% 50% 0;
+          transform: rotate(-45deg);
+          position: relative;
+          display: block;
+        }
         
-        .leaflet-cute-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 16px; border: 1px solid #E8E6FF; box-shadow: 0 8px 30px rgba(108,71,255,0.15); }
+        .pin-inner {
+          width: 12px;
+          height: 12px;
+          background: white;
+          border-radius: 50%;
+          position: absolute;
+          top: 9px;
+          left: 9px;
+        }
+
+        .custom-pin-container {
+          background: none;
+          border: none;
+        }
+        
+        /* Popup Styling */
+        .leaflet-cute-popup .leaflet-popup-content-wrapper { 
+          padding: 0; 
+          overflow: hidden; 
+          border-radius: 16px; 
+          border: 1px solid #E8E6FF; 
+          box-shadow: 0 8px 30px rgba(108,71,255,0.15); 
+        }
         .leaflet-cute-popup .leaflet-popup-content { margin: 0; width: 260px !important; }
         .cute-popup { font-family: 'Inter', sans-serif; }
         .popup-header { color: white; padding: 12px 16px; font-weight: 800; font-size: 13px; letter-spacing: 0.5px; }
