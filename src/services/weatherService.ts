@@ -31,23 +31,6 @@ export interface CityRiskData extends WeatherData {
 }
 
 /**
- * Fetches current weather for a specific city.
- */
-export async function getCityRainfall(city: string): Promise<number> {
-  if (!city) return 0;
-  try {
-    const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)},IN&appid=${API_KEY}&units=metric`
-    );
-    if (!response.ok) return 0;
-    const data = await response.json();
-    return data.rain?.['1h'] || data.rain?.['3h'] || 0;
-  } catch (error) {
-    return 0;
-  }
-}
-
-/**
  * Fetches full weather details by coordinates.
  */
 export async function getWeatherByCoords(lat: number, lon: number): Promise<WeatherData> {
