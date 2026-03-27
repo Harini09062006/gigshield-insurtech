@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -49,9 +50,8 @@ export default function SupportPage() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Hooks must be called at the top level, before any early returns
+  // ✅ Hooks are initialized here at the top level
   
-  // ✅ USER PROFILE REF
   const profileRef = useMemoFirebase(
     () => (db && user ? doc(db, "users", user.uid) : null),
     [db, user?.uid]
@@ -59,7 +59,6 @@ export default function SupportPage() {
 
   const { data: profile } = useDoc(profileRef);
 
-  // ✅ MESSAGES QUERY
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return query(
@@ -72,14 +71,14 @@ export default function SupportPage() {
 
   const { data: messages } = useCollection<Message>(messagesQuery);
 
-  // 🔽 AUTO SCROLL
+  // 🔽 AUTO SCROLL EFFECT
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // 🔥 WAIT UNTIL USER + DB READY (Safe to return here after hooks are declared)
+  // 🔥 SAFE EARLY RETURN: Hooks are already registered in every render path
   if (isUserLoading || !user || !db) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
@@ -88,7 +87,6 @@ export default function SupportPage() {
     );
   }
 
-  // 📩 SEND MESSAGE
   const handleSend = async () => {
     const text = input.trim();
     if (!text || !user || !db) return;
@@ -141,7 +139,6 @@ export default function SupportPage() {
 
   return (
     <div className="h-screen flex flex-col bg-[#EEEEFF] font-body">
-      {/* HEADER */}
       <header className="flex justify-between items-center px-6 py-4 border-b border-[#E8E6FF] bg-white sticky top-0 z-50">
         <Link href="/dashboard" className="flex gap-2 items-center">
           <div className="h-8 w-8 bg-[#6C47FF] rounded-lg flex items-center justify-center">
@@ -162,7 +159,6 @@ export default function SupportPage() {
         </div>
       </header>
 
-      {/* CHAT AREA */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages?.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-50">
@@ -203,7 +199,6 @@ export default function SupportPage() {
         )}
       </div>
 
-      {/* INPUT */}
       <div className="p-6 bg-white border-t border-[#E8E6FF]">
         <div className="max-w-4xl mx-auto flex gap-3">
           <Input

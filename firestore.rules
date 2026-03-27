@@ -17,9 +17,9 @@ service cloud.firestore {
 
     // User profiles: Workers can manage their own, admins can manage all
     match /users/{uid} {
-      // Owner check: Direct UID comparison
+      // Owner check: Direct UID comparison prevents recursion when isAdmin() fetches the current user's profile
       allow read, write: if isSignedIn() && request.auth.uid == uid;
-      // Admin check: only evaluate if not the owner to avoid unnecessary complexity
+      // Admin check: Only evaluate if the requester is not the owner
       allow read, write: if isSignedIn() && request.auth.uid != uid && isAdmin();
     }
     
