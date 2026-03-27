@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { 
   Shield, Search, Loader2, Home, LogOut, 
-  Map as MapIcon, RefreshCw
+  Map as MapIcon, RefreshCw, FileDown, Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -37,7 +37,7 @@ const MapComponent = dynamic(
 export default function HeatmapPage() {
   const [data, setData] = useState<CityRiskData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState('ALL');
+  const [activeFilter, setActiveFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [suggestions, setSuggestions] = useState<typeof CITIES_LIST>([]);
@@ -76,6 +76,33 @@ export default function HeatmapPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // ── FILTERING LOGIC ──────────────────────────────────────
+  const filteredData = useMemo(() => {
+    const normalizedData = data.map(city => ({
+      ...city,
+      riskLevel: (city.riskLevel || 'SAFE').toUpperCase() as any
+    }));
+
+    if (activeFilter === 'ALL') return normalizedData;
+    const filtered = normalizedData.filter(city => city.riskLevel === activeFilter);
+    
+    console.log("Active Filter:", activeFilter);
+    console.log("Filtered Results:", filtered.length);
+    
+    return filtered;
+  }, [data, activeFilter]);
+
+  const stats = useMemo(() => {
+    return {
+      extreme: data.filter(c => c.riskLevel === 'EXTREME').length,
+      high: data.filter(c => c.riskLevel === 'HIGH').length,
+      medium: data.filter(c => c.riskLevel === 'MEDIUM').length,
+      safe: data.filter(c => c.riskLevel === 'SAFE' || c.riskLevel === 'LOW').length,
+      highestRain: [...data].sort((a, b) => b.rainfall - a.rainfall)[0],
+      worstAQI: [...data].sort((a, b) => b.aqi - a.aqi)[0]
+    };
+  }, [data]);
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (query.length > 1) {
@@ -98,10 +125,24 @@ export default function HeatmapPage() {
     }
   };
 
+  const exportReport = () => {
+    const headers = "City,State,Risk Level,Rainfall (mm),AQI,Temp,Timestamp\n";
+    const rows = data.map(c => 
+      `${c.name},${c.state},${c.riskLevel},${c.rainfall},${c.aqi},${c.temp},${lastUpdated.toISOString()}`
+    ).join("\n");
+    
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `GigShield_Risk_Report_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
   return (
     <div className="h-screen w-full bg-[#EEEEFF] flex flex-col overflow-hidden font-body">
       
-      {/* Precision Operations Header */}
+      {/* Header */}
       <header className="px-6 py-3 flex items-center justify-between border-b border-[#E8E6FF] bg-white z-[2000] shadow-sm shrink-0">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="flex items-center gap-2 group">
@@ -111,12 +152,12 @@ export default function HeatmapPage() {
             <span className="text-lg font-bold text-[#1A1A2E] tracking-tight">GigShield</span>
           </Link>
           <div className="h-6 w-[1px] bg-[#E8E6FF]" />
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-black text-[#6C47FF] tracking-widest uppercase">🗺️ RISK HEAT INTELLIGENCE</span>
-            <div className="flex items-center gap-1.5 bg-[#DCFCE7] px-2 py-0.5 rounded-full">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-[#6C47FF] tracking-widest uppercase flex items-center gap-2">
+              🗺️ RISK HEAT INTELLIGENCE
               <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-              <span className="text-[9px] font-bold text-[#22C55E]">LIVE ENGINE ACTIVE</span>
-            </div>
+            </span>
+            <span className="text-[9px] font-bold text-[#64748B] uppercase">LIVE ENGINE ACTIVE • SYNCING DATA</span>
           </div>
         </div>
 
@@ -124,7 +165,7 @@ export default function HeatmapPage() {
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#6C47FF]" />
             <input 
-              placeholder="Search operational city..." 
+              placeholder="Search city..." 
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               className="w-full bg-[#F8F9FF] border border-[#E8E6FF] rounded-lg pl-9 pr-4 py-1.5 text-[11px] font-bold focus:outline-none focus:border-[#6C47FF] transition-all" 
@@ -140,53 +181,114 @@ export default function HeatmapPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold text-[#64748B] uppercase">Last Updated: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             <Link href="/dashboard"><Button variant="ghost" size="icon" className="h-8 w-8 text-[#64748B] hover:bg-[#F5F3FF] rounded-lg"><Home size={16} /></Button></Link>
             <Button onClick={() => auth.signOut().then(()=>router.push("/"))} variant="ghost" size="icon" className="h-8 w-8 text-[#EF4444] hover:bg-[#FEE2E2] rounded-lg"><LogOut size={16} /></Button>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 relative overflow-hidden">
+      <main className="flex-1 relative overflow-hidden flex">
         
-        {/* Full Screen Tactical Map */}
-        <section className="absolute inset-0">
-          <MapComponent data={data} activeFilter={activeFilter} />
+        {/* Full Screen Map */}
+        <section className="flex-1 relative">
+          <MapComponent data={filteredData} />
 
-          {/* Tactical Legend (Bottom Left) */}
-          <div className="absolute bottom-5 left-5 z-[1000] bg-white/95 backdrop-blur-md border border-[#E8E6FF] p-4 rounded-xl shadow-lg min-w-[180px]">
-            <p className="text-[10px] font-black text-[#1A1A2E] uppercase tracking-widest mb-3 border-b border-[#E8E6FF] pb-2">Precitiptation Legend</p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#EF4444]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Extreme (&gt;50mm)</span></div>
-              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#F59E0B]" /><span className="text-[10px] font-bold text-[#1A1A2E]">High (30–50mm)</span></div>
-              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#EAB308]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Medium (10–30mm)</span></div>
-              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#22C55E]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Low (1–10mm)</span></div>
-              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#64748B]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Safe (0mm)</span></div>
+          {/* Compact Legend (Bottom Left) */}
+          <div className="absolute bottom-5 left-5 z-[1000] bg-white/95 backdrop-blur-md border border-[#E8E6FF] p-3 rounded-xl shadow-lg w-[180px]">
+            <p className="text-[9px] font-black text-[#1A1A2E] uppercase tracking-widest mb-2 border-b border-[#E8E6FF] pb-1">Risk Legend</p>
+            <div className="space-y-1.5">
+              {[
+                { label: 'Extreme (>50mm)', color: '#EF4444' },
+                { label: 'High (>30mm)', color: '#F59E0B' },
+                { label: 'Medium (>10mm)', color: '#EAB308' },
+                { label: 'Low (>0mm)', color: '#22C55E' },
+                { label: 'Safe (0mm)', color: '#64748B' }
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full shadow-sm" style={{ backgroundColor: item.color }} />
+                  <span className="text-[9px] font-bold text-[#64748B]">{item.label}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Tactical Filter Bar (Bottom Center) */}
+          {/* Filter Bar (Bottom Center) */}
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[1000]">
-            <div className="bg-white/95 backdrop-blur-md p-2 rounded-full border border-[#E8E6FF] shadow-lg flex gap-1 items-center">
+            <div className="bg-white/95 backdrop-blur-md p-1.5 rounded-full border border-[#E8E6FF] shadow-lg flex gap-1 items-center">
               {['ALL', 'EXTREME', 'HIGH', 'MEDIUM', 'LOW', 'SAFE'].map(r => (
                 <button 
                   key={r} 
                   onClick={() => setActiveFilter(r)} 
-                  className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${activeFilter === r ? 'bg-[#6C47FF] text-white shadow-md' : 'hover:bg-[#F5F3FF] text-[#64748B]'}`}
+                  className={`px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all ${activeFilter === r ? 'bg-[#6C47FF] text-white shadow-md' : 'hover:bg-[#F5F3FF] text-[#64748B]'}`}
                 >
                   {r}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Sync Indicator */}
-          <div className="absolute top-5 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
-            <div className="bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full border border-[#E8E6FF] shadow-md flex items-center gap-3">
-              <RefreshCw className={`h-3 w-3 text-[#6C47FF] ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="text-[10px] font-black text-[#64748B] uppercase tracking-wider">Sync: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-          </div>
         </section>
+
+        {/* Stats Dashboard (Right) */}
+        <aside className="w-[280px] bg-white border-l border-[#E8E6FF] flex flex-col shrink-0 overflow-y-auto">
+          <div className="p-4 bg-[#6C47FF] text-white">
+            <h2 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+              <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+              Live Risk Dashboard
+            </h2>
+          </div>
+
+          <div className="p-4 space-y-6">
+            <section className="space-y-2">
+              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Active Risk Zones</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Extreme', count: stats.extreme, color: 'text-[#EF4444]' },
+                  { label: 'High', count: stats.high, color: 'text-[#F59E0B]' },
+                  { label: 'Medium', count: stats.medium, color: 'text-[#EAB308]' },
+                  { label: 'Safe', count: stats.safe, color: 'text-[#22C55E]' }
+                ].map(item => (
+                  <div key={item.label} className="bg-[#F8F9FF] p-2 rounded-lg border border-[#E8E6FF]">
+                    <p className={`text-lg font-black ${item.color}`}>{item.count}</p>
+                    <p className="text-[8px] font-bold text-[#64748B] uppercase">{item.label}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Climate Extremes</p>
+              <div className="space-y-2">
+                <div className="bg-[#F8F9FF] p-3 rounded-xl border border-[#E8E6FF] space-y-1">
+                  <p className="text-[8px] font-bold text-[#64748B] uppercase">🌧️ Highest Rainfall</p>
+                  <p className="text-xs font-bold text-[#1A1A2E]">{stats.highestRain?.name}: {stats.highestRain?.rainfall}mm</p>
+                </div>
+                <div className="bg-[#F8F9FF] p-3 rounded-xl border border-[#E8E6FF] space-y-1">
+                  <p className="text-[8px] font-bold text-[#64748B] uppercase">💨 Worst Air Quality</p>
+                  <p className="text-xs font-bold text-[#1A1A2E]">{stats.worstAQI?.name}: AQI {stats.worstAQI?.aqi}</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Action Center</p>
+              <div className="space-y-2">
+                <Button onClick={exportReport} className="w-full bg-[#F8F9FF] hover:bg-[#F5F3FF] border border-[#E8E6FF] text-[#6C47FF] font-bold text-[10px] h-9 shadow-none gap-2">
+                  <FileDown className="h-3.5 w-3.5" /> EXPORT REPORT
+                </Button>
+                <Button className="w-full bg-[#EDE9FF] hover:bg-[#E0DAFF] border border-[#D4CCFF] text-[#6C47FF] font-bold text-[10px] h-9 shadow-none gap-2">
+                  <Bell className="h-3.5 w-3.5" /> MANAGE ALERTS
+                </Button>
+              </div>
+            </section>
+          </div>
+
+          <div className="mt-auto p-4 border-t border-[#E8E6FF]">
+            <p className="text-[8px] font-bold text-[#94A3B8] text-center uppercase tracking-tighter">
+              Operational Statistics Update Every 120s
+            </p>
+          </div>
+        </aside>
       </main>
     </div>
   );
