@@ -52,6 +52,23 @@ export async function getWeatherByCoords(lat: number, lon: number): Promise<Weat
 }
 
 /**
+ * Fetches only rainfall for a specific city name.
+ */
+export async function getCityRainfall(city: string): Promise<number> {
+  try {
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)},IN&appid=${API_KEY}&units=metric`
+    );
+    if (!response.ok) throw new Error("Weather failed");
+    const data = await response.json();
+    return data.rain?.['1h'] || 0;
+  } catch (err) {
+    console.error(`Failed to fetch rainfall for ${city}:`, err);
+    return 0;
+  }
+}
+
+/**
  * Fetches AQI data by coordinates.
  */
 export async function getAQIByCoords(lat: number, lon: number): Promise<AQIData> {
