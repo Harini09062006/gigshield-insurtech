@@ -3,47 +3,58 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper function to check if the current user is an administrator
     function isAdmin() {
       return request.auth != null && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // User profiles: Workers can manage their own, admins can manage all
     match /users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
       allow read, write: if isAdmin();
     }
     
+    // Claims: parametric payout logs
     match /claims/{id} {
       allow create: if request.auth != null;
-      // Split read access to help the query analyzer verify worker-specific queries
+      // Split read access helps the query analyzer verify worker-specific queries
       allow read: if request.auth != null && resource.data.worker_id == request.auth.uid;
       allow read: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
+    // Support Messages: Hybrid bot/admin chat logs
     match /support_messages/{id} {
       allow create: if request.auth != null;
-      // Explicitly separate worker access from admin access
-      allow read, update: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow read, update: if isAdmin();
+      // Workers can only read and update their own support tickets
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Administrators have full visibility and management of the support queue
+      allow read: if isAdmin();
+      allow update: if isAdmin();
     }
     
+    // Income DNA: AI-generated earning patterns
     match /income_dna/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
       allow read, write: if isAdmin();
     }
     
+    // Weather Events: Dynamic triggers for claims
     match /weather_events/{id} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
     
+    // Disruption Zones: Live map data points
     match /disruption_zones/{id} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
     
+    // Insurance Plans: Static configuration data
     match /insurance_plans/{id} {
       allow read: if true;
       allow write: if isAdmin();
