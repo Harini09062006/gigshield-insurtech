@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
@@ -34,19 +35,22 @@ export default function AdminUsers() {
         } catch (error) {
           console.error("Role check failed", error);
           router.replace("/");
+        } finally {
+          setCheckingAdmin(false);
         }
       } else if (!isUserLoading) {
         router.replace("/");
+        setCheckingAdmin(false);
       }
-      setCheckingAdmin(false);
     }
     checkRole();
   }, [user, isUserLoading, db, router]);
   
   const usersQuery = useMemoFirebase(() => {
-    if (!db || !isAdmin) return null;
+    // Only attempt unfiltered query if we are confirmed as Admin
+    if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "users"), orderBy("created_at", "desc"));
-  }, [db, isAdmin]);
+  }, [db, isAdmin, checkingAdmin]);
 
   const { data: users, isLoading } = useCollection(usersQuery);
 

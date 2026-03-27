@@ -49,7 +49,7 @@ export default function AdminSupport() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // Fetch all recent support messages
+  // Fetch all recent support messages - Gated by isAdmin and checkingAdmin
   const allMessagesQuery = useMemoFirebase(() => {
     if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "support_messages"), orderBy("timestamp", "desc"));
@@ -131,7 +131,6 @@ export default function AdminSupport() {
         </Sidebar>
 
         <main className="flex-1 flex overflow-hidden">
-          {/* Ticket List */}
           <section className="w-80 border-r border-[#E8E6FF] bg-white flex flex-col">
             <header className="p-6 border-b border-[#E8E6FF]">
               <h2 className="font-bold text-lg text-[#1A1A2E]">Active Tickets</h2>
@@ -158,7 +157,6 @@ export default function AdminSupport() {
             </div>
           </section>
 
-          {/* Chat Window */}
           <section className="flex-1 flex flex-col bg-[#F8F9FF]">
             {activeChatUserId ? (
               <>
