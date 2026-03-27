@@ -49,37 +49,47 @@ export default function SupportPage() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // 🔥 WAIT UNTIL USER + DB READY
+  if (isUserLoading || !user || !db) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin" />
+      </div>
+    );
+  }
+
+  // ✅ USER PROFILE
   const profileRef = useMemoFirebase(
-    () => (db && user ? doc(db, "users", user.uid) : null),
-    [db, user]
+    () => doc(db, "users", user.uid),
+    [db, user.uid]
   );
 
   const { data: profile } = useDoc(profileRef);
 
+  // ✅ SAFE QUERY
   const messagesQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null;
-
     return query(
       collection(db, "support_messages"),
       where("userId", "==", user.uid),
       orderBy("timestamp", "asc"),
       limit(50)
     );
-  }, [db, user?.uid]);
+  }, [db, user.uid]);
 
-  const { data: messages } = useCollection<Message>(
-    messagesQuery ?? undefined
-  );
+  // ✅ SAFE useCollection
+  const { data: messages } = useCollection<Message>(messagesQuery);
 
+  // 🔽 AUTO SCROLL
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
+  // 📩 SEND MESSAGE
   const handleSend = async () => {
     const text = input.trim();
-    if (!text || !user || !db) return;
+    if (!text) return;
 
     setLoading(true);
     setInput("");
@@ -127,17 +137,10 @@ export default function SupportPage() {
     }
   };
 
-  if (isUserLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="h-screen flex flex-col">
 
+      {/* HEADER */}
       <header className="flex justify-between p-4 border-b bg-white">
         <Link href="/dashboard" className="flex gap-2 items-center">
           <Shield />
@@ -154,6 +157,7 @@ export default function SupportPage() {
         </div>
       </header>
 
+      {/* CHAT AREA */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2">
         <AnimatePresence>
           {messages?.map((m, i) => (
@@ -170,6 +174,7 @@ export default function SupportPage() {
         </AnimatePresence>
       </div>
 
+      {/* INPUT */}
       <div className="p-4 flex gap-2 border-t">
         <Input
           value={input}
