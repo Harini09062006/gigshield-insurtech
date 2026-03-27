@@ -18,7 +18,7 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Center on India
+    // Center on India with restricted bounds
     const map = L.map(mapContainerRef.current, {
       center: [20.5937, 78.9629],
       zoom: 5,
@@ -37,7 +37,7 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // Rain Overlay
+    // Default Rain Overlay
     L.tileLayer(
       `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=be5f61ff6b261dedfa89e321d466a063`,
       { opacity: 0.6 }
@@ -64,7 +64,6 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
     const filtered = data.filter(c => riskFilter === 'all' || c.riskLevel.toLowerCase() === riskFilter.toLowerCase());
 
     filtered.forEach(city => {
-      // Risk Colors as per strict requirements
       const riskColors: Record<string, string> = {
         'EXTREME': '#EF4444',
         'HIGH': '#F59E0B',
@@ -75,16 +74,17 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
       
       const color = riskColors[city.riskLevel] || '#64748B';
       
-      // Create Location Pin Icon structure
+      // Professional Pin Marker
       const icon = L.divIcon({
         className: 'custom-pin-container',
         html: `
-          <div class="pin" style="background-color: ${color}; box-shadow: 0 0 12px ${color}88, 0 4px 10px rgba(0,0,0,0.3);">
+          <div class="pin" style="background-color: ${color}; box-shadow: 0 0 15px ${color}66;">
             <div class="pin-inner"></div>
           </div>
         `,
         iconSize: [30, 30],
-        iconAnchor: [15, 30] // Tip of the pin is at the bottom center
+        iconAnchor: [15, 30],
+        popupAnchor: [0, -30]
       });
 
       const popupHtml = `
@@ -97,6 +97,7 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
             <div class="data-row"><span>💨 AQI</span> <b>${city.aqi} (${city.aqiLabel})</b></div>
             <div class="data-row"><span>🌡️ Temp</span> <b>${city.temp}°C</b></div>
             <div class="data-row"><span>💧 Humidity</span> <b>${city.humidity}%</b></div>
+            <div class="data-row"><span>🌦️ Condition</span> <b>${city.condition}</b></div>
             
             <div class="risk-bar-container">
               <div class="risk-label">Protection Threshold (50mm)</div>
@@ -106,7 +107,7 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
             </div>
 
             <div class="status-badge" style="background: ${color}11; color: ${color}">
-              ${city.riskLevel === 'SAFE' || city.riskLevel === 'LOW' ? '🟢 SAFE FOR DELIVERY' : '⚠️ CAUTION ADVISED'}
+              ${city.riskLevel === 'SAFE' || city.riskLevel === 'LOW' ? '🟢 SAFE FOR DELIVERY' : city.riskLevel === 'MEDIUM' ? '🟡 CAUTION ADVISED' : '🔴 HIGH DISRUPTION RISK'}
             </div>
           </div>
         </div>
@@ -116,7 +117,6 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
         .addTo(layerGroupRef.current!)
         .bindPopup(popupHtml, { maxWidth: 280, className: 'leaflet-cute-popup' });
 
-      // Link marker to window for search
       if (!(window as any).cityMarkers) (window as any).cityMarkers = {};
       (window as any).cityMarkers[city.name.toLowerCase()] = marker;
     });
@@ -125,7 +125,6 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
   return (
     <div className="w-full h-full relative">
       <style jsx global>{`
-        /* Pin Shape Design */
         .pin {
           width: 30px;
           height: 30px;
@@ -133,8 +132,9 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
           transform: rotate(-45deg);
           position: relative;
           display: block;
+          transition: transform 0.2s ease;
         }
-        
+        .pin:hover { transform: rotate(-45deg) scale(1.2); z-index: 1000; }
         .pin-inner {
           width: 12px;
           height: 12px;
@@ -144,13 +144,7 @@ export default function MapComponent({ data, riskFilter }: MapProps) {
           top: 9px;
           left: 9px;
         }
-
-        .custom-pin-container {
-          background: none;
-          border: none;
-        }
-        
-        /* Popup Styling */
+        .custom-pin-container { background: none; border: none; }
         .leaflet-cute-popup .leaflet-popup-content-wrapper { 
           padding: 0; 
           overflow: hidden; 
