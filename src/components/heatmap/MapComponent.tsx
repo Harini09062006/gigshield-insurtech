@@ -18,21 +18,26 @@ export default function MapComponent({ data, searchResult }: MapProps) {
   const markerLayerGroupRef = useRef<L.LayerGroup | null>(null);
   const markerRefsMap = useRef<Record<string, L.Marker>>({});
 
+  // 1. INITIALIZE MAP (STABLE INSTANCE)
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Initialize Map with India Focus - FIXED INITIAL ZOOM
+    // Initialize Map centered on India with fixed zoom
     const map = L.map(mapContainerRef.current, {
       center: [20.5937, 78.9629],
       zoom: 5,
       zoomControl: false,
       minZoom: 4,
       maxZoom: 10,
+      // Restrict movement to Indian subcontinent
       maxBounds: [
         [6.0, 68.0],
         [37.0, 97.0]
       ],
-      maxBoundsViscosity: 1.0
+      maxBoundsViscosity: 1.0,
+      // Keep map stable during re-renders
+      bounceAtZoomLimits: true,
+      wheelDebounceTime: 100,
     });
 
     // Base Tile Layer
@@ -40,18 +45,19 @@ export default function MapComponent({ data, searchResult }: MapProps) {
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // Rain Tile Overlay (Default ON)
+    // Rain Tile Overlay
     L.tileLayer(
       `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${API_KEY}`,
       { opacity: 0.4 }
     ).addTo(map);
 
-    // Initialize Marker Layer Group
+    // Initialize Marker Layer Group for efficient clearing/rendering
     const markerLayerGroup = L.layerGroup().addTo(map);
     markerLayerGroupRef.current = markerLayerGroup;
 
     mapRef.current = map;
 
+    // Cleanup on unmount
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
@@ -60,11 +66,11 @@ export default function MapComponent({ data, searchResult }: MapProps) {
     };
   }, []);
 
-  // ── RENDER MARKERS ON DATA CHANGE (NO ZOOM CHANGE) ─────────
+  // 2. RENDER MARKERS (NO AUTOMATIC ZOOM CHANGES)
   useEffect(() => {
     if (!mapRef.current || !markerLayerGroupRef.current) return;
     
-    // Clear ALL existing markers
+    // Clear previous markers
     markerLayerGroupRef.current.clearLayers();
     markerRefsMap.current = {};
 
@@ -81,11 +87,11 @@ export default function MapComponent({ data, searchResult }: MapProps) {
       const rainfall = city.rainfall || 0;
       const progress = Math.min(100, (rainfall / 50) * 100);
 
-      // Custom Location Pin
+      // Custom high-precision teardrop pin (20px)
       const icon = L.divIcon({
         className: 'custom-pin-container',
         html: `
-          <div class="pin" style="background-color: ${color}; box-shadow: 0 0 10px ${color}60;">
+          <div class="pin" style="background-color: ${color}; box-shadow: 0 0 8px ${color}60;">
             <div class="pin-inner"></div>
           </div>
         `,
@@ -94,7 +100,7 @@ export default function MapComponent({ data, searchResult }: MapProps) {
         popupAnchor: [0, -20]
       });
 
-      const recommendation = rainfall > 50 ? '🚫 Operations Suspended' : rainfall > 30 ? '⚠️ Exercise Caution' : '✅ Safe for Delivery';
+      const recommendation = rainfall > 50 ? '🚫 Deliveries Suspended' : rainfall > 30 ? '⚠️ Exercise Caution' : '✅ Safe for Delivery';
       const recColor = rainfall > 50 ? '#EF4444' : rainfall > 30 ? '#F59E0B' : '#22C55E';
 
       const popupHtml = `
@@ -107,14 +113,13 @@ export default function MapComponent({ data, searchResult }: MapProps) {
               <div class="data-row"><span>🌧️ Rainfall</span> <b>${rainfall}mm</b></div>
               <div class="data-row"><span>💨 AQI</span> <b>${city.aqi} (${city.aqiLabel})</b></div>
               <div class="data-row"><span>🌡️ Temp</span> <b>${city.temp}°C</b></div>
-              <div class="data-row"><span>💧 Humidity</span> <b>${city.humidity}%</b></div>
             </div>
 
             <div class="progress-container">
               <div class="progress-bar-bg">
                 <div class="progress-bar-fill" style="width: ${progress}%; background: ${color}"></div>
               </div>
-              <div class="progress-label">Limit: 50mm</div>
+              <div class="progress-label">Threshold: 50mm</div>
             </div>
 
             <div class="recommendation" style="color: ${recColor}; background: ${recColor}10; padding: 6px; border-radius: 6px; border: 1px solid ${recColor}20;">
@@ -125,29 +130,33 @@ export default function MapComponent({ data, searchResult }: MapProps) {
       `;
 
       const marker = L.marker([city.lat, city.lng], { icon })
-        .bindPopup(popupHtml, { maxWidth: 220, className: 'leaflet-modern-popup', closeButton: false })
-        .addTo(markerLayerGroupRef.current!);
+        .bindPopup(popupHtml, { maxWidth: 220, className: 'leaflet-modern-popup', closeButton: false });
       
+      marker.addTo(markerLayerGroupRef.current!);
       markerRefsMap.current[city.name] = marker;
     });
-  }, [data]);
+  }, [data]); // Only updates markers when data changes, does NOT move camera
 
-  // ── HANDLE SEARCH NAVIGATION (ONLY ZOOM ON SEARCH) ─────────
+  // 3. HANDLE SEARCH NAVIGATION (CONTROLLED ZOOM ON USER ACTION)
   useEffect(() => {
-    if (searchResult && mapRef.current && markerRefsMap.current[searchResult.name]) {
+    if (searchResult && mapRef.current) {
       const city = searchResult;
       
+      // Smoothly navigate to selected city
       mapRef.current.flyTo([city.lat, city.lng], 10, {
-        duration: 1.5
+        duration: 1.5,
+        easeLinearity: 0.25
       });
       
+      // Auto-open popup after movement starts
       setTimeout(() => {
-        if (markerRefsMap.current[city.name]) {
-          markerRefsMap.current[city.name].openPopup();
+        const marker = markerRefsMap.current[city.name];
+        if (marker) {
+          marker.openPopup();
         }
       }, 1000);
     }
-  }, [searchResult]);
+  }, [searchResult]); // Fires ONLY when a city is selected from search
 
   return (
     <div className="w-full h-full relative">
