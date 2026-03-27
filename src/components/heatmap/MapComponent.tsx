@@ -7,14 +7,16 @@ import { CityRiskData } from '@/services/weatherService';
 
 interface MapProps {
   data: CityRiskData[];
+  searchResult?: CityRiskData | null;
 }
 
 const API_KEY = "be5f61ff6b261dedfa89e321d466a063";
 
-export default function MapComponent({ data }: MapProps) {
+export default function MapComponent({ data, searchResult }: MapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const markerRefsMap = useRef<Record<string, L.Marker>>({});
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -38,7 +40,7 @@ export default function MapComponent({ data }: MapProps) {
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // Rain Tile Overlay
+    // Rain Tile Overlay (Default ON)
     L.tileLayer(
       `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${API_KEY}`,
       { opacity: 0.4 }
@@ -62,10 +64,10 @@ export default function MapComponent({ data }: MapProps) {
   useEffect(() => {
     if (!mapRef.current || !markerLayerGroupRef.current) return;
     
-    // 1. CRITICAL: Clear ALL existing markers before re-rendering filtered set
+    // Clear ALL existing markers
     markerLayerGroupRef.current.clearLayers();
+    markerRefsMap.current = {};
 
-    // 2. Map over the filtered data and add markers
     data.forEach(city => {
       const riskColors: Record<string, string> = {
         'EXTREME': '#EF4444',
@@ -79,33 +81,33 @@ export default function MapComponent({ data }: MapProps) {
       const rainfall = city.rainfall || 0;
       const progress = Math.min(100, (rainfall / 50) * 100);
 
-      // Custom Google-style Teardrop Pin (20px minimalist size)
+      // Custom Location Pin (Google style teardrop)
       const icon = L.divIcon({
         className: 'custom-pin-container',
         html: `
-          <div class="pin" style="background-color: ${color}; border: 1px solid white;">
+          <div class="pin" style="background-color: ${color}; box-shadow: 0 0 10px ${color}60;">
             <div class="pin-inner"></div>
           </div>
         `,
-        iconSize: [20, 20],
-        iconAnchor: [10, 20], // Anchors the bottom point of the teardrop
-        popupAnchor: [0, -20]
+        iconSize: [24, 24],
+        iconAnchor: [12, 24],
+        popupAnchor: [0, -24]
       });
+
+      const recommendation = rainfall > 50 ? '🚫 Deliveries Suspended' : rainfall > 30 ? '⚠️ Exercise Caution' : '✅ Safe for Delivery';
+      const recColor = rainfall > 50 ? '#EF4444' : rainfall > 30 ? '#F59E0B' : '#22C55E';
 
       const popupHtml = `
         <div class="modern-popup">
           <div class="popup-header" style="background: #6C47FF">
-            📍 ${city.name.toUpperCase()}
+            📍 ${city.name.toUpperCase()} — ${city.riskLevel}
           </div>
           <div class="popup-body">
-            <div class="risk-badge" style="background: ${color}15; color: ${color}; border: 1px solid ${color}30">
-              ${city.riskLevel} RISK
-            </div>
-            
             <div class="data-section">
               <div class="data-row"><span>🌧️ Rainfall</span> <b>${rainfall}mm</b></div>
               <div class="data-row"><span>💨 AQI</span> <b>${city.aqi} (${city.aqiLabel})</b></div>
               <div class="data-row"><span>🌡️ Temp</span> <b>${city.temp}°C</b></div>
+              <div class="data-row"><span>💧 Humidity</span> <b>${city.humidity}%</b></div>
             </div>
 
             <div class="progress-container">
@@ -115,44 +117,61 @@ export default function MapComponent({ data }: MapProps) {
               <div class="progress-label">Threshold: 50mm</div>
             </div>
 
-            <div class="recommendation" style="color: ${rainfall > 30 ? '#EF4444' : '#22C55E'}">
-              ${rainfall > 50 ? '🚫 Deliveries Suspended' : rainfall > 30 ? '⚠️ Exercise Caution' : '✅ Safe for Delivery'}
+            <div class="recommendation" style="color: ${recColor}; background: ${recColor}10; padding: 8px; border-radius: 8px; border: 1px solid ${recColor}30;">
+              ${recommendation}
             </div>
           </div>
         </div>
       `;
 
-      L.marker([city.lat, city.lng], { icon })
-        .bindPopup(popupHtml, { maxWidth: 220, className: 'leaflet-modern-popup' })
+      const marker = L.marker([city.lat, city.lng], { icon })
+        .bindPopup(popupHtml, { maxWidth: 260, className: 'leaflet-modern-popup' })
         .addTo(markerLayerGroupRef.current!);
+      
+      markerRefsMap.current[city.name] = marker;
     });
   }, [data]);
+
+  // ── HANDLE SEARCH NAVIGATION ──────────────────────────────
+  useEffect(() => {
+    if (searchResult && mapRef.current && markerRefsMap.current[searchResult.name]) {
+      const city = searchResult;
+      mapRef.current.flyTo([city.lat, city.lng], 10, {
+        duration: 1.5,
+        easeLinearity: 0.25
+      });
+      
+      // Delay popup opening slightly to allow flyTo to complete or be mostly there
+      setTimeout(() => {
+        markerRefsMap.current[city.name].openPopup();
+      }, 1000);
+    }
+  }, [searchResult]);
 
   return (
     <div className="w-full h-full relative">
       <style jsx global>{`
         .pin {
-          width: 20px;
-          height: 20px;
+          width: 24px;
+          height: 24px;
           border-radius: 50% 50% 50% 0;
           transform: rotate(-45deg);
           position: relative;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          border: 2px solid white;
           transition: all 0.2s ease;
         }
         .pin:hover { 
           transform: rotate(-45deg) scale(1.2); 
           z-index: 1000;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
         .pin-inner {
-          width: 8px;
-          height: 8px;
+          width: 10px;
+          height: 10px;
           background: white;
           border-radius: 50%;
           position: absolute;
-          top: 6px;
-          left: 6px;
+          top: 5px;
+          left: 5px;
         }
         .custom-pin-container { background: none; border: none; }
         
@@ -163,22 +182,11 @@ export default function MapComponent({ data }: MapProps) {
           border: 1px solid #E8E6FF; 
           box-shadow: 0 10px 30px rgba(108,71,255,0.15); 
         }
-        .leaflet-modern-popup .leaflet-popup-content { margin: 0; width: 220px !important; }
+        .leaflet-modern-popup .leaflet-popup-content { margin: 0; width: 260px !important; }
         
         .modern-popup { font-family: 'Inter', sans-serif; overflow: hidden; }
         .popup-header { color: white; padding: 12px 16px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; }
         .popup-body { padding: 16px; color: #1A1A2E; }
-        
-        .risk-badge { 
-          padding: 4px 12px; 
-          border-radius: 20px; 
-          font-weight: 800; 
-          font-size: 9px; 
-          display: inline-block; 
-          margin-bottom: 12px;
-          letter-spacing: 0.5px;
-          text-transform: uppercase;
-        }
         
         .data-section { margin-bottom: 12px; border-bottom: 1px solid #F5F3FF; padding-bottom: 8px; }
         .data-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 10px; }
@@ -193,8 +201,6 @@ export default function MapComponent({ data }: MapProps) {
           font-size: 10px;
           font-weight: 800;
           text-align: center;
-          padding-top: 4px;
-          border-top: 1px solid #F5F3FF;
         }
       `}</style>
       <div ref={mapContainerRef} className="w-full h-full" />
