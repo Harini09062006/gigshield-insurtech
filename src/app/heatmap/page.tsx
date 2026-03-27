@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { collection, addDoc, serverTimestamp, query, where, limit } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, limit, doc, getDoc } from 'firebase/firestore';
 import { CityRiskData } from '@/services/weatherService';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -37,16 +37,40 @@ export default function HeatmapPage() {
   const [flyTo, setFlyTo] = useState<{lat:number, lng:number} | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [alerts, setAlerts] = useState<CityRiskData[]>([]);
+  
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   const { user } = useUser();
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
 
-  // Firebase Data - Stats for the dashboard panel
-  // Note: These might fail if user is not an admin, we handle that gracefully
-  const usersQuery = useMemoFirebase(() => db ? collection(db, "users") : null, [db]);
-  const claimsQuery = useMemoFirebase(() => db ? collection(db, "claims") : null, [db]);
+  // Role verification to prevent permission errors
+  useEffect(() => {
+    async function checkRole() {
+      if (user && db) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists() && userDoc.data().role === "admin") {
+            setIsAdmin(true);
+          }
+        } catch (e) {
+          console.error("Role check failed", e);
+        } finally {
+          setCheckingAdmin(false);
+        }
+      } else if (!user) {
+        setCheckingAdmin(false);
+      }
+    }
+    checkRole();
+  }, [user, db]);
+
+  // Gated Firebase Data - Only fires if confirmed as admin
+  const usersQuery = useMemoFirebase(() => (db && isAdmin) ? collection(db, "users") : null, [db, isAdmin]);
+  const claimsQuery = useMemoFirebase(() => (db && isAdmin) ? collection(db, "claims") : null, [db, isAdmin]);
+  
   const { data: users } = useCollection(usersQuery);
   const { data: claims } = useCollection(claimsQuery);
 
@@ -56,7 +80,10 @@ export default function HeatmapPage() {
   }, [cityData]);
 
   const handleTriggerAlert = async (cityName: string) => {
-    if (!db) return;
+    if (!db || !isAdmin) {
+      alert("Permission denied: Admin role required to trigger mass payouts.");
+      return;
+    }
     const city = cityData.find(c => c.name === cityName);
     try {
       await addDoc(collection(db, 'claims'), {
@@ -68,14 +95,14 @@ export default function HeatmapPage() {
       });
       alert(`Mass payout triggered for ${cityName}!`);
     } catch (e) {
-      alert("Permission denied: Admin role required to trigger mass payouts.");
+      alert("Error triggering alert. Check console for details.");
     }
   };
 
   useEffect(() => {
     // Make alert trigger available to Leaflet popup
     (window as any).triggerAlert = handleTriggerAlert;
-  }, [cityData]);
+  }, [cityData, isAdmin]);
 
   const exportReport = () => {
     const headers = "City,Risk,Rainfall(mm),AQI,Temp(C),Timestamp\n";
@@ -242,7 +269,7 @@ export default function HeatmapPage() {
             <div className="space-y-3 border-t border-[#E8E6FF] pt-6">
               <div className="flex justify-between items-center text-xs font-bold">
                 <span className="text-[#64748B]">👷 Total Workers</span>
-                <span className="text-[#1A1A2E]">{users ? users.length : "Locked"}</span>
+                <span className="text-[#1A1A2E]">{users ? users.length : "Admin Only"}</span>
               </div>
               <div className="flex justify-between items-center text-xs font-bold">
                 <span className="text-[#64748B]">⚠️ At Risk</span>
@@ -250,11 +277,11 @@ export default function HeatmapPage() {
               </div>
               <div className="flex justify-between items-center text-xs font-bold">
                 <span className="text-[#64748B]">✅ Protected</span>
-                <span className="text-[#22C55E]">{users ? Math.round(users.length * 0.8) : "Locked"}</span>
+                <span className="text-[#22C55E]">{users ? Math.round(users.length * 0.8) : "Admin Only"}</span>
               </div>
               <div className="flex justify-between items-center text-xs font-bold">
                 <span className="text-[#64748B]">💰 Claims Today</span>
-                <span className="text-[#6C47FF]">{claims ? claims.length : "Locked"}</span>
+                <span className="text-[#6C47FF]">{claims ? claims.length : "Admin Only"}</span>
               </div>
             </div>
 
@@ -269,8 +296,8 @@ export default function HeatmapPage() {
 
             <div className="p-4 bg-[#EDE9FF] border border-[#D4CCFF] rounded-xl mt-auto">
               <p className="text-[10px] font-bold text-[#6C47FF] uppercase mb-1">💰 Financial Impact</p>
-              <p className="text-xl font-bold text-[#1A1A2E]">₹{claims ? stats.payouts.toLocaleString() : "--"}</p>
-              <p className="text-[10px] text-[#64748B] mt-1">Daily Payouts Today</p>
+              <p className="text-xl font-bold text-[#1A1A2E]">₹{isAdmin ? stats.payouts.toLocaleString() : "--"}</p>
+              <p className="text-[10px] text-[#64748B] mt-1">{isAdmin ? "Daily Payouts Today" : "Admin Visibility Locked"}</p>
             </div>
 
             <div className="flex gap-2 pt-4">
