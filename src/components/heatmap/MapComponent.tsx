@@ -41,7 +41,7 @@ export default function MapComponent({ data }: MapProps) {
     // Rain Tile Overlay
     L.tileLayer(
       `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${API_KEY}`,
-      { opacity: 0.6 }
+      { opacity: 0.4 }
     ).addTo(map);
 
     // Initialize Marker Layer Group
@@ -49,7 +49,6 @@ export default function MapComponent({ data }: MapProps) {
     markerLayerGroupRef.current = markerLayerGroup;
 
     mapRef.current = map;
-    (window as any).leafletMap = map;
 
     return () => {
       if (mapRef.current) {
@@ -63,11 +62,10 @@ export default function MapComponent({ data }: MapProps) {
   useEffect(() => {
     if (!mapRef.current || !markerLayerGroupRef.current) return;
     
-    // 1. Clear ALL existing markers
+    // 1. CRITICAL: Clear ALL existing markers before re-rendering filtered set
     markerLayerGroupRef.current.clearLayers();
-    const cityMarkers: Record<string, L.Marker> = {};
 
-    // 2. Add filtered markers
+    // 2. Map over the filtered data and add markers
     data.forEach(city => {
       const riskColors: Record<string, string> = {
         'EXTREME': '#EF4444',
@@ -77,10 +75,11 @@ export default function MapComponent({ data }: MapProps) {
         'SAFE': '#64748B'
       };
       
-      const color = riskColors[city.riskLevel] || '#64748B';
+      const color = riskColors[city.riskLevel.toUpperCase()] || '#64748B';
       const rainfall = city.rainfall || 0;
       const progress = Math.min(100, (rainfall / 50) * 100);
 
+      // Custom Google-style Teardrop Pin (20px minimalist size)
       const icon = L.divIcon({
         className: 'custom-pin-container',
         html: `
@@ -89,7 +88,7 @@ export default function MapComponent({ data }: MapProps) {
           </div>
         `,
         iconSize: [20, 20],
-        iconAnchor: [10, 20],
+        iconAnchor: [10, 20], // Anchors the bottom point of the teardrop
         popupAnchor: [0, -20]
       });
 
@@ -99,7 +98,7 @@ export default function MapComponent({ data }: MapProps) {
             📍 ${city.name.toUpperCase()}
           </div>
           <div class="popup-body">
-            <div class="risk-badge" style="background: ${color}11; color: ${color}; border: 1px solid ${color}33">
+            <div class="risk-badge" style="background: ${color}15; color: ${color}; border: 1px solid ${color}30">
               ${city.riskLevel} RISK
             </div>
             
@@ -116,21 +115,17 @@ export default function MapComponent({ data }: MapProps) {
               <div class="progress-label">Threshold: 50mm</div>
             </div>
 
-            <button class="action-btn" onclick="console.log('Operational Alert for ${city.name}')">
-              TRIGGER ALERT
-            </button>
+            <div class="recommendation" style="color: ${rainfall > 30 ? '#EF4444' : '#22C55E'}">
+              ${rainfall > 50 ? '🚫 Deliveries Suspended' : rainfall > 30 ? '⚠️ Exercise Caution' : '✅ Safe for Delivery'}
+            </div>
           </div>
         </div>
       `;
 
-      const marker = L.marker([city.lat, city.lng], { icon })
-        .bindPopup(popupHtml, { maxWidth: 220, className: 'leaflet-modern-popup' });
-
-      markerLayerGroupRef.current!.addLayer(marker);
-      cityMarkers[city.name.toLowerCase()] = marker;
+      L.marker([city.lat, city.lng], { icon })
+        .bindPopup(popupHtml, { maxWidth: 220, className: 'leaflet-modern-popup' })
+        .addTo(markerLayerGroupRef.current!);
     });
-
-    (window as any).cityMarkers = cityMarkers;
   }, [data]);
 
   return (
@@ -143,9 +138,13 @@ export default function MapComponent({ data }: MapProps) {
           transform: rotate(-45deg);
           position: relative;
           box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          transition: transform 0.2s ease;
+          transition: all 0.2s ease;
         }
-        .pin:hover { transform: rotate(-45deg) scale(1.2); z-index: 1000; }
+        .pin:hover { 
+          transform: rotate(-45deg) scale(1.2); 
+          z-index: 1000;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
         .pin-inner {
           width: 8px;
           height: 8px;
@@ -160,48 +159,43 @@ export default function MapComponent({ data }: MapProps) {
         .leaflet-modern-popup .leaflet-popup-content-wrapper { 
           padding: 0; 
           overflow: hidden; 
-          border-radius: 12px; 
+          border-radius: 16px; 
           border: 1px solid #E8E6FF; 
           box-shadow: 0 10px 30px rgba(108,71,255,0.15); 
         }
         .leaflet-modern-popup .leaflet-popup-content { margin: 0; width: 220px !important; }
         
-        .modern-popup { font-family: 'Inter', sans-serif; }
-        .popup-header { color: white; padding: 10px 14px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; }
-        .popup-body { padding: 14px; color: #1A1A2E; }
+        .modern-popup { font-family: 'Inter', sans-serif; overflow: hidden; }
+        .popup-header { color: white; padding: 12px 16px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; }
+        .popup-body { padding: 16px; color: #1A1A2E; }
         
         .risk-badge { 
-          padding: 4px 10px; 
+          padding: 4px 12px; 
           border-radius: 20px; 
           font-weight: 800; 
           font-size: 9px; 
           display: inline-block; 
-          margin-bottom: 10px;
+          margin-bottom: 12px;
           letter-spacing: 0.5px;
+          text-transform: uppercase;
         }
         
-        .data-section { margin-bottom: 12px; border-bottom: 1px solid #E8E6FF; padding-bottom: 8px; }
-        .data-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 10px; }
-        .data-row span { color: #64748B; font-weight: 500; }
+        .data-section { margin-bottom: 12px; border-bottom: 1px solid #F5F3FF; padding-bottom: 8px; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 10px; }
+        .data-row span { color: #64748B; font-weight: 600; }
         
         .progress-container { margin-bottom: 12px; }
         .progress-bar-bg { height: 6px; background: #EEEEFF; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
         .progress-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease-out; }
         .progress-label { font-size: 8px; color: #94A3B8; font-weight: 700; text-align: right; text-transform: uppercase; }
         
-        .action-btn { 
-          width: 100%; 
-          background: #6C47FF; 
-          color: white; 
-          border: none; 
-          padding: 8px; 
-          border-radius: 8px; 
-          font-weight: 800; 
-          font-size: 9px; 
-          cursor: pointer;
-          transition: background 0.2s;
+        .recommendation {
+          font-size: 10px;
+          font-weight: 800;
+          text-align: center;
+          padding-top: 4px;
+          border-top: 1px solid #F5F3FF;
         }
-        .action-btn:hover { background: #5535E8; }
       `}</style>
       <div ref={mapContainerRef} className="w-full h-full" />
     </div>
