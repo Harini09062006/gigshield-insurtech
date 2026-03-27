@@ -11,10 +11,11 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { collection, addDoc, serverTimestamp, query, where, limit, getDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, limit } from 'firebase/firestore';
 import { CityRiskData } from '@/services/weatherService';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Dynamically import map to prevent SSR issues with Leaflet
 const MapComponent = dynamic(
   () => import('@/components/heatmap/MapComponent'),
   { 
@@ -37,43 +38,15 @@ export default function HeatmapPage() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [alerts, setAlerts] = useState<CityRiskData[]>([]);
 
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
 
-  // Role verification state
-  const [isAdminConfirmed, setIsAdminConfirmed] = useState(false);
-  const [checkingRole, setCheckingRole] = useState(true);
-
-  useEffect(() => {
-    async function checkRole() {
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists() && userDoc.data().role === "admin") {
-            setIsAdminConfirmed(true);
-          } else {
-            // Redirect non-admins to worker dashboard
-            router.replace("/dashboard");
-          }
-        } catch (error) {
-          console.error("Role check failed", error);
-          router.replace("/dashboard");
-        } finally {
-          setCheckingRole(false);
-        }
-      } else if (!isUserLoading) {
-        router.replace("/");
-        setCheckingRole(false);
-      }
-    }
-    checkRole();
-  }, [user, isUserLoading, db, router]);
-
-  // Firebase Data - Gated by isAdminConfirmed to satisfy security rules
-  const usersQuery = useMemoFirebase(() => (db && isAdminConfirmed) ? collection(db, "users") : null, [db, isAdminConfirmed]);
-  const claimsQuery = useMemoFirebase(() => (db && isAdminConfirmed) ? collection(db, "claims") : null, [db, isAdminConfirmed]);
+  // Firebase Data - Stats for the dashboard panel
+  // Note: These might fail if user is not an admin, we handle that gracefully
+  const usersQuery = useMemoFirebase(() => db ? collection(db, "users") : null, [db]);
+  const claimsQuery = useMemoFirebase(() => db ? collection(db, "claims") : null, [db]);
   const { data: users } = useCollection(usersQuery);
   const { data: claims } = useCollection(claimsQuery);
 
@@ -83,21 +56,26 @@ export default function HeatmapPage() {
   }, [cityData]);
 
   const handleTriggerAlert = async (cityName: string) => {
-    if (!db || !isAdminConfirmed) return;
+    if (!db) return;
     const city = cityData.find(c => c.name === cityName);
-    await addDoc(collection(db, 'claims'), {
-      trigger_type: 'admin_weather_alert',
-      city: cityName,
-      rainfall: city?.rainfall || 0,
-      status: 'triggered',
-      created_at: serverTimestamp()
-    });
-    alert(`Mass payout triggered for ${cityName}!`);
+    try {
+      await addDoc(collection(db, 'claims'), {
+        trigger_type: 'admin_weather_alert',
+        city: cityName,
+        rainfall: city?.rainfall || 0,
+        status: 'triggered',
+        created_at: serverTimestamp()
+      });
+      alert(`Mass payout triggered for ${cityName}!`);
+    } catch (e) {
+      alert("Permission denied: Admin role required to trigger mass payouts.");
+    }
   };
 
   useEffect(() => {
+    // Make alert trigger available to Leaflet popup
     (window as any).triggerAlert = handleTriggerAlert;
-  }, [cityData, isAdminConfirmed]);
+  }, [cityData]);
 
   const exportReport = () => {
     const headers = "City,Risk,Rainfall(mm),AQI,Temp(C),Timestamp\n";
@@ -121,21 +99,11 @@ export default function HeatmapPage() {
     payouts: claims?.reduce((acc, c) => acc + (c.compensation || 0), 0) || 0
   }), [cityData, claims]);
 
-  if (isUserLoading || checkingRole) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
-        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
-      </div>
-    );
-  }
-
-  if (!isAdminConfirmed) return null;
-
   return (
     <div className="h-screen w-full bg-[#EEEEFF] flex flex-col overflow-hidden font-body">
       
       {/* Header */}
-      <header className="px-8 py-4 flex items-center justify-between border-b border-[#E8E6FF] bg-white z-50 shadow-sm">
+      <header className="px-8 py-4 flex items-center justify-between border-b border-[#E8E6FF] bg-white z-50 shadow-sm shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
@@ -171,7 +139,7 @@ export default function HeatmapPage() {
               </div>
             )}
           </div>
-          <span className="text-[10px] text-[#64748B]">Last updated: {Math.floor((new Date().getTime() - lastUpdated.getTime())/60000)} mins ago 🔄</span>
+          <span className="text-[10px] text-[#64748B] hidden md:inline">Last updated: {Math.floor((new Date().getTime() - lastUpdated.getTime())/60000)} mins ago 🔄</span>
           <Link href="/dashboard"><Button variant="ghost" size="icon" className="text-[#64748B] hover:bg-[#F5F3FF]"><Home /></Button></Link>
           <Button onClick={() => auth.signOut().then(()=>router.push("/"))} variant="ghost" size="icon" className="text-[#EF4444] hover:bg-[#FEE2E2]"><LogOut /></Button>
         </div>
@@ -180,7 +148,7 @@ export default function HeatmapPage() {
       <main className="flex-1 flex relative overflow-hidden">
         
         {/* Map Section */}
-        <section className="flex-1 relative">
+        <section className="flex-1 relative h-full">
           
           {/* Alerts Banner */}
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex flex-col gap-2 w-full max-w-lg px-4">
@@ -231,7 +199,7 @@ export default function HeatmapPage() {
             </div>
           </div>
 
-          <div className="absolute bottom-6 right-[300px] z-[1000] bg-white/90 backdrop-blur-md p-2 rounded-xl border border-[#E8E6FF] shadow-2xl flex gap-1">
+          <div className="absolute bottom-6 right-[300px] z-[1000] bg-white/90 backdrop-blur-md p-2 rounded-xl border border-[#E8E6FF] shadow-2xl hidden md:flex gap-1">
             {[
               {id: 'base', icon: MapIcon, label: 'Base'},
               {id: 'rain', icon: CloudRain, label: 'Rain'},
@@ -246,7 +214,7 @@ export default function HeatmapPage() {
         </section>
 
         {/* Sidebar Dashboard */}
-        <aside className="w-[280px] bg-white border-l border-[#E8E6FF] overflow-y-auto flex flex-col">
+        <aside className="w-[280px] bg-white border-l border-[#E8E6FF] overflow-y-auto hidden lg:flex flex-col">
           <div className="p-6 bg-[#6C47FF] text-white">
             <h2 className="text-sm font-black tracking-widest flex items-center gap-2"><BarChart3 className="h-4 w-4" /> LIVE RISK DASHBOARD</h2>
           </div>
@@ -272,24 +240,36 @@ export default function HeatmapPage() {
             </div>
 
             <div className="space-y-3 border-t border-[#E8E6FF] pt-6">
-              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">👷 Total Workers</span><span className="text-[#1A1A2E]">{users?.length || 0}</span></div>
-              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">⚠️ At Risk</span><span className="text-[#EF4444]">{stats.extreme * 45 + stats.high * 22}</span></div>
-              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">✅ Protected</span><span className="text-[#22C55E]">{users ? Math.round(users.length * 0.8) : 0}</span></div>
-              <div className="flex justify-between items-center text-xs font-bold"><span className="text-[#64748B]">💰 Claims Today</span><span className="text-[#6C47FF]">{claims?.length || 0}</span></div>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-[#64748B]">👷 Total Workers</span>
+                <span className="text-[#1A1A2E]">{users ? users.length : "Locked"}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-[#64748B]">⚠️ At Risk</span>
+                <span className="text-[#EF4444]">{stats.extreme * 45 + stats.high * 22}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-[#64748B]">✅ Protected</span>
+                <span className="text-[#22C55E]">{users ? Math.round(users.length * 0.8) : "Locked"}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-[#64748B]">💰 Claims Today</span>
+                <span className="text-[#6C47FF]">{claims ? claims.length : "Locked"}</span>
+              </div>
             </div>
 
             <div className="space-y-4 border-t border-[#E8E6FF] pt-6">
               <p className="text-[10px] font-black text-[#6C47FF] uppercase">Weather Extremes</p>
               <div className="space-y-2">
-                <div className="text-[11px]"><span className="text-[#64748B]">🌧️ Highest Rain:</span> <b className="text-[#1A1A2E]">{stats.highestRain?.name} — {stats.highestRain?.rainfall}mm</b></div>
-                <div className="text-[11px]"><span className="text-[#64748B]">💨 Worst AQI:</span> <b className="text-[#1A1A2E]">{stats.worstAQI?.name} — Level {stats.worstAQI?.aqi}</b></div>
-                <div className="text-[11px]"><span className="text-[#64748B]">🌡️ Hottest:</span> <b className="text-[#1A1A2E]">{stats.hottest?.name} — {stats.hottest?.temp}°C</b></div>
+                <div className="text-[11px]"><span className="text-[#64748B]">🌧️ Highest Rain:</span> <b className="text-[#1A1A2E]">{stats.highestRain?.name || "--"} — {stats.highestRain?.rainfall || 0}mm</b></div>
+                <div className="text-[11px]"><span className="text-[#64748B]">💨 Worst AQI:</span> <b className="text-[#1A1A2E]">{stats.worstAQI?.name || "--"} — Level {stats.worstAQI?.aqi || 0}</b></div>
+                <div className="text-[11px]"><span className="text-[#64748B]">🌡️ Hottest:</span> <b className="text-[#1A1A2E]">{stats.hottest?.name || "--"} — {stats.hottest?.temp || 0}°C</b></div>
               </div>
             </div>
 
             <div className="p-4 bg-[#EDE9FF] border border-[#D4CCFF] rounded-xl mt-auto">
               <p className="text-[10px] font-bold text-[#6C47FF] uppercase mb-1">💰 Financial Impact</p>
-              <p className="text-xl font-bold text-[#1A1A2E]">₹{stats.payouts.toLocaleString()}</p>
+              <p className="text-xl font-bold text-[#1A1A2E]">₹{claims ? stats.payouts.toLocaleString() : "--"}</p>
               <p className="text-[10px] text-[#64748B] mt-1">Daily Payouts Today</p>
             </div>
 
