@@ -8,34 +8,46 @@ import { CityRiskData } from '@/services/weatherService';
 interface MapProps {
   data: CityRiskData[];
   riskFilter: string;
-  activeLayer: 'base' | 'rain';
-  searchQuery: string;
 }
 
-export default function MapComponent({ data, riskFilter, activeLayer, searchQuery }: MapProps) {
+export default function MapComponent({ data, riskFilter }: MapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
-  const rainOverlayRef = useRef<L.TileLayer | null>(null);
 
-  // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
+    // Center on India
     const map = L.map(mapContainerRef.current, {
       center: [20.5937, 78.9629],
       zoom: 5,
       zoomControl: false,
       minZoom: 4,
-      maxZoom: 12
+      maxZoom: 12,
+      maxBounds: [
+        [6.0, 68.0], // Southwest India
+        [37.0, 97.0]  // Northeast India
+      ],
+      maxBoundsViscosity: 1.0
     });
 
+    // Base Layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
+    // Rain Overlay
+    L.tileLayer(
+      `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=be5f61ff6b261dedfa89e321d466a063`,
+      { opacity: 0.6 }
+    ).addTo(map);
+
     mapRef.current = map;
     layerGroupRef.current = L.layerGroup().addTo(map);
+
+    // Expose map to window for search functionality
+    (window as any).leafletMap = map;
 
     return () => {
       if (mapRef.current) {
@@ -45,51 +57,30 @@ export default function MapComponent({ data, riskFilter, activeLayer, searchQuer
     };
   }, []);
 
-  // Handle Rain Layer Toggle
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    if (activeLayer === 'rain') {
-      rainOverlayRef.current = L.tileLayer(
-        `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=be5f61ff6b261dedfa89e321d466a063`,
-        { opacity: 0.6 }
-      ).addTo(mapRef.current);
-    } else {
-      if (rainOverlayRef.current) {
-        mapRef.current.removeLayer(rainOverlayRef.current);
-        rainOverlayRef.current = null;
-      }
-    }
-  }, [activeLayer]);
-
-  // Render Markers
   useEffect(() => {
     if (!mapRef.current || !layerGroupRef.current) return;
     layerGroupRef.current.clearLayers();
 
-    const filteredData = data.filter(city => {
-      const matchesRisk = riskFilter === 'all' || city.riskLevel.toLowerCase() === riskFilter.toLowerCase();
-      const matchesSearch = !searchQuery || city.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesRisk && matchesSearch;
-    });
+    const filtered = data.filter(c => riskFilter === 'all' || c.riskLevel.toLowerCase() === riskFilter.toLowerCase());
 
-    filteredData.forEach(city => {
-      const size = city.riskLevel === 'EXTREME' ? 60 : city.riskLevel === 'HIGH' ? 45 : city.riskLevel === 'MEDIUM' ? 35 : city.riskLevel === 'LOW' ? 25 : 15;
-      const dotSize = city.riskLevel === 'SAFE' ? 8 : 12;
+    filtered.forEach(city => {
+      const size = city.riskLevel === 'EXTREME' ? 50 : city.riskLevel === 'HIGH' ? 40 : city.riskLevel === 'MEDIUM' ? 30 : city.riskLevel === 'LOW' ? 25 : 20;
+      const isAnimated = city.riskLevel === 'EXTREME' || city.riskLevel === 'HIGH';
       
       const icon = L.divIcon({
-        className: `marker-container-${city.riskLevel.toLowerCase()}`,
+        className: 'custom-marker',
         html: `
-          <div class="marker-wrapper" style="width:${size}px; height:${size}px;">
-            ${city.riskLevel !== 'SAFE' ? `<div class="pulse-ring" style="background:${city.riskColor}44; animation-duration:${city.riskLevel === 'MEDIUM' ? '3s' : '2s'}"></div>` : ''}
-            <div class="center-dot" style="background:${city.riskColor}; width:${dotSize}px; height:${dotSize}px;"></div>
+          <div class="marker-container" style="width: ${size}px; height: ${size}px;">
+            ${isAnimated ? `<div class="pulse-ring" style="background: ${city.riskColor}44;"></div>` : ''}
+            <div class="center-dot" style="background: ${city.riskColor}; width: ${size * 0.4}px; height: ${size * 0.4}px;"></div>
           </div>
         `,
-        iconSize: [size, size]
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2]
       });
 
       const popupHtml = `
-        <div class="risk-popup">
+        <div class="cute-popup">
           <div class="popup-header" style="background: #6C47FF">
             📍 ${city.name.toUpperCase()} — ${city.riskLevel}
           </div>
@@ -98,44 +89,50 @@ export default function MapComponent({ data, riskFilter, activeLayer, searchQuer
             <div class="data-row"><span>💨 AQI</span> <b>${city.aqi} (${city.aqiLabel})</b></div>
             <div class="data-row"><span>🌡️ Temp</span> <b>${city.temp}°C</b></div>
             <div class="data-row"><span>💧 Humidity</span> <b>${city.humidity}%</b></div>
-            <hr class="popup-divider" />
-            <div class="risk-meter-label">Risk Level: ${city.riskEmoji} ${city.riskLevel}</div>
-            <div class="risk-progress-bg">
-              <div class="risk-progress-fill" style="width:${city.percent}%; background:${city.riskColor}"></div>
+            
+            <div class="risk-bar-container">
+              <div class="risk-label">Protection Threshold (50mm)</div>
+              <div class="progress-bg">
+                <div class="progress-fill" style="width: ${city.percent}%; background: ${city.riskColor}"></div>
+              </div>
+            </div>
+
+            <div class="status-badge" style="background: ${city.riskColor}11; color: ${city.riskColor}">
+              ${city.riskLevel === 'SAFE' || city.riskLevel === 'LOW' ? '🟢 SAFE FOR DELIVERY' : '⚠️ CAUTION ADVISED'}
             </div>
           </div>
         </div>
       `;
 
-      L.marker([city.lat, city.lng], { icon })
+      const marker = L.marker([city.lat, city.lng], { icon })
         .addTo(layerGroupRef.current!)
-        .bindPopup(popupHtml, { maxWidth: 280, className: 'leaflet-custom-popup' });
-    });
+        .bindPopup(popupHtml, { maxWidth: 280, className: 'leaflet-cute-popup' });
 
-    // Fly to first match if searching
-    if (searchQuery && filteredData.length > 0) {
-      mapRef.current.flyTo([filteredData[0].lat, filteredData[0].lng], 8, { duration: 1.5 });
-    }
-  }, [data, riskFilter, searchQuery]);
+      // Link marker to window for search
+      if (!(window as any).cityMarkers) (window as any).cityMarkers = {};
+      (window as any).cityMarkers[city.name.toLowerCase()] = marker;
+    });
+  }, [data, riskFilter]);
 
   return (
     <div className="w-full h-full relative">
       <style jsx global>{`
-        .marker-wrapper { position: relative; display: flex; align-items: center; justify-content: center; }
-        .pulse-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; animation: pulse 2s infinite; }
-        .center-dot { border-radius: 50%; border: 2px solid white; z-index: 2; }
-        @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+        .marker-container { position: relative; display: flex; align-items: center; justify-content: center; }
+        .pulse-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; animation: marker-pulse 2s infinite; border: 2px solid currentColor; }
+        .center-dot { border-radius: 50%; border: 2px solid white; z-index: 2; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        @keyframes marker-pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
         
-        .leaflet-custom-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 12px; }
-        .leaflet-custom-popup .leaflet-popup-content { margin: 0; width: 260px !important; }
-        .risk-popup { font-family: 'Inter', sans-serif; }
-        .popup-header { color: white; padding: 12px 16px; font-weight: bold; font-size: 14px; }
-        .popup-body { padding: 12px 16px; font-size: 13px; color: #1A1A2E; }
-        .data-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-        .popup-divider { border: 0; border-top: 1px solid #E8E6FF; margin: 12px 0; }
-        .risk-meter-label { font-weight: 600; margin-bottom: 6px; font-size: 12px; }
-        .risk-progress-bg { height: 6px; background: #E8E6FF; border-radius: 3px; overflow: hidden; }
-        .risk-progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+        .leaflet-cute-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 16px; border: 1px solid #E8E6FF; box-shadow: 0 8px 30px rgba(108,71,255,0.15); }
+        .leaflet-cute-popup .leaflet-popup-content { margin: 0; width: 260px !important; }
+        .cute-popup { font-family: 'Inter', sans-serif; }
+        .popup-header { color: white; padding: 12px 16px; font-weight: 800; font-size: 13px; letter-spacing: 0.5px; }
+        .popup-body { padding: 16px; font-size: 13px; color: #1A1A2E; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .risk-bar-container { margin-top: 16px; margin-bottom: 12px; }
+        .risk-label { font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; margin-bottom: 4px; }
+        .progress-bg { height: 8px; background: #EEEEFF; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 1s ease-out; }
+        .status-badge { margin-top: 12px; padding: 8px; border-radius: 8px; text-align: center; font-weight: 800; font-size: 11px; }
       `}</style>
       <div ref={mapContainerRef} className="w-full h-full" />
     </div>

@@ -4,8 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { 
   Shield, Search, Loader2, Home, LogOut, 
-  BarChart3, CloudRain, Map as MapIcon, 
-  RefreshCw, Layers, Info
+  Map as MapIcon, RefreshCw, Info, AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -15,21 +14,9 @@ import {
   CityRiskData, 
   getWeatherByCoords, 
   getAQIByCoords, 
-  calculateRisk 
+  calculateRisk,
+  CITIES_LIST
 } from '@/services/weatherService';
-
-const CITIES_LIST = [
-  { name: "Chennai", lat: 13.0827, lng: 80.2707 },
-  { name: "Mumbai", lat: 19.0760, lng: 72.8777 },
-  { name: "Bengaluru", lat: 12.9716, lng: 77.5946 },
-  { name: "Hyderabad", lat: 17.3850, lng: 78.4867 },
-  { name: "Delhi", lat: 28.7041, lng: 77.1025 },
-  { name: "Kolkata", lat: 22.5726, lng: 88.3639 },
-  { name: "Howrah", lat: 22.5958, lng: 88.2636 },
-  { name: "Pune", lat: 18.5204, lng: 73.8567 },
-  { name: "Kochi", lat: 9.9312, lng: 76.2673 },
-  { name: "Jaipur", lat: 26.9124, lng: 75.7873 }
-];
 
 const MapComponent = dynamic(
   () => import('@/components/heatmap/MapComponent'),
@@ -37,8 +24,11 @@ const MapComponent = dynamic(
     ssr: false,
     loading: () => (
       <div className="w-full h-full flex flex-col items-center justify-center bg-[#F5F3FF]">
-        <Loader2 className="h-12 w-12 animate-spin text-[#6C47FF]" />
-        <p className="mt-4 text-sm font-bold text-[#6C47FF] uppercase tracking-widest">Initializing Map Engine...</p>
+        <div className="relative">
+          <Loader2 className="h-16 w-16 animate-spin text-[#6C47FF]" />
+          <Shield className="h-6 w-6 text-[#6C47FF] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+        </div>
+        <p className="mt-6 text-sm font-bold text-[#6C47FF] uppercase tracking-widest animate-pulse">Syncing Global Weather Core...</p>
       </div>
     )
   }
@@ -48,9 +38,9 @@ export default function HeatmapPage() {
   const [data, setData] = useState<CityRiskData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [riskFilter, setRiskFilter] = useState('all');
-  const [activeLayer, setActiveLayer] = useState<'base' | 'rain'>('base');
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [suggestions, setSuggestions] = useState<typeof CITIES_LIST>([]);
 
   const auth = useAuth();
   const router = useRouter();
@@ -86,51 +76,73 @@ export default function HeatmapPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const stats = useMemo(() => ({
-    extreme: data.filter(c => c.riskLevel === 'EXTREME').length,
-    high: data.filter(c => c.riskLevel === 'HIGH').length,
-    medium: data.filter(c => c.riskLevel === 'MEDIUM').length,
-    safe: data.filter(c => c.riskLevel === 'SAFE').length,
-    highestRain: [...data].sort((a,b) => b.rainfall - a.rainfall)[0],
-    worstAQI: [...data].sort((a,b) => b.aqi - a.aqi)[0]
-  }), [data]);
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query.length > 1) {
+      setSuggestions(CITIES_LIST.filter(c => c.name.toLowerCase().includes(query.toLowerCase())));
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const selectCity = (city: typeof CITIES_LIST[0]) => {
+    setSearchQuery(city.name);
+    setSuggestions([]);
+    const map = (window as any).leafletMap;
+    const markers = (window as any).cityMarkers;
+    if (map && markers && markers[city.name.toLowerCase()]) {
+      map.flyTo([city.lat, city.lng], 10, { duration: 1.5 });
+      setTimeout(() => {
+        markers[city.name.toLowerCase()].openPopup();
+      }, 1600);
+    }
+  };
 
   return (
     <div className="h-screen w-full bg-[#EEEEFF] flex flex-col overflow-hidden font-body">
       
       {/* Header */}
-      <header className="px-8 py-4 flex items-center justify-between border-b border-[#E8E6FF] bg-white z-50 shadow-sm shrink-0">
+      <header className="px-8 py-4 flex items-center justify-between border-b border-[#E8E6FF] bg-white z-[2000] shadow-sm shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
               <Shield className="h-6 w-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-[#1A1A2E]">GigShield</span>
+            <span className="text-xl font-bold text-[#1A1A2E] tracking-tight">GigShield</span>
           </div>
           <div className="h-8 w-[1px] bg-[#E8E6FF]" />
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-[#6C47FF] tracking-tight uppercase">🗺️ Risk Heat Intelligence</span>
+            <span className="text-sm font-black text-[#6C47FF] tracking-tighter uppercase">🗺️ Risk Heat Intelligence</span>
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" />
               <span className="text-[10px] font-bold text-[#22C55E]">LIVE ENGINE ACTIVE</span>
-              <span className="text-[10px] text-[#64748B]">· Syncing disruption data...</span>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="relative w-64">
+          <div className="relative w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6C47FF]" />
             <input 
               placeholder="Search city..." 
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#F8F9FF] border border-[#E8E6FF] rounded-lg pl-10 pr-4 py-2 text-xs focus:outline-none focus:border-[#6C47FF] transition-all" 
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full bg-[#F8F9FF] border-2 border-[#E8E6FF] rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:border-[#6C47FF] transition-all" 
             />
+            {suggestions.length > 0 && (
+              <div className="absolute top-full left-0 w-full bg-white border border-[#E8E6FF] rounded-xl mt-2 shadow-2xl overflow-hidden z-[3000]">
+                {suggestions.map(s => (
+                  <button key={s.name} onClick={() => selectCity(s)} className="w-full px-4 py-3 text-left text-xs font-bold hover:bg-[#F5F3FF] transition-colors flex items-center gap-2">
+                    <MapIcon className="h-3 w-3 text-[#6C47FF]" /> {s.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <span className="text-[10px] text-[#64748B] hidden md:inline">Last updated: {Math.floor((new Date().getTime() - lastUpdated.getTime())/60000)} mins ago 🔄</span>
-          <Link href="/dashboard"><Button variant="ghost" size="icon" className="text-[#64748B] hover:bg-[#F5F3FF]"><Home /></Button></Link>
-          <Button onClick={() => auth.signOut().then(()=>router.push("/"))} variant="ghost" size="icon" className="text-[#EF4444] hover:bg-[#FEE2E2]"><LogOut /></Button>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard"><Button variant="ghost" size="icon" className="text-[#64748B] hover:bg-[#F5F3FF] rounded-xl"><Home /></Button></Link>
+            <Button onClick={() => auth.signOut().then(()=>router.push("/"))} variant="ghost" size="icon" className="text-[#EF4444] hover:bg-[#FEE2E2] rounded-xl"><LogOut /></Button>
+          </div>
         </div>
       </header>
 
@@ -138,33 +150,29 @@ export default function HeatmapPage() {
         
         {/* Map Section */}
         <section className="flex-1 relative h-full">
-          <MapComponent 
-            data={data} 
-            riskFilter={riskFilter} 
-            activeLayer={activeLayer}
-            searchQuery={searchQuery}
-          />
+          <MapComponent data={data} riskFilter={riskFilter} />
 
           {/* Legend */}
-          <div className="absolute bottom-6 left-6 z-[1000] bg-white border border-[#6C47FF] p-4 rounded-xl shadow-xl min-w-[180px]">
-            <p className="text-xs font-black text-[#1A1A2E] uppercase tracking-widest mb-3 border-b border-[#E8E6FF] pb-2">Disruption Legend</p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3"><div className="h-3 w-3 rounded-full bg-[#EF4444]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Extreme Risk (&gt;50mm)</span></div>
-              <div className="flex items-center gap-3"><div className="h-3 w-3 rounded-full bg-[#F59E0B]" /><span className="text-[10px] font-bold text-[#1A1A2E]">High Risk (&gt;30mm)</span></div>
-              <div className="flex items-center gap-3"><div className="h-3 w-3 rounded-full bg-[#EAB308]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Medium Risk (&gt;10mm)</span></div>
-              <div className="flex items-center gap-3"><div className="h-3 w-3 rounded-full bg-[#22C55E]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Low Risk (&gt;0mm)</span></div>
-              <div className="flex items-center gap-3"><div className="h-3 w-3 rounded-full bg-[#64748B]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Safe Zone (0mm)</span></div>
+          <div className="absolute bottom-10 left-8 z-[1000] bg-white border-2 border-[#E8E6FF] p-5 rounded-[20px] shadow-2xl min-w-[200px]">
+            <p className="text-[11px] font-black text-[#1A1A2E] uppercase tracking-widest mb-4 border-b border-[#E8E6FF] pb-2">Disruption Legend</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3"><div className="h-3.5 w-3.5 rounded-full bg-[#EF4444] shadow-[0_0_10px_rgba(239,68,68,0.4)]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Extreme Risk (&gt;50mm)</span></div>
+              <div className="flex items-center gap-3"><div className="h-3.5 w-3.5 rounded-full bg-[#F59E0B] shadow-[0_0_10px_rgba(245,158,11,0.4)]" /><span className="text-[10px] font-bold text-[#1A1A2E]">High Risk (&gt;30mm)</span></div>
+              <div className="flex items-center gap-3"><div className="h-3.5 w-3.5 rounded-full bg-[#EAB308]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Medium Risk (&gt;10mm)</span></div>
+              <div className="flex items-center gap-3"><div className="h-3.5 w-3.5 rounded-full bg-[#22C55E]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Low Risk (&gt;0mm)</span></div>
+              <div className="flex items-center gap-3"><div className="h-3.5 w-3.5 rounded-full bg-[#64748B]" /><span className="text-[10px] font-bold text-[#1A1A2E]">Safe Zone (0mm)</span></div>
             </div>
           </div>
 
           {/* Controls */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] flex flex-col gap-4 items-center">
-            <div className="bg-white/90 backdrop-blur-md p-2 rounded-xl border border-[#E8E6FF] shadow-2xl flex gap-1">
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[1000]">
+            <div className="bg-white p-2 rounded-2xl border-2 border-[#E8E6FF] shadow-2xl flex gap-1 items-center">
+              <span className="text-[9px] font-black uppercase text-[#64748B] px-3">Filter:</span>
               {['all', 'extreme', 'high', 'medium', 'low', 'safe'].map(r => (
                 <button 
                   key={r} 
                   onClick={() => setRiskFilter(r)} 
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${riskFilter === r ? 'bg-[#6C47FF] text-white' : 'hover:bg-[#F5F3FF] text-[#64748B]'}`}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${riskFilter === r ? 'bg-[#6C47FF] text-white shadow-btn' : 'hover:bg-[#F5F3FF] text-[#64748B]'}`}
                 >
                   {r}
                 </button>
@@ -172,79 +180,13 @@ export default function HeatmapPage() {
             </div>
           </div>
 
-          {/* Layer Toggle */}
-          <div className="absolute bottom-6 right-6 z-[1000] bg-white border border-[#E8E6FF] p-2 rounded-xl shadow-xl flex gap-1">
-            <button 
-              onClick={() => setActiveLayer('base')} 
-              className={`p-2 rounded-lg flex items-center gap-2 text-[10px] font-bold uppercase transition-all ${activeLayer === 'base' ? 'bg-[#6C47FF] text-white' : 'text-[#64748B]'}`}
-            >
-              <MapIcon className="h-3 w-3" /> Base
-            </button>
-            <button 
-              onClick={() => setActiveLayer('rain')} 
-              className={`p-2 rounded-lg flex items-center gap-2 text-[10px] font-bold uppercase transition-all ${activeLayer === 'rain' ? 'bg-[#6C47FF] text-white' : 'text-[#64748B]'}`}
-            >
-              <CloudRain className="h-3 w-3" /> Rain
-            </button>
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+            <div className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-full border border-[#E8E6FF] shadow-xl flex items-center gap-3">
+              <RefreshCw className={`h-3 w-3 text-[#6C47FF] ${isLoading ? 'animate-spin' : ''}`} />
+              <span className="text-[10px] font-bold text-[#64748B]">Updated: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
           </div>
         </section>
-
-        {/* Sidebar Dashboard */}
-        <aside className="w-[300px] bg-white border-l border-[#E8E6FF] overflow-y-auto hidden lg:flex flex-col">
-          <div className="p-6 bg-[#6C47FF] text-white flex items-center gap-3">
-            <BarChart3 className="h-5 w-5" />
-            <h2 className="text-sm font-black tracking-widest uppercase">Live Risk Dashboard</h2>
-          </div>
-          
-          <div className="p-6 space-y-8 flex-1">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-[#F8F9FF] border border-red-100 rounded-lg">
-                <p className="text-[9px] font-bold text-[#EF4444] uppercase mb-1">🔴 Extreme</p>
-                <p className="text-xl font-black text-[#1A1A2E]">{stats.extreme}</p>
-              </div>
-              <div className="p-3 bg-[#F8F9FF] border border-orange-100 rounded-lg">
-                <p className="text-[9px] font-bold text-[#F59E0B] uppercase mb-1">🟠 High</p>
-                <p className="text-xl font-black text-[#1A1A2E]">{stats.high}</p>
-              </div>
-              <div className="p-3 bg-[#F8F9FF] border border-yellow-100 rounded-lg">
-                <p className="text-[9px] font-bold text-[#EAB308] uppercase mb-1">🟡 Medium</p>
-                <p className="text-xl font-black text-[#1A1A2E]">{stats.medium}</p>
-              </div>
-              <div className="p-3 bg-[#F8F9FF] border border-gray-100 rounded-lg">
-                <p className="text-[9px] font-bold text-[#64748B] uppercase mb-1">⚫ Safe</p>
-                <p className="text-xl font-black text-[#1A1A2E]">{stats.safe}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4 pt-6 border-t border-[#E8E6FF]">
-              <h3 className="text-[10px] font-black text-[#6C47FF] uppercase tracking-widest flex items-center gap-2">
-                <RefreshCw className="h-3 w-3" /> Meteorological Extremes
-              </h3>
-              <div className="space-y-3">
-                <div className="p-3 bg-[#F5F3FF] rounded-lg border border-[#E8E6FF]">
-                  <p className="text-[10px] font-bold text-[#64748B] uppercase">🌧️ Highest Rainfall</p>
-                  <p className="text-sm font-bold text-[#1A1A2E]">{stats.highestRain?.name || "--"} — {stats.highestRain?.rainfall || 0}mm</p>
-                </div>
-                <div className="p-3 bg-[#F5F3FF] rounded-lg border border-[#E8E6FF]">
-                  <p className="text-[10px] font-bold text-[#64748B] uppercase">💨 Worst Air Quality</p>
-                  <p className="text-sm font-bold text-[#1A1A2E]">{stats.worstAQI?.name || "--"} — Level {stats.worstAQI?.aqi || 0}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-auto pt-6 border-t border-[#E8E6FF]">
-              <div className="bg-[#6C47FF]/5 p-4 rounded-xl border border-[#6C47FF]/20 flex gap-3">
-                <Info className="h-5 w-5 text-[#6C47FF] shrink-0" />
-                <p className="text-[11px] text-[#64748B] leading-relaxed">
-                  Real-time disruption analysis is derived from OpenWeatherMap atmospheric data. Risk levels are recalculated every 120 seconds.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="p-4 bg-[#F8F9FF] border-t border-[#E8E6FF] text-center">
-            <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-widest">Operations Center v2.4</span>
-          </div>
-        </aside>
       </main>
     </div>
   );

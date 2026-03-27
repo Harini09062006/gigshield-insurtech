@@ -30,6 +30,19 @@ export interface CityRiskData extends WeatherData {
   percent: number;
 }
 
+export const CITIES_LIST = [
+  { name: "Chennai", lat: 13.0827, lng: 80.2707 },
+  { name: "Mumbai", lat: 19.0760, lng: 72.8777 },
+  { name: "Bengaluru", lat: 12.9716, lng: 77.5946 },
+  { name: "Hyderabad", lat: 17.3850, lng: 78.4867 },
+  { name: "Delhi", lat: 28.7041, lng: 77.1025 },
+  { name: "Kolkata", lat: 22.5726, lng: 88.3639 },
+  { name: "Howrah", lat: 22.5958, lng: 88.2636 },
+  { name: "Pune", lat: 18.5204, lng: 73.8567 },
+  { name: "Kochi", lat: 9.9312, lng: 76.2673 },
+  { name: "Jaipur", lat: 26.9124, lng: 75.7873 }
+];
+
 /**
  * Fetches full weather details by coordinates.
  */
