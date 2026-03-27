@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { Loader2, Shield, Search, X, ChevronLeft, Home } from 'lucide-react';
+import { Loader2, Shield, Search, X, ArrowLeft, Home } from 'lucide-react';
 import { 
   CITIES_LIST,
   getWeatherByCoords,
@@ -103,33 +103,31 @@ export default function HeatmapPage() {
   return (
     <div className="h-screen w-full bg-[#EEEEFF] relative overflow-hidden font-body">
       
+      {/* RIGHT-SIDE FLOATING NAVIGATION */}
+      <div className="fixed right-5 top-1/2 -translate-y-1/2 z-[3000] flex flex-col gap-3 bg-white p-2 rounded-[16px] shadow-card border border-[#E8E6FF]">
+        <button 
+          onClick={() => router.back()}
+          className="h-10 w-10 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all hover:scale-110 active:scale-95"
+          title="Go Back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <button 
+          onClick={() => router.push('/')}
+          className="h-10 w-10 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all hover:scale-110 active:scale-95"
+          title="Go Home"
+        >
+          <Home className="h-5 w-5" />
+        </button>
+      </div>
+
       {/* HEADER COMMAND BAR */}
       <header className="absolute top-0 left-0 right-0 z-[2000] bg-white/95 backdrop-blur-md border-b border-[#E8E6FF] px-6 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          {/* NAVIGATION BUTTONS */}
-          <div className="flex items-center gap-2 pr-2 border-r border-[#E8E6FF]">
-            <button 
-              onClick={() => router.back()}
-              className="h-9 w-9 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all active:scale-95"
-              title="Go Back"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button 
-              onClick={() => router.push('/')}
-              className="h-9 w-9 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all active:scale-95"
-              title="Go Home"
-            >
-              <Home className="h-5 w-5" />
-            </button>
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 bg-[#6C47FF] rounded-lg flex items-center justify-center shadow-btn">
+            <Shield className="h-5 w-5 text-white" />
           </div>
-
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-[#6C47FF] rounded-lg flex items-center justify-center shadow-btn">
-              <Shield className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-lg font-black text-[#1A1A2E] tracking-tight">GigShield</span>
-          </div>
+          <span className="text-lg font-black text-[#1A1A2E] tracking-tight">GigShield</span>
         </div>
 
         <div className="hidden md:flex flex-col items-center">
@@ -174,11 +172,6 @@ export default function HeatmapPage() {
                     <div className="h-2 w-2 rounded-full" style={{ backgroundColor: city.riskColor }} />
                   </button>
                 ))}
-              </div>
-            )}
-            {searchQuery && suggestions.length === 0 && searchQuery.length > 2 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#E8E6FF] rounded-2xl p-4 text-center shadow-xl z-[3000]">
-                <p className="text-xs font-bold text-[#64748B]">No matching cities found</p>
               </div>
             )}
           </div>
