@@ -27,7 +27,7 @@ export default function MapComponent({ data, searchResult }: MapProps) {
       zoom: 5,
       zoomControl: false,
       minZoom: 4,
-      maxZoom: 10, // Limited zoom as per requirement
+      maxZoom: 10,
       maxBounds: [
         [6.0, 68.0],
         [37.0, 97.0]
@@ -94,7 +94,7 @@ export default function MapComponent({ data, searchResult }: MapProps) {
         popupAnchor: [0, -20]
       });
 
-      const recommendation = rainfall > 50 ? '🚫 Deliveries Suspended' : rainfall > 30 ? '⚠️ Exercise Caution' : '✅ Safe for Delivery';
+      const recommendation = rainfall > 50 ? '🚫 Operations Suspended' : rainfall > 30 ? '⚠️ Exercise Caution' : '✅ Safe for Delivery';
       const recColor = rainfall > 50 ? '#EF4444' : rainfall > 30 ? '#F59E0B' : '#22C55E';
 
       const popupHtml = `
@@ -114,10 +114,10 @@ export default function MapComponent({ data, searchResult }: MapProps) {
               <div class="progress-bar-bg">
                 <div class="progress-bar-fill" style="width: ${progress}%; background: ${color}"></div>
               </div>
-              <div class="progress-label">Threshold: 50mm</div>
+              <div class="progress-label">Limit: 50mm</div>
             </div>
 
-            <div class="recommendation" style="color: ${recColor}; background: ${recColor}10; padding: 8px; border-radius: 8px; border: 1px solid ${recColor}30;">
+            <div class="recommendation" style="color: ${recColor}; background: ${recColor}10; padding: 6px; border-radius: 6px; border: 1px solid ${recColor}20;">
               ${recommendation}
             </div>
           </div>
@@ -125,7 +125,7 @@ export default function MapComponent({ data, searchResult }: MapProps) {
       `;
 
       const marker = L.marker([city.lat, city.lng], { icon })
-        .bindPopup(popupHtml, { maxWidth: 260, className: 'leaflet-modern-popup' })
+        .bindPopup(popupHtml, { maxWidth: 220, className: 'leaflet-modern-popup', closeButton: false })
         .addTo(markerLayerGroupRef.current!);
       
       markerRefsMap.current[city.name] = marker;
@@ -134,16 +134,13 @@ export default function MapComponent({ data, searchResult }: MapProps) {
 
   // ── HANDLE SEARCH NAVIGATION (ONLY ZOOM ON SEARCH) ─────────
   useEffect(() => {
-    // Only trigger if searchResult exists and is valid
     if (searchResult && mapRef.current && markerRefsMap.current[searchResult.name]) {
       const city = searchResult;
       
-      // Perform flyTo as requested
       mapRef.current.flyTo([city.lat, city.lng], 10, {
         duration: 1.5
       });
       
-      // Open popup after a short delay
       setTimeout(() => {
         if (markerRefsMap.current[city.name]) {
           markerRefsMap.current[city.name].openPopup();
@@ -182,29 +179,30 @@ export default function MapComponent({ data, searchResult }: MapProps) {
         .leaflet-modern-popup .leaflet-popup-content-wrapper { 
           padding: 0; 
           overflow: hidden; 
-          border-radius: 16px; 
+          border-radius: 12px; 
           border: 1px solid #E8E6FF; 
-          box-shadow: 0 10px 30px rgba(108,71,255,0.15); 
+          box-shadow: 0 4px 12px rgba(108,71,255,0.1); 
         }
-        .leaflet-modern-popup .leaflet-popup-content { margin: 0; width: 260px !important; }
+        .leaflet-modern-popup .leaflet-popup-content { margin: 0; width: 220px !important; }
         
         .modern-popup { font-family: 'Inter', sans-serif; overflow: hidden; }
-        .popup-header { color: white; padding: 12px 16px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; }
-        .popup-body { padding: 16px; color: #1A1A2E; }
+        .popup-header { color: white; padding: 8px 12px; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; }
+        .popup-body { padding: 10px; color: #1A1A2E; }
         
-        .data-section { margin-bottom: 12px; border-bottom: 1px solid #F5F3FF; padding-bottom: 8px; }
-        .data-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 10px; }
-        .data-row span { color: #64748B; font-weight: 600; }
+        .data-section { margin-bottom: 8px; border-bottom: 1px solid #F5F3FF; padding-bottom: 6px; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 10px; }
+        .data-row span { color: #64748B; font-weight: 500; }
         
-        .progress-container { margin-bottom: 12px; }
-        .progress-bar-bg { height: 6px; background: #EEEEFF; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
-        .progress-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease-out; }
+        .progress-container { margin-bottom: 8px; }
+        .progress-bar-bg { height: 4px; background: #EEEEFF; border-radius: 2px; overflow: hidden; margin-bottom: 3px; }
+        .progress-bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease-out; }
         .progress-label { font-size: 8px; color: #94A3B8; font-weight: 700; text-align: right; text-transform: uppercase; }
         
         .recommendation {
-          font-size: 10px;
-          font-weight: 800;
+          font-size: 9px;
+          font-weight: 700;
           text-align: center;
+          line-height: 1.2;
         }
       `}</style>
       <div ref={mapContainerRef} className="w-full h-full" />
