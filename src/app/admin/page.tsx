@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
@@ -71,6 +72,7 @@ export default function AdminDashboard() {
           <Button variant="ghost" className="w-full justify-start gap-2 bg-[#EDE9FF] text-[#6C47FF] font-bold"><LayoutDashboard size={18} /> Overview</Button>
           <Button onClick={() => router.push('/admin/users')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Users size={18} /> Workers</Button>
           <Button onClick={() => router.push('/admin/claims')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Bell size={18} /> Claims</Button>
+          <Button onClick={() => router.push('/admin/support')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Shield size={18} /> Support Queue</Button>
         </nav>
         <Button onClick={() => auth.signOut().then(() => router.push("/"))} variant="ghost" className="text-[#EF4444] justify-start gap-2 font-bold"><LogOut size={18} /> Logout</Button>
       </aside>

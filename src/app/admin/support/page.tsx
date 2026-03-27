@@ -4,7 +4,7 @@
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, addDoc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Users, LogOut, Loader2, Headphones, Send, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Shield, LayoutDashboard, Users, LogOut, Loader2, Headphones, Send, MessageSquare, CheckCircle2, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -129,6 +129,7 @@ export default function AdminSupport() {
             <SidebarMenu>
               <SidebarMenuItem><Link href="/admin"><SidebarMenuButton><LayoutDashboard className="h-4 w-4" /><span>Overview</span></SidebarMenuButton></Link></SidebarMenuItem>
               <SidebarMenuItem><Link href="/admin/users"><SidebarMenuButton><Users className="h-4 w-4" /><span>Workers</span></SidebarMenuButton></Link></SidebarMenuItem>
+              <SidebarMenuItem><Link href="/admin/claims"><SidebarMenuButton><Bell className="h-4 w-4" /><span>Claims</span></SidebarMenuButton></Link></SidebarMenuItem>
               <SidebarMenuItem><SidebarMenuButton isActive><Headphones className="h-4 w-4" /><span>Support Queue</span></SidebarMenuButton></SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
