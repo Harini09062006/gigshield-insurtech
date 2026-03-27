@@ -50,7 +50,8 @@ export default function SupportPage() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // ✅ Hooks are initialized here at the top level
+  // ✅ CRITICAL: All hooks must be called at the top level before any early returns.
+  // We use stable references even if data is not yet available.
   
   const profileRef = useMemoFirebase(
     () => (db && user ? doc(db, "users", user.uid) : null),
@@ -78,7 +79,7 @@ export default function SupportPage() {
     }
   }, [messages]);
 
-  // 🔥 SAFE EARLY RETURN: Hooks are already registered in every render path
+  // 🔥 SAFE EARLY RETURN: Now that all hooks are registered, we can return the loading state.
   if (isUserLoading || !user || !db) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
@@ -110,7 +111,7 @@ export default function SupportPage() {
 
       if (lowText.includes("rain") || lowText.includes("weather") || lowText.includes("risk")) {
         const rainfall = await getCityRainfall(profile?.city || "Mumbai");
-        botResponse = `Current rainfall in ${profile?.city || "your city"} is ${rainfall.toFixed(1)}mm. Your Pro Shield coverage is active.`;
+        botResponse = `Current rainfall in ${profile?.city || "your city"} is ${rainfall.toFixed(1)}mm. Your protection coverage is active.`;
       } else if (lowText.includes("payment") || lowText.includes("problem") || lowText.includes("claim") || lowText.includes("not received")) {
         botResponse = "I've detected a priority issue. I'm connecting you to a support agent now. Please hold on.";
         needsEscalation = true;
