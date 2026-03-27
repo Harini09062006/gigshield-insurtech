@@ -9,7 +9,6 @@ service cloud.firestore {
     }
 
     // Helper function to check if the current user is an administrator
-    // Includes an exists() check to prevent crashes if the user doc is being created
     function isAdmin() {
       return isSignedIn() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -18,34 +17,40 @@ service cloud.firestore {
 
     // User profiles: Workers can manage their own, admins can manage all
     match /users/{uid} {
-      // Owner check: Direct UID comparison prevents recursion
+      // Owner check: Direct UID comparison
       allow read, write: if isSignedIn() && request.auth.uid == uid;
-      // Admin check: only evaluate for other users to prevent recursive calls
+      // Admin check: only evaluate if not the owner to avoid unnecessary complexity
       allow read, write: if isSignedIn() && request.auth.uid != uid && isAdmin();
     }
     
     // Claims: parametric payout logs
     match /claims/{id} {
       allow create: if isSignedIn();
-      // Combined list rule helps the query analyzer verify subset-safety
-      allow list: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
-      allow get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
+      // Split list/get rules to assist query analyzer with filtered queries
+      allow list: if isSignedIn() && resource.data.worker_id == request.auth.uid;
+      allow list: if isAdmin();
+      allow get: if isSignedIn() && resource.data.worker_id == request.auth.uid;
+      allow get: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
     // Support Messages: Hybrid bot/admin chat logs
     match /support_messages/{id} {
       allow create: if isSignedIn();
-      // Combined list rule helps the query analyzer verify filtered queries
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Split list/get rules to assist query analyzer with filtered queries
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isAdmin();
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isAdmin();
+      // Update allowed for owner (to resolve) or admin
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
     }
     
     // Income DNA: AI-generated earning patterns
     match /income_dna/{uid} {
-      allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+      allow read, write: if isAdmin();
     }
     
     // Weather Events: Dynamic triggers for claims
