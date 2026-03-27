@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -18,6 +19,18 @@
         "plan_activated_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "phone", "role"]
+    },
+    "SupportMessage": {
+      "title": "SupportMessage",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "text": { "type": "string" },
+        "sender": { "type": "string", "enum": ["user", "bot", "admin"] },
+        "status": { "type": "string", "enum": ["open", "in-progress", "resolved"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
     },
     "InsurancePlan": {
       "title": "InsurancePlan",
@@ -54,6 +67,7 @@
     "users/{uid}": { "schema": "User", "description": "User profiles" },
     "insurance_plans/{id}": { "schema": "InsurancePlan", "description": "Insurance plans" },
     "claims/{id}": { "schema": "Claim", "description": "Insurance claims" },
+    "support_messages/{id}": { "schema": "SupportMessage", "description": "Hybrid support system chat logs" },
     "income_dna/{uid}": { "schema": "IncomeDNA", "description": "Worker income patterns" },
     "weather_events/{id}": { "schema": "WeatherEvent", "description": "Weather triggers" },
     "disruption_zones/{id}": { "schema": "DisruptionZone", "description": "Live map zones" }
