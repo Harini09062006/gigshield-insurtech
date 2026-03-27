@@ -17,27 +17,27 @@ export default function MapComponent({ data, searchResult }: MapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerGroupRef = useRef<L.LayerGroup | null>(null);
   const markerRefsMap = useRef<Record<string, L.Marker>>({});
+  const lastNavigatedCityRef = useRef<string | null>(null);
 
-  // 1. INITIALIZE MAP (STABLE INSTANCE)
+  // 1. INITIALIZE MAP (STABLE INSTANCE - RUNS ONCE)
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Initialize Map centered on India with fixed zoom
+    // Initialize Map centered on India
     const map = L.map(mapContainerRef.current, {
       center: [20.5937, 78.9629],
       zoom: 5,
       zoomControl: false,
       minZoom: 4,
       maxZoom: 10,
-      // Restrict movement to Indian subcontinent
+      // Restrict movement strictly to Indian subcontinent
       maxBounds: [
         [6.0, 68.0],
         [37.0, 97.0]
       ],
       maxBoundsViscosity: 1.0,
-      // Keep map stable during re-renders
       bounceAtZoomLimits: true,
-      wheelDebounceTime: 100,
+      wheelDebounceTime: 150,
     });
 
     // Base Tile Layer
@@ -51,13 +51,12 @@ export default function MapComponent({ data, searchResult }: MapProps) {
       { opacity: 0.4 }
     ).addTo(map);
 
-    // Initialize Marker Layer Group for efficient clearing/rendering
+    // Initialize Marker Layer Group
     const markerLayerGroup = L.layerGroup().addTo(map);
     markerLayerGroupRef.current = markerLayerGroup;
 
     mapRef.current = map;
 
-    // Cleanup on unmount
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
@@ -66,11 +65,11 @@ export default function MapComponent({ data, searchResult }: MapProps) {
     };
   }, []);
 
-  // 2. RENDER MARKERS (NO AUTOMATIC ZOOM CHANGES)
+  // 2. RENDER MARKERS (STATIC CAMERA - RUNS ON DATA UPDATE)
   useEffect(() => {
     if (!mapRef.current || !markerLayerGroupRef.current) return;
     
-    // Clear previous markers
+    // Clear previous markers but DO NOT touch the map view (no setView/fitBounds)
     markerLayerGroupRef.current.clearLayers();
     markerRefsMap.current = {};
 
@@ -87,7 +86,6 @@ export default function MapComponent({ data, searchResult }: MapProps) {
       const rainfall = city.rainfall || 0;
       const progress = Math.min(100, (rainfall / 50) * 100);
 
-      // Custom high-precision teardrop pin (20px)
       const icon = L.divIcon({
         className: 'custom-pin-container',
         html: `
@@ -114,14 +112,12 @@ export default function MapComponent({ data, searchResult }: MapProps) {
               <div class="data-row"><span>💨 AQI</span> <b>${city.aqi} (${city.aqiLabel})</b></div>
               <div class="data-row"><span>🌡️ Temp</span> <b>${city.temp}°C</b></div>
             </div>
-
             <div class="progress-container">
               <div class="progress-bar-bg">
                 <div class="progress-bar-fill" style="width: ${progress}%; background: ${color}"></div>
               </div>
               <div class="progress-label">Threshold: 50mm</div>
             </div>
-
             <div class="recommendation" style="color: ${recColor}; background: ${recColor}10; padding: 6px; border-radius: 6px; border: 1px solid ${recColor}20;">
               ${recommendation}
             </div>
@@ -135,28 +131,36 @@ export default function MapComponent({ data, searchResult }: MapProps) {
       marker.addTo(markerLayerGroupRef.current!);
       markerRefsMap.current[city.name] = marker;
     });
-  }, [data]); // Only updates markers when data changes, does NOT move camera
+  }, [data]);
 
-  // 3. HANDLE SEARCH NAVIGATION (CONTROLLED ZOOM ON USER ACTION)
+  // 3. HANDLE SEARCH NAVIGATION (ONLY ZOOM ON USER ACTION)
   useEffect(() => {
     if (searchResult && mapRef.current) {
       const city = searchResult;
       
+      // Prevent double-navigation if the same result is passed during re-render
+      if (lastNavigatedCityRef.current === city.name) return;
+      lastNavigatedCityRef.current = city.name;
+
       // Smoothly navigate to selected city
       mapRef.current.flyTo([city.lat, city.lng], 10, {
         duration: 1.5,
         easeLinearity: 0.25
       });
       
-      // Auto-open popup after movement starts
-      setTimeout(() => {
+      // Auto-open popup after movement
+      const timer = setTimeout(() => {
         const marker = markerRefsMap.current[city.name];
         if (marker) {
           marker.openPopup();
         }
-      }, 1000);
+      }, 1600);
+
+      return () => clearTimeout(timer);
+    } else if (!searchResult) {
+      lastNavigatedCityRef.current = null;
     }
-  }, [searchResult]); // Fires ONLY when a city is selected from search
+  }, [searchResult]);
 
   return (
     <div className="w-full h-full relative">

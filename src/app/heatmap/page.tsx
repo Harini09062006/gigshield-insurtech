@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Loader2, Shield, Search, X, ArrowLeft, Home } from 'lucide-react';
@@ -87,8 +87,13 @@ export default function HeatmapPage() {
     setSearchQuery(city.name);
     setSuggestions([]);
     setSelectedCity(city);
-    // Reset selection after trigger to allow re-selection
-    setTimeout(() => setSelectedCity(null), 1000);
+    // Keep city selected to maintain the 'focused' state in the map
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSuggestions([]);
+    setSelectedCity(null);
   };
 
   const minsAgo = Math.floor((new Date().getTime() - lastUpdated.getTime()) / 60000);
@@ -125,7 +130,7 @@ export default function HeatmapPage() {
                 className="w-full bg-[#F8F9FF] border border-[#E8E6FF] rounded-full py-2 pl-10 pr-4 text-xs font-medium focus:outline-none focus:border-[#6C47FF] focus:ring-2 focus:ring-[#6C47FF]/10 transition-all"
               />
               {searchQuery && (
-                <button onClick={() => {setSearchQuery(""); setSuggestions([]);}} className="absolute right-3 top-1/2 -translate-y-1/2">
+                <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2">
                   <X className="h-3 w-3 text-[#64748B] hover:text-[#1A1A2E]" />
                 </button>
               )}
