@@ -1,256 +1,261 @@
 "use client";
 
-import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
-import { doc, collection, query, limit, where, addDoc, serverTimestamp, orderBy } from "firebase/firestore";
-import { Shield, Zap, AlertCircle, Brain, Home, FileText, LogOut, Loader2, MapPin, CheckCircle2, IndianRupee } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import React from "react";
+import { 
+  Shield, 
+  Home, 
+  FileText, 
+  Map as MapIcon, 
+  LogOut, 
+  Zap, 
+  Brain, 
+  AlertCircle, 
+  TrendingUp, 
+  ChevronRight, 
+  Calendar,
+  Clock,
+  ArrowRight
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import React, { useMemo, useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { getCityRainfall } from "@/services/weatherService";
-import { getUserLocation, gpsCheck } from "@/lib/gps";
-import { evaluateClaim } from "@/services/claimService";
-import { format } from "date-fns";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 
-/**
- * REVERTED WORKER DASHBOARD UI
- * Clean layout: Shield header, 3 Risk Cards, Claim History Table.
- */
 export default function WorkerDashboard() {
-  const { user, isUserLoading } = useUser();
-  const db = useFirestore();
-  const auth = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
-  
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [rainfall, setRainfall] = useState<number>(0);
-  const [currentLoc, setCurrentLoc] = useState<any>(null);
+  const hourlyChartData = [
+    { hour: '6am', earning: 40 }, { hour: '8am', earning: 45 }, { hour: '10am', earning: 55 },
+    { hour: '12pm', earning: 50 }, { hour: '2pm', earning: 52 }, { hour: '4pm', earning: 60 },
+    { hour: '6pm', earning: 85 }, { hour: '8pm', earning: 95 }, { hour: '10pm', earning: 65 },
+    { hour: '12am', earning: 45 }
+  ];
 
-  useEffect(() => {
-    setMounted(true);
-    console.log("[Dashboard] Initializing Dashboard. Auth Loading:", isUserLoading, "User UID:", user?.uid);
-    if (!isUserLoading && !user) {
-      console.log("[Dashboard] Unauthenticated access, redirecting...");
-      router.replace("/");
-    }
-  }, [user, isUserLoading, router]);
-
-  // Proactively get location for GPS validation
-  useEffect(() => {
-    if (mounted) {
-      console.log("[Dashboard] Capturing proactive location...");
-      getUserLocation()
-        .then(loc => {
-          console.log("[Dashboard] Location captured:", loc);
-          setCurrentLoc(loc);
-        })
-        .catch(err => console.warn("[Dashboard] Location capture skipped:", err.message));
-    }
-  }, [mounted]);
-
-  const profileRef = useMemoFirebase(() => {
-    if (!db || isUserLoading || !user) return null;
-    return doc(db, "users", user.uid);
-  }, [db, isUserLoading, user?.uid]);
-
-  const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
-
-  useEffect(() => {
-    if (!profile?.city) return;
-    const fetchWeather = async () => {
-      const mm = await getCityRainfall(profile.city);
-      setRainfall(mm);
-    };
-    fetchWeather();
-  }, [profile?.city]);
-
-  const riskInfo = useMemo(() => {
-    if (rainfall >= 50) return { percent: 95, label: "Severe Rainfall", badgeClass: "bg-red-100 text-red-600" };
-    if (rainfall >= 10) return { percent: 45, label: "Moderate Rain", badgeClass: "bg-blue-100 text-blue-600" };
-    return { percent: 20, label: "Clear Conditions", badgeClass: "bg-green-100 text-green-600" };
-  }, [rainfall]);
-
-  const claimsQuery = useMemoFirebase(() => {
-    if (!db || isUserLoading || !user?.uid) return null;
-    console.log("[Dashboard] Initiating Claims listener for UID:", user.uid);
-    return query(
-      collection(db, "claims"), 
-      where("worker_id", "==", user.uid), 
-      orderBy("created_at", "desc"),
-      limit(10)
-    );
-  }, [db, isUserLoading, user?.uid]);
-  
-  const { data: claims, isLoading: isClaimsLoading, error: claimsError } = useCollection(claimsQuery);
-
-  useEffect(() => {
-    if (claimsError) {
-      console.error("[Dashboard] Claims fetch error:", claimsError);
-    }
-  }, [claimsError]);
-
-  const simulateWeather = async () => {
-    if (!user?.uid || !profile || !db) return;
-    setIsSimulating(true);
-    try {
-      console.log("[Dashboard] Triggering weather simulation...");
-      // Refresh location if possible
-      const freshLoc = await getUserLocation().catch(() => currentLoc);
-      const workerAnchor = { lat: profile.lat, lng: profile.lng };
-      const verification = gpsCheck(workerAnchor, freshLoc || undefined);
-      
-      // Random trust score for prototype simulation
-      const randomTrust = Math.floor(Math.random() * 60) + 30; 
-      const evaluation = evaluateClaim(verification, randomTrust);
-
-      const baseRate = profile.avg_hourly_earnings || 60;
-      const compensation = Math.round(baseRate * 3.5);
-
-      await addDoc(collection(db, "claims"), {
-        userId: user.uid,
-        worker_id: user.uid,
-        claim_number: `GS-${Math.floor(100000 + Math.random() * 900000)}`,
-        trigger_type: "weather",
-        compensation,
-        status: evaluation.status,
-        decision: evaluation.decision,
-        reason: evaluation.reason,
-        trustScore: randomTrust,
-        gps_verification: verification,
-        location: freshLoc || null,
-        created_at: serverTimestamp()
-      });
-
-      toast({ title: evaluation.status === 'failed' ? "Simulation Blocked" : "Claim Logged", description: evaluation.reason });
-    } catch (e: any) {
-      console.error("[Dashboard] Simulation error:", e);
-      toast({ variant: "destructive", title: "Simulation Error", description: e.message });
-    } finally {
-      setIsSimulating(false);
-    }
-  };
-
-  if (isUserLoading || isProfileLoading || !mounted) {
-    return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
-  }
+  const weeklyChartData = [
+    { day: 'Mon', earning: 600 }, { day: 'Tue', earning: 550 }, { day: 'Wed', earning: 580 },
+    { day: 'Thu', earning: 620 }, { day: 'Fri', earning: 800 }, { day: 'Sat', earning: 1100 },
+    { day: 'Sun', earning: 950 }
+  ];
 
   return (
     <div className="min-h-screen bg-[#EEEEFF] flex flex-col font-body">
-      {/* Original Header */}
+      {/* 1. HEADER */}
       <header className="px-6 py-4 flex items-center justify-between border-b border-[#E8E6FF] bg-white sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn"><Shield className="h-6 w-6 text-white" /></div>
-          <span className="text-2xl font-headline font-bold text-[#1A1A2E]">GigShield</span>
+          <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
+            <Shield className="h-6 w-6 text-white" />
+          </div>
+          <span className="text-2xl font-headline font-bold text-[#1A1A2E]">
+            Gig<span className="text-[#6C47FF]">Shield</span>
+          </span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-[#6C47FF] bg-[#EDE9FF]"><Home className="h-6 w-6" /></Button>
-          <Link href="/claims"><Button variant="ghost" size="icon" className="text-[#64748B]"><FileText className="h-6 w-6" /></Button></Link>
-          <Button onClick={() => auth.signOut()} variant="ghost" size="icon" className="text-[#EF4444]"><LogOut className="h-6 w-6" /></Button>
+          <Button variant="ghost" size="icon" className="text-[#6C47FF] bg-[#EDE9FF]">
+            <Home className="h-6 w-6" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-[#64748B]">
+            <FileText className="h-6 w-6" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-[#64748B]">
+            <MapIcon className="h-6 w-6" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-[#EF4444]">
+            <LogOut className="h-6 w-6" />
+          </Button>
         </div>
       </header>
 
-      <main className="flex-1 space-y-8 p-6 lg:px-10 max-w-7xl mx-auto w-full">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-[#1A1A2E]">Welcome back, {profile?.name?.split(' ')[0]}</h1>
-            <p className="text-sm text-[#64748B] font-medium flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" /> Active Protection Policy
-            </p>
-          </div>
-          <Button onClick={simulateWeather} disabled={isSimulating} className="bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn rounded-xl h-11 px-6">
-            {isSimulating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Zap className="mr-2 h-4 w-4" />}
-            Simulate Weather Trigger
-          </Button>
-        </header>
-
-        {/* 3 Risk Cards */}
+      <main className="flex-1 space-y-8 p-6 lg:p-10 max-w-7xl mx-auto w-full">
+        {/* 2. TOP 3 CARDS */}
         <div className="grid gap-6 md:grid-cols-3">
-          <Card className="bg-[#6C47FF] text-white border-none shadow-btn rounded-[20px] p-6">
-            <p className="text-[10px] font-bold uppercase opacity-80">Security Status</p>
-            <h3 className="text-2xl font-bold mb-4 uppercase">{profile?.plan_id || 'PRO'} SHIELD</h3>
-            <div className="bg-white/10 p-3 rounded-xl">
-              <p className="text-[9px] uppercase opacity-60">Base Coordinates</p>
-              <p className="text-xs font-bold font-mono">{profile?.lat?.toFixed(3)}, {profile?.lng?.toFixed(3)}</p>
+          {/* Card 1: Purple Gradient */}
+          <Card className="bg-gradient-to-br from-[#6C47FF] to-[#8B66FF] text-white border-none shadow-btn rounded-[20px] p-6 overflow-hidden relative">
+            <div className="relative z-10">
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-80">Active Protection</p>
+              <h3 className="text-2xl font-bold mb-4">PRO SHIELD</h3>
+              <div className="grid grid-cols-2 gap-4 mt-6">
+                <div className="bg-white/10 p-3 rounded-xl backdrop-blur-sm border border-white/10">
+                  <p className="text-[9px] uppercase opacity-60 font-bold mb-1">Max Payout</p>
+                  <p className="text-lg font-bold">₹240</p>
+                </div>
+                <div className="bg-white/10 p-3 rounded-xl backdrop-blur-sm border border-white/10">
+                  <p className="text-[9px] uppercase opacity-60 font-bold mb-1">Premium</p>
+                  <p className="text-lg font-bold">₹25</p>
+                </div>
+              </div>
             </div>
+            <Shield className="absolute -right-4 -bottom-4 h-32 w-32 opacity-10 rotate-12" />
           </Card>
           
+          {/* Card 2: White AI Risk */}
           <Card className="bg-white border-[#E8E6FF] shadow-card rounded-[20px] p-6">
             <div className="flex justify-between items-start mb-4">
               <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">AI Risk Prediction</p>
               <Brain className="h-5 w-5 text-[#6C47FF]" />
             </div>
             <div className="flex justify-between items-end mb-4">
-              <div className="text-3xl font-bold text-[#1A1A2E]">{rainfall.toFixed(1)}mm</div>
-              <Badge className={`${riskInfo.badgeClass} border-none font-bold`}>{riskInfo.label}</Badge>
+              <div className="text-4xl font-bold text-[#1A1A2E]">12mm</div>
+              <Badge className="bg-[#EDE9FF] text-[#6C47FF] border-none font-bold px-3 py-1">Light Rain</Badge>
             </div>
-            <Progress value={riskInfo.percent} className="h-1.5 bg-[#EEEEFF]" />
+            <div className="space-y-2">
+              <div className="flex justify-between text-[10px] font-bold text-[#64748B]">
+                <span>Disruption Probability</span>
+                <span>35%</span>
+              </div>
+              <Progress value={35} className="h-2 bg-[#F1F0FF]" />
+            </div>
           </Card>
 
-          <Card className="bg-[#FFFBEA] border-[#FEF3C7] shadow-card rounded-[20px] p-6">
+          {/* Card 3: Light Yellow Commitment */}
+          <Card className="bg-[#FFFBEA] border-[#FEF3C7] shadow-card rounded-[20px] p-6 relative overflow-hidden">
             <div className="flex justify-between items-start mb-4">
-              <p className="text-[10px] font-bold text-[#F59E0B] uppercase tracking-wider">Fraud Protection</p>
-              <CheckCircle2 className="h-5 w-5 text-[#22C55E]" />
+              <p className="text-[10px] font-bold text-[#F59E0B] uppercase tracking-wider">Commitment Status</p>
+              <Zap className="h-5 w-5 text-[#F59E0B]" />
             </div>
-            <div className="text-xl font-bold text-[#1A1A2E]">GPS Verification</div>
-            <p className="text-[10px] text-[#64748B] mt-2 italic">Validation active for all parametric triggers.</p>
+            <div className="space-y-4">
+              <div>
+                <div className="text-2xl font-bold text-[#1A1A2E]">Week 1 of 4</div>
+                <p className="text-[10px] text-[#64748B] mt-1">Automatic Renewal <span className="text-[#22C55E] font-bold">ON</span></p>
+              </div>
+              <div className="flex gap-1.5 pt-2">
+                {[1, 2, 3, 4].map((w) => (
+                  <div key={w} className={`h-1.5 flex-1 rounded-full ${w === 1 ? 'bg-[#F59E0B]' : 'bg-[#FDE68A]'}`} />
+                ))}
+              </div>
+            </div>
           </Card>
         </div>
 
-        {/* Claim History Table */}
-        <section className="space-y-4">
-          <h2 className="text-lg font-bold text-[#1A1A2E]">My Claim History</h2>
-          <div className="bg-white rounded-2xl border border-[#E8E6FF] overflow-hidden shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-[#F8F9FF] border-b border-[#E8E6FF]">
-                <tr className="text-[10px] font-black text-[#94A3B8] uppercase">
-                  <th className="p-4">Claim ID</th>
-                  <th className="p-4">Payout</th>
-                  <th className="p-4">GPS Result</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4">Decision Reason</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E8E6FF]">
-                {isClaimsLoading ? (
-                  <tr><td colSpan={5} className="p-10 text-center"><Loader2 className="animate-spin h-6 w-6 inline text-[#6C47FF]" /></td></tr>
-                ) : claims?.map(c => (
-                  <tr key={c.id}>
-                    <td className="p-4 font-mono text-[10px]">#{c.claim_number}</td>
-                    <td className="p-4 font-bold text-[#1A1A2E]">₹{c.compensation}</td>
-                    <td className="p-4">
-                      <Badge variant="outline" className={c.gps_verification === 'PASSED' ? 'text-[#22C55E] border-[#22C55E]' : 'text-[#EF4444] border-[#EF4444]'}>
-                        {c.gps_verification || 'N/A'}
-                      </Badge>
-                    </td>
-                    <td className="p-4">
-                      <Badge className={`capitalize font-bold border-none ${
-                        c.status === 'approved' ? 'bg-[#DCFCE7] text-[#22C55E]' :
-                        c.status === 'review' ? 'bg-[#FEF3C7] text-[#F59E0B]' :
-                        'bg-[#FEE2E2] text-[#EF4444]'
-                      }`}>
-                        {c.status || 'pending'}
-                      </Badge>
-                    </td>
-                    <td className="p-4 text-[10px] text-[#64748B] max-w-[250px] truncate">{c.reason}</td>
-                  </tr>
-                ))}
-                {(!isClaimsLoading && (!claims || claims.length === 0)) && (
-                  <tr>
-                    <td colSpan={5} className="p-10 text-center text-[#94A3B8] italic">No claims processed yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        {/* 3. POLICY MANAGEMENT ROW */}
+        <section className="grid gap-4 grid-cols-2 md:grid-cols-4">
+          {[
+            { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
+            { label: "Next Renewal", value: "25 Mar", icon: Clock },
+            { label: "Renewal Amount", value: "₹25", icon: TrendingUp },
+            { label: "Commitment", value: "Week 1/4", icon: Shield }
+          ].map((stat, i) => (
+            <Card key={i} className="bg-white border-[#E8E6FF] shadow-sm p-4 rounded-2xl flex flex-col gap-1">
+              <div className="flex items-center gap-2 mb-1">
+                <stat.icon size={12} className="text-[#6C47FF]" />
+                <p className="text-[9px] text-[#94A3B8] uppercase font-bold tracking-tight">{stat.label}</p>
+              </div>
+              <p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p>
+            </Card>
+          ))}
+        </section>
+
+        {/* 4. EARNINGS PROTECTION SUMMARY */}
+        <Card className="bg-[#F8F9FF] border border-[#E8E6FF] shadow-card rounded-[24px] overflow-hidden">
+          <CardHeader className="bg-white border-b border-[#E8E6FF] px-8 py-5">
+            <CardTitle className="text-lg font-headline font-bold text-[#1A1A2E]">Earnings Protection Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="p-8 space-y-8">
+            <div className="grid gap-8 md:grid-cols-3">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
+                <p className="text-3xl font-bold text-[#EF4444]">₹468</p>
+                <p className="text-[10px] text-[#94A3B8]">Based on Evening DNA rate (6 hrs)</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
+                <p className="text-3xl font-bold text-[#22C55E]">₹240</p>
+                <p className="text-[10px] text-[#94A3B8]">Capped by PRO Shield plan limit</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
+                <p className="text-3xl font-bold text-[#EF4444]">₹228</p>
+                <p className="text-[10px] text-[#94A3B8]">Uncovered amount during event</p>
+              </div>
+            </div>
+            
+            <div className="bg-[#FFFBEA] border border-[#FEF3C7] p-4 rounded-2xl flex items-center gap-4">
+              <div className="h-10 w-10 bg-[#FEF3C7] rounded-full flex items-center justify-center shrink-0">
+                <AlertCircle className="text-[#F59E0B] h-5 w-5" />
+              </div>
+              <p className="text-xs font-medium text-[#D97706] leading-relaxed">
+                <span className="font-bold">Pro Tip:</span> Consider upgrading to <span className="font-bold">Elite Shield</span> to cover your evening peak income completely during heavy monsoons.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 5. INCOME DNA PROFILE */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-headline font-bold text-[#1A1A2E]">Income DNA Profile</h2>
+              <Badge className="bg-[#6C47FF] text-white border-none text-[10px] font-bold uppercase py-0.5 px-3">Live Analysis</Badge>
+            </div>
+            <p className="text-[10px] text-[#94A3B8] font-mono font-bold uppercase tracking-widest">Refreshed 2m ago</p>
+          </div>
+
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+            {[
+              { label: "Morning (6-10 AM)", rate: "₹45/hr", icon: "🌅", progress: 45 },
+              { label: "Afternoon (12-4 PM)", rate: "₹57/hr", icon: "☀", progress: 57 },
+              { label: "Evening (5-9 PM)", rate: "₹78/hr", icon: "🌆", progress: 78 },
+              { label: "Night (9 PM-12 AM)", rate: "₹51/hr", icon: "🌙", progress: 51 }
+            ].map((slot, i) => (
+              <Card key={i} className="bg-white border-[#E8E6FF] shadow-sm p-5 rounded-2xl">
+                <div className="text-2xl mb-3">{slot.icon}</div>
+                <p className="text-[10px] font-bold text-[#94A3B8] uppercase mb-1">{slot.label}</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">{slot.rate}</p>
+                <div className="h-1 w-full bg-[#F1F0FF] rounded-full mt-4 overflow-hidden">
+                  <div className="h-full bg-[#6C47FF]" style={{ width: `${slot.progress}%` }} />
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="bg-white border-[#E8E6FF] shadow-card rounded-[24px] p-6">
+              <CardTitle className="text-sm font-bold text-[#1A1A2E] mb-6 uppercase tracking-wider flex items-center gap-2">
+                <Clock size={16} className="text-[#6C47FF]" /> Peak Earning Hours
+              </CardTitle>
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={hourlyChartData}>
+                    <defs>
+                      <linearGradient id="colorEarning" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94A3B8', fontWeight: 700 }} />
+                    <YAxis hide />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '10px' }} />
+                    <Area type="monotone" dataKey="earning" stroke="#6C47FF" strokeWidth={3} fillOpacity={1} fill="url(#colorEarning)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            <Card className="bg-white border-[#E8E6FF] shadow-card rounded-[24px] p-6">
+              <CardTitle className="text-sm font-bold text-[#1A1A2E] mb-6 uppercase tracking-wider flex items-center gap-2">
+                <TrendingUp size={16} className="text-[#6C47FF]" /> Best Working Days
+              </CardTitle>
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weeklyChartData}>
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#1A1A2E', fontWeight: 800 }} />
+                    <YAxis hide />
+                    <Tooltip cursor={{ fill: '#F8F9FF' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '10px' }} />
+                    <Bar dataKey="earning" radius={[6, 6, 0, 0]}>
+                      {weeklyChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={index > 4 ? '#F59E0B' : '#6C47FF'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
           </div>
         </section>
       </main>
+
+      <footer className="px-8 py-6 text-center text-[#94A3B8] text-[10px] font-bold uppercase tracking-widest bg-white border-t border-[#E8E6FF]">
+        © 2026 GigShield Protection • System ID: GS-0042
+      </footer>
     </div>
   );
 }
