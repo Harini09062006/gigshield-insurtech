@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -151,102 +152,102 @@ export default function WorkerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#EEEEFF] font-body text-[#1A1A2E] pb-20">
+    <div className="min-h-screen bg-[#EEEEFF] font-body text-[#1A1A2E] pb-12">
       
       {/* 1. TOP NAVBAR */}
-      <header className="bg-white px-8 py-4 flex items-center justify-between border-b border-[#E8E6FF] sticky top-0 z-50">
+      <header className="bg-white px-6 py-3 flex items-center justify-between border-b border-[#E8E6FF] sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="h-9 w-9 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
-            <Shield className="h-5 w-5 text-white" />
+          <div className="h-8 w-8 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
+            <Shield className="h-4.5 w-4.5 text-white" />
           </div>
-          <span className="text-2xl font-headline font-bold">
+          <span className="text-xl font-headline font-bold">
             Gig<span className="text-[#6C47FF]">Shield</span>
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-10 w-10 bg-[#f0f2f9] text-[#6C47FF] rounded-xl"><Home className="h-5 w-5" /></Button>
-          <Link href="/claims"><Button variant="ghost" size="icon" className="h-10 w-10 text-[#64748B] rounded-xl"><FileText className="h-5 w-5" /></Button></Link>
-          <Link href="/heatmap"><Button variant="ghost" size="icon" className="h-10 w-10 text-[#64748B] rounded-xl"><MapIcon className="h-5 w-5" /></Button></Link>
-          <Button onClick={() => auth.signOut()} variant="ghost" size="icon" className="h-10 w-10 text-[#EF4444] rounded-xl"><LogOut className="h-5 w-5" /></Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-9 w-9 bg-[#f0f2f9] text-[#6C47FF] rounded-xl"><Home className="h-4.5 w-4.5" /></Button>
+          <Link href="/claims"><Button variant="ghost" size="icon" className="h-9 w-9 text-[#64748B] rounded-xl"><FileText className="h-4.5 w-4.5" /></Button></Link>
+          <Link href="/heatmap"><Button variant="ghost" size="icon" className="h-9 w-9 text-[#64748B] rounded-xl"><MapIcon className="h-4.5 w-4.5" /></Button></Link>
+          <Button onClick={() => auth.signOut()} variant="ghost" size="icon" className="h-9 w-9 text-[#EF4444] rounded-xl"><LogOut className="h-4.5 w-4.5" /></Button>
         </div>
       </header>
 
-      <main className="p-8 max-w-7xl mx-auto space-y-10">
+      <main className="p-6 max-w-7xl mx-auto space-y-6">
         
         {/* 2. GREETING & STATUS */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-[#1A1A2E]">Welcome, {profile?.name || "User"}</h1>
-            <div className="flex items-center gap-2 mt-1">
+            <h1 className="text-xl font-bold text-[#1A1A2E]">Welcome, {profile?.name || "User"}</h1>
+            <div className="flex items-center gap-2 mt-0.5">
               <div className="h-2 w-2 rounded-full bg-[#22C55E]" />
-              <p className="text-sm text-[#64748B] font-medium">Active on {profile?.platform || 'Zomato'} in {profile?.city || 'Mumbai'}</p>
+              <p className="text-xs text-[#64748B] font-medium">Active on {profile?.platform || 'Zomato'} in {profile?.city || 'Mumbai'}</p>
             </div>
           </div>
           <Button 
             onClick={simulateWeather}
-            className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold rounded-xl shadow-btn h-12 px-6"
+            className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold rounded-xl shadow-btn h-10 px-5 text-sm"
           >
-            <Zap className="mr-2 h-4 w-4 fill-current" /> Simulate Severe Weather
+            <Zap className="mr-2 h-3.5 w-3.5 fill-current" /> Simulate Severe Weather
           </Button>
         </div>
 
         {/* 3. PRIMARY INSIGHT GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Card 1 - Active Protection */}
-          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-8 flex flex-col justify-between shadow-xl relative overflow-hidden h-[240px]">
-            <Shield className="absolute top-8 right-8 h-8 w-8 opacity-40" />
+          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-6 flex flex-col justify-between shadow-xl relative overflow-hidden min-h-[200px]">
+            <Shield className="absolute top-6 right-6 h-7 w-7 opacity-40" />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-2">Active Protection</p>
-              <h2 className="text-3xl font-black uppercase">{profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "PRO SHIELD"}</h2>
+              <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Active Protection</p>
+              <h2 className="text-2xl font-black uppercase">{profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "PRO SHIELD"}</h2>
             </div>
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="bg-black/20 p-4 rounded-2xl border border-white/10">
-                <p className="text-[9px] font-bold uppercase opacity-60 mb-1">Max Payout</p>
-                <p className="text-lg font-black">₹{profile?.max_payout || 240}</p>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
+                <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Max Payout</p>
+                <p className="text-base font-black">₹{profile?.max_payout || 240}</p>
               </div>
-              <div className="bg-black/20 p-4 rounded-2xl border border-white/10">
-                <p className="text-[9px] font-bold uppercase opacity-60 mb-1">Premium</p>
-                <p className="text-lg font-black">₹{profile?.premium || 25}</p>
+              <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
+                <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
+                <p className="text-base font-black">₹{profile?.premium || 25}</p>
               </div>
             </div>
           </Card>
 
           {/* Card 2 - AI Risk Prediction */}
-          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-8 flex flex-col justify-between shadow-sm relative h-[240px]">
-            <Brain className="absolute top-8 right-8 h-6 w-6 text-[#6C47FF]" />
+          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
+            <Brain className="absolute top-6 right-6 h-5 w-5 text-[#6C47FF]" />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#94A3B8] mb-2">AI Risk Prediction</p>
-              <div className="flex items-center gap-4 mt-2">
-                <h2 className="text-5xl font-black text-[#1A1A2E]">{weather.rainMM}mm</h2>
-                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-1 px-3 rounded-lg text-xs">{weather.condition}</Badge>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8] mb-1">AI Risk Prediction</p>
+              <div className="flex items-center gap-3 mt-1">
+                <h2 className="text-3xl font-black text-[#1A1A2E]">{weather.rainMM}mm</h2>
+                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[10px]">{weather.condition}</Badge>
               </div>
             </div>
-            <div className="mt-6 space-y-3">
-              <div className="flex justify-between items-center text-[11px] font-bold">
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between items-center text-[10px] font-bold">
                 <span className="text-[#64748B]">Disruption Risk</span>
                 <span className="text-[#1A1A2E]">{weather.risk}%</span>
               </div>
-              <Progress value={weather.risk} className="h-2.5 bg-[#f0f2f9]" />
+              <Progress value={weather.risk} className="h-2 bg-[#f0f2f9]" />
             </div>
           </Card>
 
           {/* Card 3 - Commitment Status */}
-          <Card className="bg-[#FEFCE8] rounded-[24px] border border-[#FEF08A] p-8 flex flex-col justify-between shadow-sm relative h-[240px]">
-            <RefreshCcw className="absolute top-8 right-8 h-6 w-6 text-[#F59E0B]" />
+          <Card className="bg-[#FEFCE8] rounded-[24px] border border-[#FEF08A] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
+            <RefreshCcw className="absolute top-6 right-6 h-5 w-5 text-[#F59E0B]" />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#F59E0B] mb-2">Commitment Status</p>
-              <div className="flex items-center gap-4 mt-2">
-                <h2 className="text-3xl font-black text-[#1A1A2E]">Week 1 of 4</h2>
-                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-1 px-3 rounded-lg text-[10px]">Renewal ON</Badge>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[#F59E0B] mb-1">Commitment Status</p>
+              <div className="flex items-center gap-3 mt-1">
+                <h2 className="text-2xl font-black text-[#1A1A2E]">Week 1 of 4</h2>
+                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[9px]">Renewal ON</Badge>
               </div>
-              <p className="text-xs font-bold text-[#64748B] italic mt-4">Next Renewal: 25 Mar</p>
+              <p className="text-[11px] font-bold text-[#64748B] italic mt-3">Next Renewal: 25 Mar</p>
             </div>
           </Card>
         </div>
 
         {/* 4. POLICY STATUS SECTION - CONSOLIDATED NEAT BOX */}
-        <section className="space-y-4">
-          <h3 className="text-lg font-bold text-[#1A1A2E] px-2">Policy Status</h3>
+        <section className="space-y-3">
+          <h3 className="text-base font-bold text-[#1A1A2E] px-1">Policy Status</h3>
           <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden">
             <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#E8E6FF]">
               {[
@@ -255,12 +256,12 @@ export default function WorkerDashboard() {
                 { label: "Renewal Amount", value: "₹25", icon: IndianRupee },
                 { label: "Commitment", value: "Week 1/4", icon: Info },
               ].map((stat, i) => (
-                <div key={i} className="p-6 flex items-center gap-4">
-                  <div className="h-12 w-12 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0">
-                    <stat.icon className="h-5 w-5" />
+                <div key={i} className="p-5 flex items-center gap-3">
+                  <div className="h-10 w-10 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0">
+                    <stat.icon className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p>
                     <p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p>
                   </div>
                 </div>
@@ -270,72 +271,72 @@ export default function WorkerDashboard() {
         </section>
 
         {/* 5. EARNINGS PROTECTION SUMMARY */}
-        <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-8 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-center mb-10">
-            <h3 className="text-xl font-bold text-[#1A1A2E]">Earnings Protection Summary</h3>
-            <Badge className="bg-[#6C47FF] text-white hover:bg-[#6C47FF] border-none font-bold py-1.5 px-4 rounded-full text-[11px]">
+        <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-[#1A1A2E]">Earnings Protection Summary</h3>
+            <Badge className="bg-[#6C47FF] text-white hover:bg-[#6C47FF] border-none font-bold py-1 px-3 rounded-full text-[10px]">
               DNA Rate: ₹{dna?.evening_rate || 78}/hr (Evening Peak)
             </Badge>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#64748B]">Potential Income Loss</p>
-              <p className="text-4xl font-black text-[#EF4444]">₹{calc.potentialLoss}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-0.5">
+              <p className="text-[9px] font-black uppercase tracking-widest text-[#64748B]">Potential Income Loss</p>
+              <p className="text-3xl font-black text-[#EF4444]">₹{calc.potentialLoss}</p>
             </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#64748B]">Insurance Coverage</p>
-              <p className="text-4xl font-black text-[#22C55E]">₹{calc.coverage}</p>
+            <div className="space-y-0.5">
+              <p className="text-[9px] font-black uppercase tracking-widest text-[#64748B]">Insurance Coverage</p>
+              <p className="text-3xl font-black text-[#22C55E]">₹{calc.coverage}</p>
             </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#64748B]">Remaining Risk</p>
-              <p className="text-4xl font-black text-[#EF4444]">₹{calc.remaining}</p>
+            <div className="space-y-0.5">
+              <p className="text-[9px] font-black uppercase tracking-widest text-[#64748B]">Remaining Risk</p>
+              <p className="text-3xl font-black text-[#EF4444]">₹{calc.remaining}</p>
             </div>
           </div>
         </Card>
 
         {/* 6. INCOME DNA PROFILE (Pixel-Perfect Structure) */}
-        <section className="space-y-6 pt-4">
-          <div className="flex justify-between items-center px-2">
-            <h2 className="text-2xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
-            <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest">Updated 17:25</p>
+        <section className="space-y-4 pt-2">
+          <div className="flex justify-between items-center px-1">
+            <h2 className="text-xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
+            <p className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest">Updated 17:25</p>
           </div>
 
           {/* DNA Grid - Horizontal Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { title: "MORNING", range: "6-10 AM", rate: 45, mult: "0.75x multiplier", color: "#F59E0B", icon: Sunrise },
               { title: "AFTERNOON", range: "12-4 PM", rate: 57, mult: "0.95x multiplier", color: "#EAB308", icon: Sun },
               { title: "EVENING", range: "5-9 PM", rate: 78, mult: "1.30x multiplier", color: "#6C47FF", icon: Sunset, peak: true },
               { title: "NIGHT", range: "9 PM-12 AM", rate: 51, mult: "0.85x multiplier", color: "#3B82F6", icon: Moon },
             ].map((slot, i) => (
-              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-2 h-[130px]">
+              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-5 relative overflow-hidden flex flex-col gap-1.5 h-auto">
                 <div className="flex items-center gap-2">
                   <div className="p-1 bg-gray-50 rounded-lg">
-                    <slot.icon size={14} className="text-gray-400" />
+                    <slot.icon size={12} className="text-gray-400" />
                   </div>
-                  <p className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{slot.title}</p>
+                  <p className="text-[9px] font-bold text-gray-400 tracking-wider uppercase">{slot.title}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-gray-400 mb-0.5">{slot.range}</p>
+                  <p className="text-[9px] text-gray-400 mb-0.5">{slot.range}</p>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-[#1A1A2E]">₹{slot.rate}</span>
-                    <span className="text-sm font-bold text-[#1A1A2E]">/hr</span>
+                    <span className="text-xl font-bold text-[#1A1A2E]">₹{slot.rate}</span>
+                    <span className="text-xs font-bold text-[#1A1A2E]">/hr</span>
                   </div>
                 </div>
-                <p className="text-[10px] font-bold text-[#6C47FF]">{slot.mult} {slot.peak && "← PEAK"}</p>
+                <p className="text-[9px] font-bold text-[#6C47FF]">{slot.mult} {slot.peak && "← PEAK"}</p>
                 {/* Visual indicator line at bottom */}
                 <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: slot.color }} />
               </Card>
             ))}
           </div>
 
-          {/* Hero Section - Side by Side (Swapped: Chart Left, Earnings Right) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Hero Section - Swapped: Chart Left, Earnings Right */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* LEFT: Peak Earning Hours Graph (2 Columns) */}
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 h-[360px] lg:col-span-2">
-              <h3 className="text-sm font-bold text-[#1A1A2E] mb-6">Peak Earning Hours (24-Hour Profile)</h3>
-              <div className="h-[200px] w-full">
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 h-[300px] lg:col-span-2">
+              <h3 className="text-xs font-bold text-[#1A1A2E] mb-4">Peak Earning Hours (24-Hour Profile)</h3>
+              <div className="h-[180px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
@@ -353,12 +354,12 @@ export default function WorkerDashboard() {
                       dataKey="time" 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fontSize: 9, fill: '#94A3B8', fontWeight: 600 }}
-                      padding={{ left: 20, right: 20 }}
+                      tick={{ fontSize: 8, fill: '#94A3B8', fontWeight: 600 }}
+                      padding={{ left: 10, right: 10 }}
                     />
                     <YAxis hide />
                     <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '10px' }} 
+                      contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '9px' }} 
                     />
                     <Area 
                       type="monotone" 
@@ -389,38 +390,38 @@ export default function WorkerDashboard() {
               </div>
               
               {/* Chart Legend */}
-              <div className="mt-6 flex justify-center gap-8">
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#6C47FF]" />
-                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">EVENING PEAK</span>
+              <div className="mt-4 flex justify-center gap-6">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-1 w-1 rounded-full bg-[#6C47FF]" />
+                  <span className="text-[8px] font-bold text-[#94A3B8] uppercase">EVENING PEAK</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#F59E0B]" />
-                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">LUNCH PEAK</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-1 w-1 rounded-full bg-[#F59E0B]" />
+                  <span className="text-[8px] font-bold text-[#94A3B8] uppercase">LUNCH PEAK</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-3 rounded-full border-t border-dashed border-[#94A3B8]" />
-                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">ACTIVE HOURS</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-0.5 w-2 rounded-full border-t border-dashed border-[#94A3B8]" />
+                  <span className="text-[8px] font-bold text-[#94A3B8] uppercase">ACTIVE HOURS</span>
                 </div>
               </div>
             </Card>
 
             {/* RIGHT: Expected Weekly Earnings (1 Column) */}
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 flex flex-col justify-between h-[360px]">
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
-                <div className="text-6xl font-bold text-[#6C47FF]">₹3360</div>
-                <p className="text-xs text-gray-400 leading-relaxed mt-4">
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 flex flex-col justify-between h-[300px]">
+              <div className="space-y-1.5">
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
+                <div className="text-4xl font-bold text-[#6C47FF]">₹3360</div>
+                <p className="text-[11px] text-gray-400 leading-relaxed mt-2">
                   Derived from your Income DNA earning pattern across 40 projected working hours.
                 </p>
               </div>
               
-              <div className="mt-6 pt-6 border-t border-gray-100 flex items-center justify-between">
+              <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
                 <div>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-1">RECOMMENDED PLAN</p>
-                  <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
+                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mb-0.5">RECOMMENDED PLAN</p>
+                  <p className="text-lg font-bold text-[#F59E0B]">Pro Shield</p>
                 </div>
-                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#F1F0FF] rounded-xl px-6 h-11 transition-all text-sm">
+                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#F1F0FF] rounded-xl px-4 h-9 transition-all text-xs">
                   Upgrade Plan
                 </Button>
               </div>
@@ -434,9 +435,9 @@ export default function WorkerDashboard() {
       {/* Floating Action Button */}
       <Button 
         onClick={() => setChatOpen(true)}
-        className="fixed bottom-10 right-10 h-16 w-16 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"
+        className="fixed bottom-8 right-8 h-14 w-14 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"
       >
-        <Brain className="h-8 w-8" />
+        <Brain className="h-7 w-7" />
       </Button>
 
       {/* Conditionally rendered AIAssistant */}
