@@ -21,7 +21,7 @@ const STATES_CITIES = {
   "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane"],
   "Karnataka": ["Bangalore", "Mysore", "Hubli"],
   "Delhi": ["New Delhi", "North Delhi", "South Delhi"],
-  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai"],
+  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Srivilliputtur"],
   "West Bengal": ["Kolkata", "Howrah"]
 };
 

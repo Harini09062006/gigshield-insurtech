@@ -37,6 +37,7 @@ export const CITIES_LIST = [
   { name: "Chennai", state: "Tamil Nadu", lat: 13.0827, lng: 80.2707 },
   { name: "Coimbatore", state: "Tamil Nadu", lat: 11.0168, lng: 76.9558 },
   { name: "Madurai", state: "Tamil Nadu", lat: 9.9252, lng: 78.1198 },
+  { name: "Srivilliputtur", state: "Tamil Nadu", lat: 9.5094, lng: 77.6323 },
   // Karnataka
   { name: "Bengaluru", state: "Karnataka", lat: 12.9716, lng: 77.5946 },
   { name: "Mysuru", state: "Karnataka", lat: 12.2958, lng: 76.6394 },

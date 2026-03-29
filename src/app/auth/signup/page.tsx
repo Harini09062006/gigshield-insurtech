@@ -20,7 +20,7 @@ const CITIES: Record<string, string[]> = {
   "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane"],
   "Karnataka": ["Bangalore", "Mysore", "Hubli"],
   "Delhi": ["New Delhi", "North Delhi", "South Delhi"],
-  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai"]
+  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Srivilliputtur"]
 };
 
 export default function SignupPage() {
@@ -136,8 +136,7 @@ export default function SignupPage() {
                     <SelectContent>
                       {STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
-                  </Select>
-                </div>
+                  </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Navigation className="h-4 w-4 text-primary" /> City
