@@ -72,7 +72,7 @@ export default function AdminNewPage() {
     totalWorkers: realUsers?.length || 0,
     riskEvents: realClaims?.filter(c => c.status === 'failed').length || 0,
     pendingClaims: realClaims?.filter(c => c.status === 'review' || c.status === 'pending' || !c.status).length || 0,
-    totalPayouts: realClaims?.filter(c => c.status === 'approved').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0
+    totalPayouts: realClaims?.filter(c => c.status === 'approved' || c.status === 'paid').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0
   }), [realUsers, realClaims]);
 
   // Group messages for sidebar

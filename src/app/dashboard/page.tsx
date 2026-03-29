@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
-import { doc, collection, query, limit, where, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, collection, query, limit, where, addDoc, serverTimestamp, orderBy } from "firebase/firestore";
 import { Shield, Zap, AlertCircle, Brain, Home, FileText, LogOut, Loader2, MapPin, CheckCircle2, IndianRupee } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import React, { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { getCityRainfall } from "@/services/weatherService";
-import { getUserLocation, gpsCheck } from "@/services/locationService";
+import { getUserLocation, gpsCheck } from "@/lib/gps";
 import { evaluateClaim } from "@/services/claimService";
 import { format } from "date-fns";
 
@@ -31,11 +31,21 @@ export default function WorkerDashboard() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [rainfall, setRainfall] = useState<number>(0);
+  const [currentLoc, setCurrentLoc] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
     if (!isUserLoading && !user) router.replace("/");
   }, [user, isUserLoading, router]);
+
+  // Proactively get location for GPS validation
+  useEffect(() => {
+    if (mounted) {
+      getUserLocation()
+        .then(loc => setCurrentLoc(loc))
+        .catch(err => console.warn("Location capture failed:", err.message));
+    }
+  }, [mounted]);
 
   const profileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
@@ -57,7 +67,12 @@ export default function WorkerDashboard() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
-    return query(collection(db, "claims"), where("worker_id", "==", user.uid), limit(10));
+    return query(
+      collection(db, "claims"), 
+      where("worker_id", "==", user.uid), 
+      orderBy("created_at", "desc"),
+      limit(10)
+    );
   }, [db, user?.uid]);
   
   const { data: claims } = useCollection(claimsQuery);
@@ -66,9 +81,10 @@ export default function WorkerDashboard() {
     if (!user?.uid || !profile || !db) return;
     setIsSimulating(true);
     try {
-      const currentLoc = await getUserLocation().catch(() => null);
+      // Refresh location if possible
+      const freshLoc = await getUserLocation().catch(() => currentLoc);
       const workerAnchor = { lat: profile.lat, lng: profile.lng };
-      const verification = gpsCheck(workerAnchor, currentLoc || undefined);
+      const verification = gpsCheck(workerAnchor, freshLoc || undefined);
       
       // Random trust score for prototype simulation
       const randomTrust = Math.floor(Math.random() * 60) + 30; 
@@ -88,7 +104,7 @@ export default function WorkerDashboard() {
         reason: evaluation.reason,
         trustScore: randomTrust,
         gps_verification: verification,
-        location: currentLoc,
+        location: freshLoc || null,
         created_at: serverTimestamp()
       });
 
@@ -187,7 +203,7 @@ export default function WorkerDashboard() {
                     <td className="p-4 font-bold text-[#1A1A2E]">₹{c.compensation}</td>
                     <td className="p-4">
                       <Badge variant="outline" className={c.gps_verification === 'PASSED' ? 'text-[#22C55E] border-[#22C55E]' : 'text-[#EF4444] border-[#EF4444]'}>
-                        {c.gps_verification}
+                        {c.gps_verification || 'N/A'}
                       </Badge>
                     </td>
                     <td className="p-4">
