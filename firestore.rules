@@ -2,9 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Allow public read and write access to all primary collections for the prototype.
-    // This ensures that the No-Auth admin dashboard and worker components 
-    // can sync data without permission errors during development.
+    // 🔥 PROTOTYPE ACCESS CONTROL
+    // These rules are optimized for rapid prototyping and the "No-Auth" admin requirement.
+    // They allow any user (authenticated or not) to read and write to the primary collections.
     
     match /users/{userId} {
       allow read, write: if true;
@@ -34,9 +34,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Default rule for any other potential collections
+    // Default catch-all for potential subcollections or newly added paths
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
+    
+    // Rules deployment trigger timestamp: 2024-05-24T10:30:00Z
   }
 }
