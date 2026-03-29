@@ -212,8 +212,12 @@ export default function WorkerOverview() {
           <div className="grid gap-4 md:grid-cols-4">
             {[
               { label: "Total Claims", value: claims?.length || "0", color: "text-heading" },
-              { label: "Total Payout", value: `₹${claims?.reduce((sum, c) => sum + (c.compensation || 0), 0) || 0}`, color: "text-success" },
-              { label: "Total Hours Lost", value: claims?.reduce((sum, c) => sum + (c.hours_lost || 0), 0) || 0, color: "text-heading" },
+              { 
+                label: "Total Payout", 
+                value: `₹${claims?.filter(c => c.status === 'paid' && c.gps_status !== 'mismatch').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0}`, 
+                color: "text-success" 
+              },
+              { label: "Total Hours Lost", value: claims?.filter(c => c.gps_status !== 'mismatch').reduce((sum, c) => sum + (c.hours_lost || 0), 0) || 0, color: "text-heading" },
               { label: "Avg. Payout/Hr", value: `₹${baseRate}`, color: "text-primary" }
             ].map((stat, i) => (
               <Card key={i} className="bg-white border-border shadow-sm p-4 rounded-xl text-center">

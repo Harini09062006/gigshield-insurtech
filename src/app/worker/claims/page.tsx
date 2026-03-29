@@ -5,7 +5,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebas
 import { collection, query, where, limit } from "firebase/firestore";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Calendar, Loader2, Zap, AlertCircle } from "lucide-react";
+import { CheckCircle2, Calendar, Loader2, Zap, AlertCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 
 export default function WorkerClaims() {
@@ -69,9 +69,13 @@ export default function WorkerClaims() {
         {claims && claims.length > 0 ? (
           claims.map((claim) => (
             <Card key={claim.id} className="border-border shadow-card overflow-hidden bg-white rounded-card">
-              <CardHeader className="bg-success-bg/30 px-6 py-4 flex flex-row items-center justify-between border-b border-border/50">
+              <CardHeader className={`${claim.gps_status === 'mismatch' ? 'bg-danger-bg/20' : 'bg-success-bg/30'} px-6 py-4 flex flex-row items-center justify-between border-b border-border/50`}>
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-success" />
+                  {claim.gps_status === 'mismatch' ? (
+                    <XCircle className="h-5 w-5 text-danger" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5 text-success" />
+                  )}
                   <span className="font-bold text-heading">
                     Parametric Trigger: {claim.trigger_description || "Severe Rainfall Event"}
                   </span>
@@ -102,33 +106,42 @@ export default function WorkerClaims() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-body font-medium">Registered Rate</span>
-                      <span className="text-heading font-bold">₹{claim.registered_rate || "60"}/hr</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-body font-medium">Time Multiplier</span>
-                      <span className="text-heading font-bold">{claim.time_multiplier || "1.3"}×</span>
-                    </div>
-                    <div className="flex justify-between text-sm bg-white p-2 rounded-lg border border-primary/20">
-                      <span className="text-primary font-bold">DNA Hourly Rate</span>
-                      <span className="text-primary font-black">₹{claim.dna_hourly_rate || "78"}/hr</span>
+                      <span className="text-heading font-bold">₹{claim.dna_hourly_rate || "60"}/hr</span>
                     </div>
                     <div className="flex justify-between text-sm border-t border-border pt-2">
                       <span className="text-heading font-bold">Compensation</span>
-                      <span className="text-primary text-lg font-black">₹{claim.compensation || "240"}</span>
+                      {claim.gps_status === 'mismatch' ? (
+                        <span className="text-danger font-black">NOT APPROVED</span>
+                      ) : (
+                        <span className="text-primary text-lg font-black">₹{claim.compensation || "240"}</span>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <div className="p-6 border-l border-border/50 flex flex-col justify-center bg-white text-center">
                   <p className="text-[11px] font-bold text-muted uppercase tracking-wider mb-2">
-                    Compensation Amount
+                    {claim.gps_status === 'mismatch' ? 'Verification Failed' : 'Compensation Amount'}
                   </p>
-                  <div className="text-4xl font-black text-primary mb-1">
-                    ₹{claim.compensation || "240"}
-                  </div>
-                  <Badge className="bg-success-bg text-success border-none font-bold">
-                    ✓ PAID INSTANTLY
-                  </Badge>
+                  {claim.gps_status === 'mismatch' ? (
+                    <div className="text-2xl font-black text-danger mb-1">
+                      NOT APPROVED
+                    </div>
+                  ) : (
+                    <div className="text-4xl font-black text-primary mb-1">
+                      ₹{claim.compensation || "240"}
+                    </div>
+                  )}
+                  
+                  {claim.gps_status === 'mismatch' ? (
+                    <Badge className="bg-danger-bg text-danger border-none font-bold uppercase text-[10px]">
+                      ⚠ MISMATCH
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-success-bg text-success border-none font-bold">
+                      ✓ PAID INSTANTLY
+                    </Badge>
+                  )}
                 </div>
               </CardContent>
             </Card>

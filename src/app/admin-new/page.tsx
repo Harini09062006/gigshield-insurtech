@@ -96,12 +96,12 @@ export default function AdminNewPage() {
     return map;
   }, [realUsers]);
 
-  // Aggregated Stats
+  // Aggregated Stats - Fixed to exclude GPS mismatches from total payout
   const stats = useMemo(() => ({
     totalWorkers: realUsers?.length || 0,
     riskEvents: realClaims?.filter(c => c.gps_status === 'mismatch').length || 0,
-    pendingClaims: realClaims?.filter(c => c.status === 'review' || c.status === 'pending' || !c.status).length || 0,
-    totalPayouts: realClaims?.filter(c => c.status === 'approved' || c.status === 'paid').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0
+    pendingClaims: realClaims?.filter(c => (c.status === 'review' || c.status === 'pending' || !c.status) && c.gps_status !== 'mismatch').length || 0,
+    totalPayouts: realClaims?.filter(c => (c.status === 'approved' || c.status === 'paid') && c.gps_status !== 'mismatch').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0
   }), [realUsers, realClaims]);
 
   // Group messages for sidebar
