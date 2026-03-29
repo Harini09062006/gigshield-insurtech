@@ -244,27 +244,29 @@ export default function WorkerDashboard() {
           </Card>
         </div>
 
-        {/* 4. POLICY STATUS SECTION */}
-        <section className="space-y-6">
-          <h3 className="text-lg font-bold text-[#1A1A2E]">Policy Status</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[
-              { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
-              { label: "Next Renewal", value: "25 Mar", icon: RefreshCcw },
-              { label: "Renewal Amount", value: "₹25", icon: IndianRupee },
-              { label: "Commitment", value: "Week 1/4", icon: Info },
-            ].map((stat, i) => (
-              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[20px] p-5 flex items-center gap-4 shadow-sm h-[80px]">
-                <div className="h-12 w-12 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0">
-                  <stat.icon className="h-5 w-5" />
+        {/* 4. POLICY STATUS SECTION - CONSOLIDATED NEAT BOX */}
+        <section className="space-y-4">
+          <h3 className="text-lg font-bold text-[#1A1A2E] px-2">Policy Status</h3>
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#E8E6FF]">
+              {[
+                { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
+                { label: "Next Renewal", value: "25 Mar", icon: RefreshCcw },
+                { label: "Renewal Amount", value: "₹25", icon: IndianRupee },
+                { label: "Commitment", value: "Week 1/4", icon: Info },
+              ].map((stat, i) => (
+                <div key={i} className="p-6 flex items-center gap-4">
+                  <div className="h-12 w-12 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0">
+                    <stat.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p>
+                    <p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p>
-                  <p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          </Card>
         </section>
 
         {/* 5. EARNINGS PROTECTION SUMMARY */}
@@ -428,7 +430,7 @@ export default function WorkerDashboard() {
 
       </main>
 
-      {/* Floating Action Button - FIXED */}
+      {/* Floating Action Button */}
       <Button 
         onClick={() => setChatOpen(true)}
         className="fixed bottom-10 right-10 h-16 w-16 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"
