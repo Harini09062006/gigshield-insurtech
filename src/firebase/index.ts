@@ -27,8 +27,8 @@ export function initializeFirebase() {
 
   const auth = getAuth(app);
   
-  // Set persistence to local to ensure sessions persist across reloads
-  // This call is non-blocking but ensures the auth instance uses Local Storage.
+  // CRITICAL: Set persistence to local to ensure sessions persist across reloads.
+  // This call ensures the auth instance uses Browser Local Storage.
   setPersistence(auth, browserLocalPersistence).catch((err) => {
     console.error("Auth persistence setup failed:", err);
   });

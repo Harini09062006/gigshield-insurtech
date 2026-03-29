@@ -30,7 +30,7 @@ export default function LoginPage() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // Smart redirect: If user is already logged in, send them to the correct dashboard based on role
+  // Smart redirect: If user is already logged in, verify role and send to correct dashboard
   useEffect(() => {
     async function handleAuthenticatedRedirect() {
       if (user && !isUserLoading) {
@@ -40,9 +40,11 @@ export default function LoginPage() {
             const role = userDoc.data().role;
             router.replace(role === "admin" ? "/admin" : "/dashboard");
           } else {
+            // Logged in but profile incomplete
             router.replace("/register");
           }
         } catch (e) {
+          console.error("Redirect logic failed:", e);
           router.replace("/dashboard");
         }
       }
@@ -77,10 +79,11 @@ export default function LoginPage() {
       const userDoc = await getDoc(doc(db, 'users', uid));
       
       if (!userDoc.exists()) {
-        throw new Error('Account not found. Please register first.');
+        throw new Error('Account profile not found. Please register first.');
       }
       
       const userData = userDoc.data();
+      // Explicitly route based on confirmed Firestore role
       router.push(userData.role === 'admin' ? '/admin' : '/dashboard');
     } catch (error: any) {
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {

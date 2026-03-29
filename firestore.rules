@@ -24,8 +24,9 @@ service cloud.firestore {
     match /claims/{id} {
       allow create: if isSignedIn();
       
-      // Optimize list/get for worker queries
-      allow list, get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
+      // Separate list/get to help the query analyzer grant permission to worker-specific filters
+      allow list: if isSignedIn() && (request.query.limit <= 50 && (request.auth.uid == request.resource.data.worker_id || isAdmin()));
+      allow get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || resource.data.userId == request.auth.uid || isAdmin());
       
       allow update, delete: if isAdmin();
     }
@@ -34,8 +35,9 @@ service cloud.firestore {
     match /support_messages/{id} {
       allow create: if isSignedIn();
       
-      // Optimize for worker conversation streams
-      allow list, get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Separate list/get to help the query analyzer grant permission to worker-specific filters
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
