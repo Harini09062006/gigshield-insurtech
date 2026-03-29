@@ -1,36 +1,33 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { 
   Shield, 
   Loader2, 
   Zap, 
-  AlertCircle, 
-  TrendingUp, 
-  Info, 
-  Sun, 
-  Sunset, 
   Sunrise, 
+  Sunset, 
+  Sun, 
   Moon, 
   Brain, 
-  ChevronRight, 
-  Activity,
   Home,
   FileText,
   Map as MapIcon,
   LogOut,
+  ChevronRight,
+  IndianRupee,
   RefreshCcw,
   Calendar,
-  IndianRupee
+  Info
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from "@/firebase";
 import { doc } from "firebase/firestore";
-import { format } from "date-fns";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -64,6 +61,20 @@ export default function WorkerDashboard() {
 
   const { data: profile } = useDoc(profileRef);
   const { data: dna } = useDoc(dnaRef);
+
+  // Chart Data for Peak Earning Hours (Matching Reference Peaks)
+  const chartData = [
+    { time: '6 AM', evening: 10, lunch: 5, active: 20 },
+    { time: '8 AM', evening: 15, lunch: 10, active: 35 },
+    { time: '10 AM', evening: 20, lunch: 45, active: 45 },
+    { time: '12 PM', evening: 30, lunch: 85, active: 55 },
+    { time: '2 PM', evening: 35, lunch: 60, active: 50 },
+    { time: '4 PM', evening: 55, lunch: 30, active: 60 },
+    { time: '6 PM', evening: 95, lunch: 15, active: 85 },
+    { time: '8 PM', evening: 80, lunch: 10, active: 75 },
+    { time: '10 PM', evening: 40, lunch: 5, active: 45 },
+    { time: '11 PM', evening: 25, lunch: 0, active: 30 },
+  ];
 
   // 2. LOGIC: FETCH WEATHER
   const fetchWeather = async () => {
@@ -128,6 +139,14 @@ export default function WorkerDashboard() {
     );
   }
 
+  // DNA Slot Constants
+  const dnaSlots = [
+    { title: "MORNING", range: "6-10 AM", rate: dna?.morning_rate || 45, mult: "0.75x multiplier", color: "#F59E0B", icon: Sunrise },
+    { title: "AFTERNOON", range: "12-4 PM", rate: dna?.afternoon_rate || 57, mult: "0.95x multiplier", color: "#3B82F6", icon: Sun },
+    { title: "EVENING", range: "5-9 PM", rate: dna?.evening_rate || 78, mult: "1.30x multiplier", color: "#6C47FF", icon: Sunset },
+    { title: "NIGHT", range: "9 PM-12 AM", rate: dna?.night_rate || 51, mult: "0.85x multiplier", color: "#60A5FA", icon: Moon },
+  ];
+
   return (
     <div className="min-h-screen bg-[#f0f2f9] font-body text-[#1A1A2E]">
       
@@ -151,26 +170,129 @@ export default function WorkerDashboard() {
 
       <main className="p-8 max-w-7xl mx-auto space-y-10">
         
-        {/* 2. PROFILE HEADER */}
-        <div className="flex justify-between items-start">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-[#1A1A2E]">Welcome back, {profile?.name || "User"}</h1>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              <p className="text-sm font-medium text-[#64748B]">Active on {profile?.platform || 'Zomato'} in {profile?.city || 'Howrah'}</p>
-            </div>
+        {/* 2. PIXEL-PERFECT INCOME DNA SUMMARY SECTION */}
+        <section className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
+            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Updated 17:25</p>
           </div>
-          <Button 
-            onClick={simulateWeather}
-            className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold rounded-xl shadow-btn px-6 py-6"
-          >
-            <Zap className="mr-2 h-4 w-4 fill-current" /> Simulate Severe Weather
-          </Button>
-        </div>
 
-        {/* 3. PRIMARY CARDS GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {dnaSlots.map((slot, i) => (
+              <Card key={i} className="bg-white border-none rounded-[20px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-gray-50 rounded-lg">
+                    <slot.icon size={12} className="text-gray-400" />
+                  </div>
+                  <p className="text-[9px] font-black text-gray-400 tracking-wider uppercase">{slot.title}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">{slot.range}</p>
+                  <p className="text-xl font-bold text-[#1A1A2E]">₹{slot.rate}/hr</p>
+                </div>
+                <p className="text-[9px] font-bold text-[#6C47FF]/60">{slot.mult}</p>
+                <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ backgroundColor: slot.color, opacity: 0.4 }} />
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr,1.2fr] gap-6">
+            {/* Left: Expected Earnings */}
+            <Card className="bg-white border-none rounded-[20px] shadow-sm p-10 flex flex-col justify-between">
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
+                <div className="text-7xl font-bold text-[#6C47FF]">₹3360</div>
+                <p className="text-xs text-gray-400 leading-relaxed max-w-[280px] mt-4 font-medium">
+                  Derived from your Income DNA earning pattern
+                </p>
+              </div>
+              
+              <div className="mt-12 pt-8 border-t border-gray-100 flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-bold text-gray-300 uppercase tracking-tighter mb-1">RECOMMENDED PLAN</p>
+                  <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
+                </div>
+                <Button variant="outline" className="border-[1.5px] border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl px-8 h-12 transition-all text-sm">
+                  Upgrade Plan
+                </Button>
+              </div>
+            </Card>
+
+            {/* Right: Peak Hours Chart */}
+            <Card className="bg-white border-none rounded-[20px] shadow-sm p-8">
+              <h3 className="text-sm font-bold text-[#1A1A2E] mb-10">Peak Earning Hours (24-Hour Profile)</h3>
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="time" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 9, fill: '#94A3B8', fontWeight: 600 }}
+                      padding={{ left: 10, right: 10 }}
+                    />
+                    <YAxis hide />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '10px' }} 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="evening" 
+                      stroke="#6C47FF" 
+                      strokeWidth={2.5} 
+                      fillOpacity={1} 
+                      fill="url(#colorEvening)" 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="lunch" 
+                      stroke="#F59E0B" 
+                      strokeWidth={2.5} 
+                      fillOpacity={1} 
+                      fill="url(#colorLunch)" 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="active" 
+                      stroke="#E8E6FF" 
+                      strokeWidth={1} 
+                      fill="none"
+                      strokeDasharray="5 5"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-8 flex justify-center gap-8">
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#6C47FF]" />
+                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter">Evening peak</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#F59E0B]" />
+                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter">Lunch peak</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-px w-3 border-t border-dashed border-[#94A3B8]" />
+                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter">Active hours</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        {/* 3. PRIMARY INSIGHT GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
           {/* Active Protection Card */}
           <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-8 flex flex-col justify-between shadow-xl relative overflow-hidden">
             <Shield className="absolute top-8 right-8 h-8 w-8 opacity-40" />
@@ -271,6 +393,15 @@ export default function WorkerDashboard() {
             </div>
           </div>
         </Card>
+
+        <div className="flex justify-center pb-10">
+          <Button 
+            onClick={simulateWeather}
+            className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold rounded-xl shadow-btn px-10 py-6"
+          >
+            <Zap className="mr-2 h-4 w-4 fill-current" /> Simulate Severe Weather
+          </Button>
+        </div>
 
       </main>
 
