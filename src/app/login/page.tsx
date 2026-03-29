@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Phone, Loader2, AlertCircle, ArrowRight } from "lucide-react";
+import { Shield, Phone, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +13,10 @@ import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
+/**
+ * SECURE LOGIN PORTAL
+ * Handles role-aware redirection to prevent users from being stuck in unauthorized loops.
+ */
 export default function LoginPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,31 +29,29 @@ export default function LoginPage() {
 
   // Smart redirect: If user is already logged in, send them to the correct dashboard based on role
   useEffect(() => {
-    const performRoleRedirect = async () => {
+    const handleAuthenticatedRedirect = async () => {
       if (user && !isUserLoading) {
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists() && userDoc.data().role === "admin") {
-            router.replace("/admin");
+          if (userDoc.exists()) {
+            const role = userDoc.data().role;
+            router.replace(role === "admin" ? "/admin" : "/dashboard");
           } else {
-            router.replace("/dashboard");
+            // Profile not created yet
+            router.replace("/register");
           }
         } catch (e) {
           router.replace("/dashboard");
         }
       }
     };
-    performRoleRedirect();
+    handleAuthenticatedRedirect();
   }, [user, isUserLoading, router, db]);
 
   function validatePhone(phone: string) {
     const cleaned = phone.replace(/\s/g, '').replace('+91', '').trim();
     if (cleaned.length !== 10) {
       setErrorMessage('Enter a valid 10-digit phone number');
-      return false;
-    }
-    if (!/^[6-9]\d{9}$/.test(cleaned)) {
-      setErrorMessage('Enter a valid Indian mobile number');
       return false;
     }
     return true;
@@ -78,46 +79,30 @@ export default function LoginPage() {
       }
       
       const userData = userDoc.data();
+      // Role-aware navigation on initial login
       router.push(userData.role === 'admin' ? '/admin' : '/dashboard');
     } catch (error: any) {
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        setErrorMessage('No account found with this number. Please register first.');
-      } else if (error.code === 'auth/too-many-requests') {
-        setErrorMessage('Too many login attempts. Wait 5 minutes.');
+        setErrorMessage('Invalid credentials. Please register or check your number.');
       } else {
-        setErrorMessage('Something went wrong. Please try again.');
+        setErrorMessage(error.message || 'Authentication failed. Please try again.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  if (isUserLoading) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
+  if (isUserLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
+        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#EEEEFF] p-4 font-body">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-6 flex flex-col items-center">
-        <div className="w-full flex justify-start">
-          <button
-            onClick={() => router.push('/')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: '#6C47FF',
-              fontSize: '14px',
-              fontWeight: '500',
-              padding: '8px 0',
-              fontFamily: 'Inter, sans-serif'
-            }}
-          >
-            ← Back to Home
-          </button>
-        </div>
-
         <Link href="/" className="flex flex-col items-center">
           <div className="h-16 w-16 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn mb-3">
             <Shield className="h-9 w-9 text-white" />
@@ -142,7 +127,7 @@ export default function LoginPage() {
               </div>
 
               {errorMessage && (
-                <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '8px', padding: '10px 14px', marginTop: '12px', color: '#DC2626', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="bg-[#FEE2E2] border border-[#FECACA] rounded-lg p-3 text-[#DC2626] text-xs flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 shrink-0" /> {errorMessage}
                 </div>
               )}

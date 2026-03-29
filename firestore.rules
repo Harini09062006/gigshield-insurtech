@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -9,6 +8,7 @@ service cloud.firestore {
     }
 
     // Helper function to check if the current user is an administrator
+    // Added exists() check to prevent permission errors during race conditions on sign-in
     function isAdmin() {
       return isSignedIn() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -24,12 +24,8 @@ service cloud.firestore {
     match /claims/{id} {
       allow create: if isSignedIn();
       
-      // Split list rules for query analyzer efficiency. 
-      allow list: if isSignedIn() && resource.data.worker_id == request.auth.uid;
-      allow list: if isAdmin();
-      
-      allow get: if isSignedIn() && resource.data.worker_id == request.auth.uid;
-      allow get: if isAdmin();
+      // Optimize list/get for worker queries
+      allow list, get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
       
       allow update, delete: if isAdmin();
     }
@@ -38,11 +34,9 @@ service cloud.firestore {
     match /support_messages/{id} {
       allow create: if isSignedIn();
       
-      // Allow workers to see their own messages, admins to see all
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Optimize for worker conversation streams
+      allow list, get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       
-      // Allow admins to update status, and users to acknowledge
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
     }

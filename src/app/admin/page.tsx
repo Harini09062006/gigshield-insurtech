@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
@@ -11,6 +10,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
+/**
+ * SECURE ADMIN DASHBOARD
+ * Features robust RBAC (Role-Based Access Control) verification
+ * preventing premature redirects and permission leaks.
+ */
 export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -21,24 +25,23 @@ export default function AdminDashboard() {
   const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   useEffect(() => {
-    async function checkRole() {
-      // 1. Wait for Auth state to be definitive
+    async function verifyAdminSession() {
+      // 1. Wait for Firebase Auth to determine user existence
       if (isUserLoading) return;
 
-      // 2. If truly no user, go to login
+      // 2. If no user found after loading, go to login
       if (!user) {
         router.replace("/login");
-        setCheckingAdmin(false);
         return;
       }
 
-      // 3. Verify Admin Role in Firestore
+      // 3. Authenticated - Now check Firestore role
       try {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists() && userDoc.data().role === "admin") {
           setIsAdmin(true);
         } else {
-          // Logged in but not admin
+          // Logged in but not an admin - send to home
           router.replace("/");
         }
       } catch (error) {
@@ -48,7 +51,7 @@ export default function AdminDashboard() {
         setCheckingAdmin(false);
       }
     }
-    checkRole();
+    verifyAdminSession();
   }, [user, isUserLoading, db, router]);
 
   // Gate queries until role is confirmed to avoid permission errors
@@ -72,8 +75,8 @@ export default function AdminDashboard() {
           <Lock className="absolute inset-0 m-auto h-4 w-4 text-[#6C47FF]" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-bold text-[#1A1A2E] animate-pulse">Authenticating Admin Session...</p>
-          <p className="text-[10px] text-[#64748B] uppercase tracking-widest mt-1">Authorized Personnel Only</p>
+          <p className="text-sm font-bold text-[#1A1A2E] animate-pulse">Establishing Secure Command...</p>
+          <p className="text-[10px] text-[#64748B] uppercase tracking-widest mt-1">Authorized Access Only</p>
         </div>
       </div>
     );

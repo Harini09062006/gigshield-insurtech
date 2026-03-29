@@ -1,22 +1,25 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Shield, LogIn, UserPlus, Settings, ArrowRight, Loader2, LayoutDashboard } from "lucide-react";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
+/**
+ * GIGSHIELD LANDING PAGE
+ * Features intelligent session detection to guide users to their specific portals.
+ */
 export default function Home() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
-  const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
+  const [checkingRole, setCheckingRole] = useState(false);
 
   useEffect(() => {
     const fetchRole = async () => {
       if (user && !isUserLoading) {
+        setCheckingRole(true);
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
@@ -24,6 +27,8 @@ export default function Home() {
           }
         } catch (e) {
           console.error("Home role fetch failed", e);
+        } finally {
+          setCheckingRole(false);
         }
       }
     };
@@ -52,10 +57,10 @@ export default function Home() {
         
         {user && (
           <div className="flex items-center gap-4">
-            <span className="text-xs font-bold text-muted uppercase hidden sm:inline">Active Session: {user.email?.split('@')[0]}</span>
+            <span className="text-xs font-bold text-muted uppercase hidden sm:inline">Active: {user.email?.split('@')[0]}</span>
             <Link href={role === 'admin' ? '/admin' : '/dashboard'}>
-              <button className="px-4 py-2 bg-primary-light text-primary font-bold rounded-lg text-sm flex items-center gap-2">
-                <LayoutDashboard size={16} /> Open {role === 'admin' ? 'Admin' : 'Dashboard'}
+              <button className="px-4 py-2 bg-primary-light text-primary font-bold rounded-lg text-sm flex items-center gap-2 hover:bg-primary hover:text-white transition-colors">
+                <LayoutDashboard size={16} /> {checkingRole ? '...' : (role === 'admin' ? 'Admin Portal' : 'Dashboard')}
               </button>
             </Link>
           </div>
