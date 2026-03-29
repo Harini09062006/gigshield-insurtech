@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -23,11 +24,24 @@ export default function LoginPage() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
+  // Smart redirect: If user is already logged in, send them to the correct dashboard based on role
   useEffect(() => {
-    if (user && !isUserLoading) {
-      router.replace("/dashboard");
-    }
-  }, [user, isUserLoading, router]);
+    const performRoleRedirect = async () => {
+      if (user && !isUserLoading) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists() && userDoc.data().role === "admin") {
+            router.replace("/admin");
+          } else {
+            router.replace("/dashboard");
+          }
+        } catch (e) {
+          router.replace("/dashboard");
+        }
+      }
+    };
+    performRoleRedirect();
+  }, [user, isUserLoading, router, db]);
 
   function validatePhone(phone: string) {
     const cleaned = phone.replace(/\s/g, '').replace('+91', '').trim();
@@ -114,7 +128,7 @@ export default function LoginPage() {
         <Card className="w-full border-none shadow-card rounded-[24px] bg-white p-2">
           <CardHeader className="text-center pt-8">
             <CardTitle className="text-3xl font-headline font-bold text-[#1A1A2E]">Welcome Back</CardTitle>
-            <CardDescription className="text-[#64748B] text-base mt-2">Enter your phone number to continue</CardDescription>
+            <CardDescription className="text-[#64748B] text-base mt-2">Enter your registered phone number</CardDescription>
           </CardHeader>
           
           <form onSubmit={handleLogin}>
@@ -136,10 +150,10 @@ export default function LoginPage() {
             
             <CardFooter className="flex flex-col gap-6 px-8 pb-10 pt-2">
               <Button className="w-full h-14 font-bold bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn rounded-xl text-white text-lg transition-all active:scale-[0.98]" type="submit" disabled={loading}>
-                {loading ? <><Loader2 className="animate-spin h-5 w-5 mr-2" /> Logging in...</> : "Login"}
+                {loading ? <><Loader2 className="animate-spin h-5 w-5 mr-2" /> Authenticating...</> : "Sign In"}
               </Button>
               <p className="text-sm text-center text-[#64748B]">
-                New here? <Link href="/register" className="text-[#6C47FF] hover:underline font-bold">Get Protected &rarr;</Link>
+                New worker? <Link href="/register" className="text-[#6C47FF] hover:underline font-bold">Get Protected &rarr;</Link>
               </p>
             </CardFooter>
           </form>

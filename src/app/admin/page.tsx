@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
@@ -21,10 +22,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function checkRole() {
-      // 1. Wait for Auth to load
+      // 1. Wait for Auth state to be definitive
       if (isUserLoading) return;
 
-      // 2. If no user, redirect to login
+      // 2. If truly no user, go to login
       if (!user) {
         router.replace("/login");
         setCheckingAdmin(false);
@@ -50,7 +51,7 @@ export default function AdminDashboard() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // Gate queries until role is confirmed
+  // Gate queries until role is confirmed to avoid permission errors
   const zonesQuery = useMemoFirebase(() => {
     if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "disruption_zones"), limit(10));
@@ -71,8 +72,8 @@ export default function AdminDashboard() {
           <Lock className="absolute inset-0 m-auto h-4 w-4 text-[#6C47FF]" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-bold text-[#1A1A2E] animate-pulse">Checking security credentials...</p>
-          <p className="text-[10px] text-[#64748B] uppercase tracking-widest mt-1">Authorized Access Only</p>
+          <p className="text-sm font-bold text-[#1A1A2E] animate-pulse">Authenticating Admin Session...</p>
+          <p className="text-[10px] text-[#64748B] uppercase tracking-widest mt-1">Authorized Personnel Only</p>
         </div>
       </div>
     );
@@ -99,7 +100,7 @@ export default function AdminDashboard() {
       <main className="flex-1 overflow-y-auto p-6 lg:p-10 space-y-10">
         <header>
           <h1 className="text-2xl font-bold text-[#1A1A2E]">Admin Central</h1>
-          <p className="text-[#64748B] text-sm">Platform health and worker protection monitor</p>
+          <p className="text-[#64748B] text-sm">Real-time platform health and protection monitor</p>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

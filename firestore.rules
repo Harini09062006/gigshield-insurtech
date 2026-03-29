@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -15,11 +16,11 @@ service cloud.firestore {
 
     // User profiles: Workers manage their own, admins manage all
     match /users/{uid} {
-      // Direct UID comparison is prioritized to avoid recursion in isAdmin()
+      // Prioritize direct UID comparison to avoid recursion loops in isAdmin()
       allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
     }
     
-    // Claims: parametric payout logs
+    // Claims: Parametric payout logs
     match /claims/{id} {
       allow create: if isSignedIn();
       
@@ -31,20 +32,17 @@ service cloud.firestore {
       allow get: if isSignedIn() && resource.data.worker_id == request.auth.uid;
       allow get: if isAdmin();
       
-      // Mutation is restricted to admins
+      // Mutation restricted to admins
       allow update, delete: if isAdmin();
     }
 
-    // Support Messages: Smart bot/human chat logs
+    // Support Messages: Hybrid bot/human chat logs
     match /support_messages/{id} {
       allow create: if isSignedIn();
       
-      // Split list/get for better query support
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow list: if isAdmin();
-      
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isAdmin();
+      // Allow workers to see their own messages, admins to see all
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       
       // Users can update status (resolved), admins have full management
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
