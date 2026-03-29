@@ -183,22 +183,24 @@ export default function AdminClaims() {
                     claims.map((claim) => (
                       <tr key={claim.id} className="hover:bg-[#EDE9FF]/30 transition-colors">
                         <td className="p-4 font-mono text-[10px] text-[#64748B]">{claim.worker_id || claim.userId}</td>
-                        <td className="p-4 font-bold text-[#1A1A2E]">₹{claim.compensation}</td>
+                        <td className="p-4 font-bold text-[#1A1A2E]">
+                          {claim.gps_status === 'mismatch' ? <span className="text-[#EF4444]">DENIED</span> : `₹${claim.compensation}`}
+                        </td>
                         <td className="p-4 capitalize text-[#64748B]">{claim.dna_time_slot}</td>
                         <td className="p-4">
                           <Badge variant="outline" className={`capitalize font-semibold ${
                             claim.status === 'paid' || claim.status === 'approved' ? 'bg-[#DCFCE7] text-[#22C55E] border-transparent' : 
-                            claim.status === 'rejected' ? 'bg-[#FEE2E2] text-[#EF4444] border-transparent' : 
+                            claim.status === 'rejected' || claim.gps_status === 'mismatch' ? 'bg-[#FEE2E2] text-[#EF4444] border-transparent' : 
                             'bg-[#FEF3C7] text-[#F59E0B] border-transparent'
                           }`}>
-                            {claim.status || 'pending'}
+                            {claim.gps_status === 'mismatch' ? 'Not Approved' : (claim.status || 'pending')}
                           </Badge>
                         </td>
                         <td className="p-4 text-[#64748B] text-xs">
                           {claim.created_at?.seconds ? format(new Date(claim.created_at.seconds * 1000), "MMM dd, HH:mm") : "Just now"}
                         </td>
                         <td className="p-4 text-right flex items-center justify-end gap-2">
-                          {(claim.status === 'pending' || !claim.status) && (
+                          {(claim.status === 'pending' || !claim.status || claim.gps_status === 'mismatch') && (
                             <>
                               <Button size="icon" variant="ghost" className="text-[#22C55E] hover:bg-[#DCFCE7]" onClick={() => updateStatus(claim.id, 'approved')}>
                                 <CheckCircle2 className="h-4 w-4" />

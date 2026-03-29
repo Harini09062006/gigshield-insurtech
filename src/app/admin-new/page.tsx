@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -226,7 +225,9 @@ export default function AdminNewPage() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs font-bold text-[#6C47FF]">₹{claim.compensation}</p>
+                <p className={`text-xs font-bold ${claim.gps_status === 'mismatch' ? 'text-red-500' : 'text-[#6C47FF]'}`}>
+                  {claim.gps_status === 'mismatch' ? 'DENIED' : `₹${claim.compensation}`}
+                </p>
                 {claim.gps_status === 'mismatch' && <p className="text-[8px] font-black text-red-500 uppercase">Location Mismatch</p>}
               </div>
             </div>
@@ -281,13 +282,17 @@ export default function AdminNewPage() {
             realClaims?.map(claim => (
             <tr key={claim.id} className="hover:bg-[#F8F9FF]">
               <td className="px-6 py-4 font-bold text-[#1A1A2E]">{userMap.get(claim.worker_id)?.name || "Unknown"}</td>
-              <td className="px-6 py-4 font-bold text-[#6C47FF]">₹{claim.compensation}</td>
+              <td className="px-6 py-4 font-bold text-[#6C47FF]">
+                {claim.gps_status === 'mismatch' ? <span className="text-red-500">NOT APPROVED</span> : `₹${claim.compensation}`}
+              </td>
               <td className="px-6 py-4">
                 <Badge variant="outline" className={claim.gps_status === 'matched' ? 'border-[#22C55E] text-[#22C55E]' : 'border-[#EF4444] text-[#EF4444]'}>
                   {claim.gps_status?.toUpperCase() || 'N/A'}
                 </Badge>
               </td>
-              <td className="px-6 py-4 uppercase text-[10px] font-black">{claim.status || 'pending'}</td>
+              <td className="px-6 py-4 uppercase text-[10px] font-black">
+                {claim.gps_status === 'mismatch' ? <span className="text-red-500 font-black">Not Approved</span> : (claim.status || 'pending')}
+              </td>
               <td className="px-6 py-4 text-right space-x-2">
                 <Button size="sm" variant="ghost" className="text-[#22C55E]" onClick={() => updateClaimStatus(claim.id, 'approved')}><CheckCircle size={16} /></Button>
                 <Button size="sm" variant="ghost" className="text-[#EF4444]" onClick={() => updateClaimStatus(claim.id, 'failed')}><XCircle size={16} /></Button>

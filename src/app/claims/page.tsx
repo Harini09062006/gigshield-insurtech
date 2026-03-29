@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -93,9 +92,9 @@ export default function WorkerClaims() {
             {claims && claims.length > 0 ? (
               claims.map((claim) => (
                 <Card key={claim.id} className="border-[#E8E6FF] shadow-card overflow-hidden bg-white rounded-2xl">
-                  <CardHeader className={`${claim.status === 'paid' ? 'bg-[#DCFCE7]/30' : 'bg-amber-50'} px-6 py-4 flex flex-row items-center justify-between border-b border-[#E8E6FF]/50`}>
+                  <CardHeader className={`${claim.gps_status === 'mismatch' ? 'bg-red-50' : claim.status === 'paid' ? 'bg-[#DCFCE7]/30' : 'bg-amber-50'} px-6 py-4 flex flex-row items-center justify-between border-b border-[#E8E6FF]/50`}>
                     <div className="flex items-center gap-3">
-                      {claim.status === 'paid' ? <CheckCircle2 className="h-5 w-5 text-[#22C55E]" /> : <AlertTriangle className="h-5 w-5 text-amber-500" />}
+                      {claim.gps_status === 'mismatch' ? <XCircle className="h-5 w-5 text-red-500" /> : claim.status === 'paid' ? <CheckCircle2 className="h-5 w-5 text-[#22C55E]" /> : <AlertTriangle className="h-5 w-5 text-amber-500" />}
                       <span className="font-bold text-[#1A1A2E] text-sm">Trigger: {claim.trigger_description || "Severe Weather"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-[#64748B] font-bold">
@@ -130,20 +129,30 @@ export default function WorkerClaims() {
                       </div>
                     </div>
                     <div className="p-6 border-l border-[#E8E6FF]/50 flex flex-col items-center justify-center bg-white text-center">
-                      <div className="text-3xl font-bold text-[#6C47FF] mb-1">₹{claim.compensation}</div>
-                      {claim.status === 'paid' ? (
+                      {claim.gps_status === 'mismatch' ? (
+                        <div className="text-xl font-black text-red-500 mb-1">NOT APPROVED</div>
+                      ) : (
+                        <div className="text-3xl font-bold text-[#6C47FF] mb-1">₹{claim.compensation}</div>
+                      )}
+                      
+                      {claim.gps_status === 'mismatch' ? (
+                        <Badge className="bg-red-50 text-red-500 border-none font-bold uppercase text-[10px]">⚠ Mismatch Detected</Badge>
+                      ) : claim.status === 'paid' ? (
                         <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">✓ PAID INSTANTLY</Badge>
                       ) : (
                         <Badge className="bg-amber-100 text-amber-600 border-none font-bold uppercase text-[10px]">Review Required</Badge>
                       )}
+                      
                       <div className="mt-3 bg-gray-50 border border-gray-100 rounded-xl p-3 text-center w-full">
                         <div className="font-bold text-gray-700 text-xs mb-1">
-                          {claim.status === 'paid' ? 'Deposit Complete' : 'Verification Pending'}
+                          {claim.gps_status === 'mismatch' ? 'Verification Failed' : claim.status === 'paid' ? 'Deposit Complete' : 'Verification Pending'}
                         </div>
                         <div className="text-[10px] text-gray-500 leading-tight">
-                          {claim.status === 'paid' 
-                            ? 'Funds deposited to your linked bank account.' 
-                            : 'This claim requires manual review due to a location mismatch.'}
+                          {claim.gps_status === 'mismatch' 
+                            ? 'Proximity check failed. Claim flagged for manual review.' 
+                            : claim.status === 'paid' 
+                              ? 'Funds deposited to your linked bank account.' 
+                              : 'This claim requires manual review due to a location mismatch.'}
                         </div>
                       </div>
                     </div>
@@ -163,3 +172,5 @@ export default function WorkerClaims() {
     </motion.div>
   );
 }
+
+import { XCircle } from "lucide-react";
