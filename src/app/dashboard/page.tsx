@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
@@ -26,9 +27,11 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, useAuth } from "@/firebase";
 import { doc, updateDoc, addDoc, collection, query, where, limit, serverTimestamp, orderBy } from "firebase/firestore";
-import { getUserLocation, gpsCheck } from "@/lib/gps";
+import { getUserLocation as getGpsCoords, gpsCheck } from "@/lib/gps";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+
+const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
 
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
@@ -52,82 +55,127 @@ export default function WorkerDashboard() {
 
   const [simulating, setSimulating] = useState(false);
 
-  // --- NEW LOGIC STATES ---
+  // --- WEATHER & LOSS STATES ---
   const [weather, setWeather] = useState({
-    rainMM: 12,
-    condition: "Light Rain",
-    risk: 35
+    rainMM: 0,
+    condition: "Syncing...",
+    risk: 0
   });
 
-  const [loss, setLoss] = useState(468);
-  const [coverage, setCoverage] = useState(240);
-  const [remaining, setRemaining] = useState(228);
+  const [loss, setLoss] = useState(0);
+  const [coverage, setCoverage] = useState(0);
+  const [remaining, setRemaining] = useState(0);
 
-  // --- WEATHER & LOSS LOGIC ---
-  async function fetchWeather() {
-    // Simulated API call
-    setWeather({
-      rainMM: 8 + Math.random() * 10,
-      condition: "Partly Cloudy",
-      risk: 15 + Math.floor(Math.random() * 20)
-    });
+  // --- CORE LOGIC FUNCTIONS ---
+
+  async function fetchWeather(lat: number, lng: number) {
+    try {
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${WEATHER_API_KEY}&units=metric`
+      );
+      if (!response.ok) throw new Error("Weather API failed");
+      
+      const data = await response.json();
+      const rain = data.rain?.['1h'] || 0;
+      const condition = data.weather[0]?.main || "Clear";
+      
+      // Risk Calculation based on Rain intensity
+      let riskLevel = 0;
+      if (rain === 0) riskLevel = 5 + Math.floor(Math.random() * 10);
+      else if (rain < 5) riskLevel = 30 + Math.floor(Math.random() * 10);
+      else if (rain < 20) riskLevel = 60 + Math.floor(Math.random() * 15);
+      else riskLevel = 85 + Math.floor(Math.random() * 10);
+
+      setWeather({
+        rainMM: rain,
+        condition: condition,
+        risk: riskLevel
+      });
+
+      calculateLoss(rain);
+    } catch (e) {
+      console.error("Weather Sync Error:", e);
+      // Fallback safe values
+      setWeather(prev => ({ ...prev, condition: "Offline" }));
+    }
   }
 
   function calculateLoss(rainMM: number) {
-    // User requested logic: loss = rainMM * 10
-    const calculatedLoss = Math.round(rainMM * 10);
-    const planLimit = profile?.plan_id === 'elite' ? 600 : (profile?.plan_id === 'pro' ? 240 : 60);
+    const hourlyRate = profile?.avg_hourly_earnings || 60;
+    
+    // Parametric calculation: more rain = more estimated hours of disruption
+    // Simulation logic for prototypes: loss increases with rain intensity
+    const estimatedHoursLost = rainMM > 0 ? (rainMM / 8) + 1 : 0;
+    const calculatedLoss = Math.round(hourlyRate * estimatedHoursLost);
+    
+    const planId = profile?.plan_id || 'pro';
+    const planLimit = planId === 'elite' ? 600 : (planId === 'pro' ? 240 : 60);
     
     setLoss(calculatedLoss);
-    setCoverage(planLimit);
+    setCoverage(Math.min(calculatedLoss, planLimit));
     setRemaining(Math.max(0, calculatedLoss - planLimit));
   }
 
-  function simulateWeather() {
+  async function simulateWeather() {
     setSimulating(true);
+    // Simulation creates an extreme weather event (50-100mm)
     const simulatedRain = 50 + Math.random() * 50;
 
     setTimeout(async () => {
       setWeather({
         rainMM: simulatedRain,
         condition: "Heavy Rain",
-        risk: 85
+        risk: 95
       });
 
       calculateLoss(simulatedRain);
       
-      // Also trigger the Firestore claim record logic
+      // Push record to Firestore if user is active
       if (user && db && profile) {
         try {
-          const currentLoc = await getUserLocation();
+          const currentLoc = await getGpsCoords();
           const workerLoc = profile.location || { lat: profile.lat || 0, lng: profile.lng || 0 };
           const gpsResult = gpsCheck(workerLoc, currentLoc);
-          const trustScore = 75 + Math.floor(Math.random() * 25); 
+          const trustScore = 80 + Math.floor(Math.random() * 20); 
+
+          const planLimit = profile.plan_id === 'elite' ? 600 : (profile.plan_id === 'pro' ? 240 : 60);
 
           await addDoc(collection(db, "claims"), {
             worker_id: user.uid,
-            amount: profile.plan_id === 'elite' ? 600 : (profile.plan_id === 'pro' ? 240 : 60),
-            compensation: profile.plan_id === 'elite' ? 600 : (profile.plan_id === 'pro' ? 240 : 60),
+            amount: planLimit,
+            compensation: planLimit,
             location: currentLoc,
             gps_verification: gpsResult,
             trust_score: trustScore,
-            status: gpsResult === 'PASSED' ? "approved" : "failed",
+            status: gpsResult === 'PASSED' ? "approved" : "review",
             created_at: serverTimestamp(),
-            trigger_description: "Simulated Severe Monsoon"
+            trigger_description: "Simulated Monsoon Trigger"
           });
         } catch (e) {
-          console.error("Simulation Firestore Error:", e);
+          console.error("Simulation Storage Error:", e);
         }
       }
       
       setSimulating(false);
-    }, 1500);
+    }, 1200);
   }
 
   // --- INITIALIZATION ---
   useEffect(() => {
-    fetchWeather();
-  }, []);
+    async function initDashboard() {
+      try {
+        const coords = await getGpsCoords();
+        fetchWeather(coords.lat, coords.lng);
+      } catch (e) {
+        console.warn("GPS Denied - Falling back to default location (Mumbai)");
+        fetchWeather(19.0760, 72.8777);
+      }
+    }
+    
+    if (!isUserLoading && user) {
+      initDashboard();
+    }
+  }, [user, isUserLoading]);
 
   const handleLogout = async () => {
     try {
@@ -142,7 +190,7 @@ export default function WorkerDashboard() {
     async function autoAnchorLocation() {
       if (user && db && !profile?.location) {
         try {
-          const loc = await getUserLocation();
+          const loc = await getGpsCoords();
           await updateDoc(doc(db, "users", user.uid), {
             location: loc,
             lat: loc.lat,
@@ -150,14 +198,14 @@ export default function WorkerDashboard() {
             updatedAt: serverTimestamp()
           });
         } catch (e) {
-          console.warn("GPS Access Denied - Automatic anchoring skipped.");
+          console.warn("Auto-anchor failed: Location access required.");
         }
       }
     }
     if (!isUserLoading && user) autoAnchorLocation();
   }, [user, isUserLoading, db, profile?.location]);
 
-  // UI Chart Data (Derived)
+  // UI Chart Data (Static for Visualization)
   const hourlyChartData = [
     { hour: '6am', earning: 40 }, { hour: '8am', earning: 45 }, { hour: '10am', earning: 55 },
     { hour: '12pm', earning: 50 }, { hour: '2pm', earning: 52 }, { hour: '4pm', earning: 60 },
@@ -175,13 +223,11 @@ export default function WorkerDashboard() {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-[#EEEEFF]">
         <Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" />
-        <p className="mt-4 text-sm font-bold text-[#6C47FF] animate-pulse uppercase tracking-widest">Loading Protection Intel...</p>
+        <p className="mt-4 text-sm font-bold text-[#6C47FF] animate-pulse uppercase tracking-widest">Securing Intel...</p>
       </div>
     );
   }
 
-  // Derived Values for UI
-  const currentDnaRate = dna?.evening_rate || 78;
   const planMaxPayout = profile?.plan_id === 'elite' ? 600 : (profile?.plan_id === 'pro' ? 240 : 60);
 
   return (
