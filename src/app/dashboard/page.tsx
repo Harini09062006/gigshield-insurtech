@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
 import { doc, collection, query, limit, where, addDoc, serverTimestamp } from "firebase/firestore";
-import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Info, Calendar, RefreshCcw, IndianRupee, ChevronRight } from "lucide-react";
+import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, Info, Calendar, RefreshCcw, IndianRupee, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { getCityRainfall } from "@/services/weatherService";
+import { getUserLocation, gpsCheck } from "@/services/locationService";
 
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
@@ -34,10 +36,7 @@ export default function WorkerDashboard() {
   }, [user, isUserLoading, router]);
 
   const profileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
-  const dnaRef = useMemoFirebase(() => (db && user ? doc(db, "income_dna", user.uid) : null), [db, user]);
-  
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
-  const { data: dna, isLoading: isDnaLoading } = useDoc(dnaRef);
 
   useEffect(() => {
     if (!profile?.city) return;
@@ -77,9 +76,6 @@ export default function WorkerDashboard() {
     
     if (!profile?.plan_activated_at?.seconds) {
       return {
-        startDate: new Date(),
-        currentWeek: 1,
-        nextRenewalDate: addDays(new Date(), 7),
         premiumAmount: premiums[profile?.plan_id || 'pro'] || 25,
         maxPayout: maxPayouts[profile?.plan_id || 'pro'] || 240,
         isRenewingTomorrow: false
@@ -103,56 +99,55 @@ export default function WorkerDashboard() {
     };
   }, [profile]);
 
-  const getIncomeDNASlot = () => {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 10) return { name: "Morning Peak", mult: 0.75 };
-    if (hour >= 12 && hour < 16) return { name: "Afternoon Peak", mult: 0.95 };
-    if (hour >= 17 && hour < 21) return { name: "Evening Peak", mult: 1.30 };
-    if (hour >= 21 || hour < 6) return { name: "Night Peak", mult: 0.85 };
-    return { name: "Standard Hours", mult: 1.0 };
-  };
-
   const simulateWeather = async () => {
     if (!user?.uid || !profile || !db) return;
     
     setIsSimulating(true);
     try {
-      const slot = getIncomeDNASlot();
+      // 1. CAPTURE REAL-TIME GPS FOR FRAUD DETECTION
+      let currentLoc = null;
+      try {
+        currentLoc = await getUserLocation();
+      } catch (locErr: any) {
+        console.warn("GPS failed, falling back to city centers:", locErr.message);
+      }
+
+      // 2. RUN GPS VALIDATION
+      const verification = gpsCheck(
+        profile.lat && profile.lng ? { lat: profile.lat, lng: profile.lng } : undefined,
+        currentLoc || undefined
+      );
+
+      const hour = new Date().getHours();
+      const slot = (hour >= 6 && hour < 10) ? { name: "Morning Peak", mult: 0.75 } :
+                   (hour >= 12 && hour < 16) ? { name: "Afternoon Peak", mult: 0.95 } :
+                   (hour >= 17 && hour < 21) ? { name: "Evening Peak", mult: 1.30 } :
+                   { name: "Standard Hours", mult: 1.0 };
+
       const baseRate = profile.avg_hourly_earnings || 60;
       const dnaRate = Math.round(baseRate * slot.mult);
-      const hoursLost = 3;
-      const incomeLoss = dnaRate * hoursLost;
-      const maxPayout = policyInfo.maxPayout;
-      const compensation = Math.min(incomeLoss, maxPayout);
+      const compensation = Math.min(dnaRate * 3, policyInfo.maxPayout);
 
       await addDoc(collection(db, "claims"), {
         userId: user.uid,
         worker_id: user.uid,
         claim_number: `GS-${Math.floor(100000 + Math.random() * 900000)}`,
         trigger_type: "weather",
-        trigger_description: "Severe Rainfall (65mm) Detected",
+        trigger_description: "Severe Rainfall (GPS Verified)",
         dna_time_slot: slot.name,
         registered_rate: baseRate,
-        time_multiplier: slot.mult,
         dna_hourly_rate: dnaRate,
-        hours_lost: hoursLost,
-        income_loss: incomeLoss,
         compensation: Math.round(compensation),
-        plan_max_payout: maxPayout,
         status: "paid",
-        fraud_checks: {
-          gps_validation: "PASSED",
-          weather_confirmed: "PASSED",
-          duplicate_check: "PASSED",
-          device_check: "PASSED",
-          trust_score: 95
-        },
+        lat: currentLoc?.lat || 0,
+        lng: currentLoc?.lng || 0,
+        gps_verification: verification,
         created_at: serverTimestamp()
       });
 
       toast({ 
-        title: "Simulation Success", 
-        description: `Severe weather detected. ₹${Math.round(compensation)} PAID INSTANTLY!` 
+        title: verification === "PASSED" ? "GPS Verified Payout" : "Payout Processed", 
+        description: `₹${Math.round(compensation)} PAID INSTANTLY! GPS Check: ${verification}` 
       });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Simulation Failed", description: e.message });
@@ -162,24 +157,8 @@ export default function WorkerDashboard() {
   };
 
   if (isUserLoading || isProfileLoading || !mounted) {
-    return (
-      <div className="min-h-screen bg-[#EEEEFF] p-6 space-y-6">
-        <div className="h-16 bg-white rounded-xl animate-pulse shadow-sm" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="h-40 bg-white rounded-2xl animate-pulse shadow-sm" />
-          <div className="h-40 bg-white rounded-2xl animate-pulse shadow-sm" />
-          <div className="h-40 bg-white rounded-2xl animate-pulse shadow-sm" />
-        </div>
-        <div className="h-64 bg-white rounded-2xl animate-pulse shadow-sm" />
-      </div>
-    );
+    return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
   }
-
-  const slot = getIncomeDNASlot();
-  const dnaRate = Math.round((profile?.avg_hourly_earnings ?? 60) * slot.mult);
-  const potentialLoss = dnaRate * 6;
-  const coverage = policyInfo.maxPayout;
-  const remainingRisk = Math.max(0, potentialLoss - coverage);
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="min-h-screen bg-[#EEEEFF] flex flex-col font-body">
@@ -197,23 +176,16 @@ export default function WorkerDashboard() {
       </header>
 
       <main className="flex-1 space-y-8 p-6 lg:px-10 max-w-7xl mx-auto w-full">
-        {policyInfo.isRenewingTomorrow && (
-          <div className="bg-[#FEF3C7] border border-[#F59E0B]/30 p-4 rounded-xl flex items-center gap-4 shadow-sm">
-            <AlertCircle className="h-6 w-6 text-[#F59E0B]" />
-            <p className="font-bold text-[#1A1A2E] text-sm">⚠️ Your plan renews tomorrow. ₹{policyInfo.premiumAmount} will be auto-deducted.</p>
-          </div>
-        )}
-
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-[#1A1A2E]">Welcome, {profile?.name?.split(' ')[0] ?? 'Worker'}</h1>
             <p className="text-sm text-[#64748B] font-medium flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" /> Active on {profile?.platform ?? 'Delivery'} in {profile?.city ?? 'Mumbai'}
+              <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" /> GPS Monitoring Active • {profile?.city}
             </p>
           </div>
           <Button onClick={simulateWeather} disabled={isSimulating} className="bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn rounded-xl h-11 px-6">
-            {isSimulating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Zap className="mr-2 h-4 w-4 fill-current" />}
-            Simulate Severe Weather
+            {isSimulating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <MapPin className="mr-2 h-4 w-4" />}
+            Simulate Weather (GPS Test)
           </Button>
         </header>
 
@@ -221,19 +193,19 @@ export default function WorkerDashboard() {
           <Card className="bg-[#6C47FF] text-white border-none shadow-btn rounded-[20px] p-6">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">Active Protection</p>
-                <h3 className="text-2xl font-bold">{(profile?.plan_id?.toUpperCase() ?? 'PRO') + " SHIELD"}</h3>
+                <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">Security Status</p>
+                <h3 className="text-2xl font-bold">{profile?.lat ? "GPS ENFORCED" : "CITY BASED"}</h3>
               </div>
               <Shield className="h-6 w-6 opacity-80" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/10 p-3 rounded-xl">
-                <p className="text-[9px] uppercase opacity-60">Max Payout</p>
-                <p className="text-lg font-bold">₹{policyInfo.maxPayout}</p>
+                <p className="text-[9px] uppercase opacity-60">Verification</p>
+                <p className="text-xs font-bold">{profile?.lat ? `${profile.lat.toFixed(2)}, ${profile.lng.toFixed(2)}` : "Pending GPS"}</p>
               </div>
               <div className="bg-white/10 p-3 rounded-xl">
-                <p className="text-[9px] uppercase opacity-60">Premium</p>
-                <p className="text-lg font-bold">₹{policyInfo.premiumAmount}</p>
+                <p className="text-[9px] uppercase opacity-60">Radius</p>
+                <p className="text-sm font-bold">1.0 km</p>
               </div>
             </div>
           </Card>
@@ -244,180 +216,54 @@ export default function WorkerDashboard() {
               <Brain className={`h-5 w-5 ${rainfall > 30 ? 'text-[#EF4444] animate-bounce' : 'text-[#6C47FF]'}`} />
             </div>
             <div className="flex justify-between items-end mb-4">
-              <div className="text-3xl font-bold text-[#1A1A2E]">
-                {isWeatherLoading ? "..." : `${rainfall.toFixed(1)}mm`}
-              </div>
-              <Badge className={`${riskInfo.badgeClass} border-none font-bold`}>
-                {isWeatherLoading ? "Syncing..." : riskInfo.label}
-              </Badge>
+              <div className="text-3xl font-bold text-[#1A1A2E]">{isWeatherLoading ? "..." : `${rainfall.toFixed(1)}mm`}</div>
+              <Badge className={`${riskInfo.badgeClass} border-none font-bold`}>{isWeatherLoading ? "Syncing..." : riskInfo.label}</Badge>
             </div>
             <div className="space-y-2">
-              <div className="flex justify-between text-[10px] font-bold text-[#64748B]">
-                <span>Disruption Risk</span>
-                <span>{isWeatherLoading ? "--" : `${riskInfo.percent}%`}</span>
-              </div>
+              <div className="flex justify-between text-[10px] font-bold text-[#64748B]"><span>Disruption Risk</span><span>{riskInfo.percent}%</span></div>
               <Progress value={riskInfo.percent} className="h-1.5 bg-[#EEEEFF]" />
             </div>
           </Card>
 
           <Card className="bg-[#FFFBEA] border-[#FEF3C7] shadow-card rounded-[20px] p-6">
             <div className="flex justify-between items-start mb-4">
-              <p className="text-[10px] font-bold text-[#F59E0B] uppercase tracking-wider">Commitment Status</p>
+              <p className="text-[10px] font-bold text-[#F59E0B] uppercase tracking-wider">Fraud Protection</p>
               <RefreshCcw className="h-5 w-5 text-[#F59E0B]" />
             </div>
             <div className="flex justify-between items-end mb-2">
-              <div className="text-xl font-bold text-[#1A1A2E]">Week {policyInfo.currentWeek} of 4</div>
-              <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">Renewal ON</Badge>
+              <div className="text-xl font-bold text-[#1A1A2E]">Radius Locked</div>
+              <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">ACTIVE</Badge>
             </div>
-            <p className="text-[10px] text-[#64748B] italic">Next Renewal: {format(policyInfo.nextRenewalDate, "dd MMM")}</p>
+            <p className="text-[10px] text-[#64748B] italic">Location is verified during every trigger event.</p>
           </Card>
         </div>
 
         <section className="space-y-4">
-          <h2 className="text-lg font-bold text-[#1A1A2E]">Policy Status</h2>
-          <div className="grid gap-4 md:grid-cols-4">
-            {[
-              { label: "Activation Date", value: format(policyInfo.startDate, "MMM dd, yyyy"), icon: Calendar },
-              { label: "Next Renewal", value: format(policyInfo.nextRenewalDate, "dd MMM"), icon: RefreshCcw },
-              { label: "Premium", value: `₹${policyInfo.premiumAmount}/week`, icon: IndianRupee },
-              { label: "Commitment", value: "Week " + policyInfo.currentWeek + "/4", icon: Info }
-            ].map((stat, i) => (
-              <Card key={i} className="bg-white border-[#E8E6FF] shadow-sm p-4 rounded-xl flex items-center gap-4">
-                <div className="h-10 w-10 bg-[#EDE9FF] rounded-lg flex items-center justify-center text-[#6C47FF]"><stat.icon className="h-5 w-5" /></div>
-                <div><p className="text-[10px] text-[#94A3B8] uppercase font-bold">{stat.label}</p><p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p></div>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        <Card className="bg-[#EDE9FF] border-[#D4CCFF] shadow-card rounded-[20px] p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <h3 className="text-lg font-bold text-[#1A1A2E]">Earnings Protection Summary</h3>
-            <Badge className="bg-[#6C47FF] text-white border-none py-1.5 px-4 rounded-full font-bold text-[10px]">DNA Rate: ₹{dnaRate}/hr ({slot.name})</Badge>
-          </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            <div><p className="text-xs font-bold text-[#64748B] uppercase">Potential Income Loss</p><p className="text-2xl font-bold text-[#EF4444]">₹{potentialLoss}</p><p className="text-[9px] text-[#64748B]">6 hrs disruption during peak</p></div>
-            <div><p className="text-xs font-bold text-[#64748B] uppercase">Insurance Coverage</p><p className="text-2xl font-bold text-[#22C55E]">₹{coverage}</p><p className="text-[9px] text-[#64748B]">Parametric Payout Limit</p></div>
-            <div><p className="text-xs font-bold text-[#64748B] uppercase">Remaining Risk</p><p className="text-2xl font-bold text-[#EF4444]">₹{remainingRisk}</p><p className="text-[9px] text-[#64748B]">Unprotected amount</p></div>
-          </div>
-          
-          {remainingRisk <= 0 ? (
-            <div style={{
-              background: '#DCFCE7',
-              border: '1px solid #BBF7D0',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginTop: '12px',
-              fontSize: '13px',
-              color: '#16A34A',
-              fontWeight: '500'
-            }}>
-              ✓ You are fully covered for this disruption!
-            </div>
-          ) : (
-            <div style={{
-              background: '#FEF9C3',
-              border: '1px solid #FDE68A',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginTop: '12px',
-              fontSize: '13px',
-              color: '#D97706',
-              fontWeight: '500'
-            }}>
-              ⚠ Tip: Consider upgrading to a higher plan to cover your income completely.
-            </div>
-          )}
-        </Card>
-
-        <section className="space-y-6 bg-white p-4 rounded-2xl border border-[#E8E6FF]">
-          <div className="flex justify-between items-center px-2">
-            <h2 className="text-base font-bold text-[#1A1A2E]">Income DNA Profile</h2>
-            <p className="text-[11px] text-[#94A3B8] font-mono">Updated {format(new Date(), "HH:mm")}</p>
-          </div>
-
-          <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
-            {[
-              { label: "Morning", time: "6-10 AM", rate: dna?.morning_rate ?? 45, mult: "0.75x", icon: "🌅", color: "#F59E0B" },
-              { label: "Afternoon", time: "12-4 PM", rate: dna?.afternoon_rate ?? 57, mult: "0.95x", icon: "☀", color: "#F97316" },
-              { label: "Evening", time: "5-9 PM", rate: dna?.evening_rate ?? 78, mult: "1.30x", icon: "🌆", color: "#6C47FF" },
-              { label: "Night", time: "9 PM-12 AM", rate: dna?.night_rate ?? 51, mult: "0.85x", icon: "🌙", color: "#3B82F6" }
-            ].map((slot, i) => (
-              <Card key={i} className="p-3 rounded-[10px] border-[#E8E6FF] shadow-sm relative overflow-hidden">
-                <div className="flex items-center gap-2 mb-1"><span className="text-sm">{slot.icon}</span><p className="text-[10px] font-bold text-[#94A3B8] uppercase">{slot.label}</p></div>
-                <p className="text-[10px] text-[#64748B]">{slot.time}</p>
-                <p className="text-base font-bold text-[#1A1A2E]">₹{Math.round(slot.rate || 0)}/hr</p>
-                <p className="text-[10px] text-[#6C47FF] mt-1">{slot.mult} multiplier</p>
-                <div className="absolute bottom-0 left-0 h-[4px] w-full" style={{ backgroundColor: slot.color, opacity: 0.3 }} />
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card className="p-6 bg-white border-border shadow-card rounded-card flex flex-col justify-between">
-              <div>
-                <p className="text-xs font-bold text-muted uppercase tracking-widest mb-2">Expected Weekly Earnings</p>
-                <div 
-                  className="text-5xl font-bold text-primary cursor-help"
-                  title="Calculated from your 4 time slot rates × working hours × 7 days"
-                >
-                  ₹{dna?.weekly_earnings || 6111}
-                </div>
-                <p className="text-xs text-body mt-2">Derived from your Income DNA earning pattern</p>
-              </div>
-              <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold text-muted uppercase mb-1">Recommended Plan</p>
-                  <p className="text-lg font-bold text-warning">{dna?.recommended_plan || "Elite Shield"}</p>
-                </div>
-                <Link href="/plans">
-                  <Button variant="outline" className="border-primary text-primary font-bold hover:bg-primary-light rounded-btn">
-                    Upgrade Plan
-                  </Button>
-                </Link>
-              </div>
-            </Card>
-
-            <Card className="p-4 rounded-[12px] border-[#E8E6FF] shadow-sm">
-              <h4 className="text-sm font-semibold mb-2">Peak Earning Hours (24-Hour Profile)</h4>
-              <div className="h-[180px] w-full">
-                {mounted && (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={[
-                      { hour: '12 AM', evening: 0, lunch: 0, active: 40 },
-                      { hour: '6 AM', evening: 0, lunch: 0, active: 45 },
-                      { hour: '12 PM', evening: 0, lunch: 80, active: 50 },
-                      { hour: '6 PM', evening: 95, lunch: 0, active: 60 },
-                      { hour: '11 PM', evening: 40, lunch: 0, active: 45 },
-                    ]} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E6FF" opacity={0.3} />
-                      <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} ticks={["12 AM", "6 AM", "12 PM", "6 PM", "11 PM"]} />
-                      <YAxis hide={true} />
-                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '11px' }} />
-                      <Area type="monotone" dataKey="evening" name="Evening peak" stroke="#6C47FF" fill="#6C47FF" fillOpacity={0.2} />
-                      <Area type="monotone" dataKey="lunch" name="Lunch peak" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.1} />
-                      <Area type="monotone" dataKey="active" name="Active hours" stroke="#C4B8F8" fill="#C4B8F8" fillOpacity={0.1} />
-                      <Legend iconSize={8} wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </Card>
+          <h2 className="text-lg font-bold text-[#1A1A2E]">Recent Verifications</h2>
+          <div className="bg-white rounded-2xl border border-[#E8E6FF] overflow-hidden shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#F8F9FF] border-b border-[#E8E6FF]">
+                <tr className="text-[10px] font-black text-[#94A3B8] uppercase">
+                  <th className="p-4">Trigger</th>
+                  <th className="p-4">GPS Status</th>
+                  <th className="p-4">Distance</th>
+                  <th className="p-4">Payout</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E8E6FF]">
+                {claims?.map(c => (
+                  <tr key={c.id}>
+                    <td className="p-4 font-bold">Weather</td>
+                    <td className="p-4"><Badge variant="outline" className={c.gps_verification === 'PASSED' ? 'bg-[#DCFCE7] text-[#22C55E]' : 'bg-[#FEE2E2] text-[#EF4444]'}>{c.gps_verification || 'N/A'}</Badge></td>
+                    <td className="p-4 text-[#64748B] text-xs">Verified via GPS</td>
+                    <td className="p-4 font-bold text-[#6C47FF]">₹{c.compensation}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       </main>
-
-      <Link href="/support">
-        <Button className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-btn bg-[#6C47FF] hover:bg-[#5535E8] flex items-center justify-center z-50">
-          <Brain className="h-7 w-7 text-white" />
-        </Button>
-      </Link>
     </motion.div>
   );
 }

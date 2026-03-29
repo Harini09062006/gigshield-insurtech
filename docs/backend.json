@@ -12,6 +12,8 @@
         "platform": { "type": "string" },
         "state": { "type": "string" },
         "city": { "type": "string" },
+        "lat": { "type": "number", "description": "Worker's base latitude" },
+        "lng": { "type": "number", "description": "Worker's base longitude" },
         "avg_hourly_earnings": { "type": "number" },
         "plan_id": { "type": "string" },
         "role": { "type": "string" },
@@ -56,6 +58,9 @@
         "hours_lost": { "type": "number" },
         "compensation": { "type": "number" },
         "status": { "type": "string" },
+        "lat": { "type": "number", "description": "Latitude at time of claim" },
+        "lng": { "type": "number", "description": "Longitude at time of claim" },
+        "gps_verification": { "type": "string", "enum": ["PASSED", "FAILED", "NOT_AVAILABLE"] },
         "created_at": { "type": "string", "format": "date-time" }
       }
     }
