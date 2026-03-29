@@ -209,6 +209,29 @@ export default function PlansPage() {
   return (
     <div className="min-h-screen bg-bg-page flex flex-col items-center py-10 px-4">
       <div className="w-full max-w-6xl space-y-10">
+        
+        {/* Minimal Horizontal Step Progress Bar */}
+        <div className="w-full max-w-md mx-auto mb-12">
+          <div className="flex items-center justify-between mb-3 px-1">
+            {['Basic Info', 'Choose Plan', 'Done'].map((step, i) => (
+              <span 
+                key={i} 
+                className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                  i <= 1 ? 'text-primary' : 'text-muted-foreground opacity-40'
+                }`}
+              >
+                {step}
+              </span>
+            ))}
+          </div>
+          <div className="h-1.5 w-full bg-[#E8E6FF] rounded-full overflow-hidden shadow-inner">
+            <div 
+              className="h-full bg-primary w-2/3 transition-all duration-1000 ease-in-out" 
+              style={{ boxShadow: '0 0 10px rgba(108, 71, 255, 0.3)' }}
+            />
+          </div>
+        </div>
+
         <div className="flex flex-col items-center gap-4">
           <div className="h-12 w-12 bg-primary rounded-2xl flex items-center justify-center shadow-btn">
             <Shield className="h-7 w-7 text-white" />
