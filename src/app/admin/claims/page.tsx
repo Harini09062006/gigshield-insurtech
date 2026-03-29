@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
 import { collection, query, orderBy, doc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Shield, LayoutDashboard, Bell, Users, LogOut, CheckCircle2, XCircle, Loader2, Lock, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -20,27 +19,31 @@ export default function AdminClaims() {
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   useEffect(() => {
     async function checkRole() {
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists() && userDoc.data().role === "admin") {
-            setIsAdmin(true);
-          } else {
-            router.replace("/");
-          }
-        } catch (error) {
-          console.error("Role check failed", error);
+      if (isUserLoading) return;
+
+      if (!user) {
+        router.replace("/login");
+        setCheckingAdmin(false);
+        return;
+      }
+
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role === "admin") {
+          setIsAdmin(true);
+        } else {
           router.replace("/");
-        } finally {
-          setCheckingAdmin(false);
         }
-      } else if (!isUserLoading) {
+      } catch (error) {
+        console.error("Role check failed", error);
         router.replace("/");
+      } finally {
         setCheckingAdmin(false);
       }
     }
@@ -81,8 +84,12 @@ export default function AdminClaims() {
 
   if (isUserLoading || checkingAdmin) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
-        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
+      <div className="h-screen flex flex-col items-center justify-center bg-[#EEEEFF] space-y-4">
+        <div className="relative">
+          <Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" />
+          <Lock className="absolute inset-0 m-auto h-4 w-4 text-[#6C47FF]" />
+        </div>
+        <p className="text-sm font-bold text-[#1A1A2E] animate-pulse">Verifying credentials...</p>
       </div>
     );
   }
@@ -122,6 +129,14 @@ export default function AdminClaims() {
                   <Bell className="h-4 w-4" />
                   <span>All Claims</span>
                 </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/admin/support">
+                  <SidebarMenuButton>
+                    <Headphones className="h-4 w-4" />
+                    <span>Support Queue</span>
+                  </SidebarMenuButton>
+                </Link>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>

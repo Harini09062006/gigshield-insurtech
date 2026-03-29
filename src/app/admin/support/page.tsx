@@ -1,9 +1,9 @@
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, addDoc, where } from "firebase/firestore";
+import { collection, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, addDoc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Users, LogOut, Loader2, Headphones, Send, MessageSquare, CheckCircle2, Bell } from "lucide-react";
+import { Shield, LayoutDashboard, Users, LogOut, Loader2, Headphones, Send, MessageSquare, CheckCircle2, Bell, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -26,31 +26,32 @@ export default function AdminSupport() {
   // 1. Check Admin Permissions
   useEffect(() => {
     async function checkRole() {
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists() && userDoc.data().role === "admin") {
-            setIsAdmin(true);
-          } else {
-            router.replace("/");
-          }
-        } catch (error) {
-          console.error("Role check failed", error);
+      if (isUserLoading) return;
+
+      if (!user) {
+        router.replace("/login");
+        setCheckingAdmin(false);
+        return;
+      }
+
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role === "admin") {
+          setIsAdmin(true);
+        } else {
           router.replace("/");
-        } finally {
-          setCheckingAdmin(false);
         }
-      } else if (!isUserLoading) {
+      } catch (error) {
+        console.error("Role check failed", error);
         router.replace("/");
+      } finally {
         setCheckingAdmin(false);
       }
     }
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 2. Fetch recent support messages - Gated by isAdmin
-  // Note: Unfiltered queries on large collections can be expensive. 
-  // In production, consider indexing by 'status' and querying where('status', 'in', ['open', 'in-progress']).
+  // 2. Fetch recent support messages - Gated by isAdmin verification
   const allMessagesQuery = useMemoFirebase(() => {
     if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "support_messages"), orderBy("timestamp", "desc"));
@@ -88,7 +89,6 @@ export default function AdminSupport() {
     setReplyText("");
 
     try {
-      // Add the admin's reply
       await addDoc(collection(db, "support_messages"), {
         userId: activeChatUserId,
         text,
@@ -97,7 +97,6 @@ export default function AdminSupport() {
         timestamp: serverTimestamp()
       });
 
-      // Update all associated messages from the user to 'in-progress'
       const openMsgs = allMessages?.filter(m => m.userId === activeChatUserId && m.status === 'open');
       for (const m of (openMsgs || [])) {
         await updateDoc(doc(db, "support_messages", m.id), { status: "in-progress" });
@@ -122,8 +121,12 @@ export default function AdminSupport() {
 
   if (isUserLoading || checkingAdmin) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
-        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
+      <div className="h-screen flex flex-col items-center justify-center bg-[#EEEEFF] space-y-4">
+        <div className="relative">
+          <Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" />
+          <Lock className="absolute inset-0 m-auto h-4 w-4 text-[#6C47FF]" />
+        </div>
+        <p className="text-sm font-bold text-[#1A1A2E] animate-pulse">Syncing Admin Session...</p>
       </div>
     );
   }

@@ -3,7 +3,7 @@
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
 import { collection, query, orderBy, getDoc, doc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, Search, Calendar, Loader2, Lock } from "lucide-react";
+import { Shield, LayoutDashboard, Bell, Users, LogOut, Search, Calendar, Loader2, Lock, Headphones } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -114,7 +114,7 @@ export default function AdminUsers() {
               <SidebarMenuItem>
                 <Link href="/admin/support">
                   <SidebarMenuButton>
-                    <Shield className="h-4 w-4" />
+                    <Headphones className="h-4 w-4" />
                     <span>Support Queue</span>
                   </SidebarMenuButton>
                 </Link>

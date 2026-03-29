@@ -2,10 +2,10 @@
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
 import { collection, query, limit, doc, getDoc } from "firebase/firestore";
-import { Shield, LayoutDashboard, Bell, Users, LogOut, Loader2, Lock } from "lucide-react";
+import { Shield, LayoutDashboard, Bell, Users, LogOut, Loader2, Lock, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
@@ -58,6 +58,11 @@ export default function AdminDashboard() {
 
   const { data: zones, isLoading: isZonesLoading } = useCollection(zonesQuery);
 
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push("/login");
+  };
+
   if (isUserLoading || checkingAdmin) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-[#EEEEFF] space-y-4">
@@ -75,11 +80,6 @@ export default function AdminDashboard() {
 
   if (!isAdmin) return null;
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    router.push("/login");
-  };
-
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex h-screen w-full bg-[#EEEEFF] overflow-hidden font-body">
       <aside className="w-64 border-r border-[#E8E6FF] bg-white hidden md:flex flex-col p-6 space-y-8">
@@ -91,7 +91,7 @@ export default function AdminDashboard() {
           <Button variant="ghost" className="w-full justify-start gap-2 bg-[#EDE9FF] text-[#6C47FF] font-bold"><LayoutDashboard size={18} /> Overview</Button>
           <Button onClick={() => router.push('/admin/users')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Users size={18} /> Workers</Button>
           <Button onClick={() => router.push('/admin/claims')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Bell size={18} /> Claims</Button>
-          <Button onClick={() => router.push('/admin/support')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Shield size={18} /> Support Queue</Button>
+          <Button onClick={() => router.push('/admin/support')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Headphones size={18} /> Support Queue</Button>
         </nav>
         <Button onClick={handleLogout} variant="ghost" className="text-[#EF4444] justify-start gap-2 font-bold hover:bg-[#FEE2E2]"><LogOut size={18} /> Logout</Button>
       </aside>

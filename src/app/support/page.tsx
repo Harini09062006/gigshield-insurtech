@@ -127,7 +127,7 @@ export default function SupportPage() {
       toast({
         variant: "destructive",
         title: "Connection Issue",
-        description: "Failed to sync message. Ensure your composite index is enabled."
+        description: "Failed to sync message. Please ensure your account is valid."
       });
     } finally {
       setLoading(false);

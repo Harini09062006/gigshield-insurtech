@@ -16,7 +16,7 @@ service cloud.firestore {
 
     // User profiles: Workers manage their own, admins manage all
     match /users/{uid} {
-      // Direct owner check MUST come first to bypass isAdmin() and prevent recursive rule evaluation
+      // Direct owner check MUST come first to prevent recursive rule evaluation
       allow read, write: if isSignedIn() && request.auth.uid == uid;
       // Admins can see all profiles
       allow read, write: if isAdmin();
@@ -25,10 +25,14 @@ service cloud.firestore {
     // Claims: parametric payout logs
     match /claims/{id} {
       allow create: if isSignedIn();
-      // Split list/get for better performance and deterministic query validation
-      // Workers query by worker_id, admins query everything
-      allow list: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
+      
+      // Split list rules for query analyzer efficiency. 
+      // This ensures worker queries (filtered by worker_id) pass immediately.
+      allow list: if isSignedIn() && resource.data.worker_id == request.auth.uid;
+      allow list: if isAdmin();
+      
       allow get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
+      
       // Mutation is restricted to admins
       allow update, delete: if isAdmin();
     }
@@ -36,10 +40,15 @@ service cloud.firestore {
     // Support Messages: Smart bot/human chat logs
     match /support_messages/{id} {
       allow create: if isSignedIn();
-      // Combine conditions for query analyzer efficiency
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Split list rules for query analyzer efficiency.
+      // This ensures worker queries (filtered by userId) pass immediately.
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isAdmin();
+      
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      // Users can update status, admins have full management
+      
+      // Users can update status (resolved), admins have full management
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
     }
