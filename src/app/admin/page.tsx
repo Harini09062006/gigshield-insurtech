@@ -11,7 +11,7 @@ import Link from "next/link";
 
 /**
  * SECURE ADMIN DASHBOARD
- * Handles asynchronous auth verification and role checking before rendering.
+ * Features robust asynchronous auth verification and role checking.
  */
 export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
@@ -24,10 +24,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function verifyAccess() {
-      // 1. Wait for Firebase Auth to finish initializing
+      // 1. Wait for Firebase Auth to finish initializing before any decision
       if (isUserLoading) return;
 
-      // 2. If no user after loading, redirect to login
+      // 2. If definitely no user after loading, redirect to login
       if (!user) {
         console.log("Admin Guard: No user detected, redirecting to login");
         router.replace("/login");
@@ -35,7 +35,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      // 3. Verify 'admin' role in Firestore
+      // 3. Verify 'admin' role in Firestore explicitly
       try {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists() && userDoc.data().role === "admin") {
@@ -62,12 +62,15 @@ export default function AdminDashboard() {
           <Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" />
           <Lock className="absolute inset-0 m-auto h-4 w-4 text-[#6C47FF]" />
         </div>
-        <p className="text-sm font-bold text-[#1A1A2E] animate-pulse uppercase tracking-widest">Verifying Command Access...</p>
+        <div className="text-center">
+          <p className="text-sm font-bold text-[#1A1A2E] animate-pulse uppercase tracking-widest">Verifying Command Access...</p>
+          <p className="text-[10px] text-[#64748B] mt-1">Authorized Personnel Only</p>
+        </div>
       </div>
     );
   }
 
-  // Prevent flash of content if not admin
+  // Prevent flash of dashboard content if the user isn't an admin
   if (!isAdmin) return null;
 
   return (

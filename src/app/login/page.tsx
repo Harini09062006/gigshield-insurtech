@@ -59,12 +59,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // CRITICAL: Await persistence BEFORE sign in
+      // CRITICAL: Await persistence BEFORE sign in to ensure session is stored
       await setPersistence(auth, browserLocalPersistence);
       
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Fetch role to determine routing
+      // Fetch role to determine routing immediately
       const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
       if (!userDoc.exists()) {
         throw new Error("Profile not found. Please register first.");
@@ -72,13 +72,13 @@ export default function LoginPage() {
 
       const role = userDoc.data().role;
       
-      // Brief delay to allow Firebase state to propagate
+      // Brief delay to allow Firebase state to propagate across the app
       await new Promise(resolve => setTimeout(resolve, 500));
       router.push(role === "admin" ? "/admin" : "/dashboard");
 
     } catch (error: any) {
       console.error("Login Error:", error);
-      setErrorMessage("Invalid credentials or network error. Please try again.");
+      setErrorMessage("Invalid credentials. Please check your number or register.");
     } finally {
       setLoading(false);
     }
