@@ -52,7 +52,83 @@ export default function WorkerDashboard() {
 
   const [simulating, setSimulating] = useState(false);
 
-  // 2. LOGOUT LOGIC
+  // --- NEW LOGIC STATES ---
+  const [weather, setWeather] = useState({
+    rainMM: 12,
+    condition: "Light Rain",
+    risk: 35
+  });
+
+  const [loss, setLoss] = useState(468);
+  const [coverage, setCoverage] = useState(240);
+  const [remaining, setRemaining] = useState(228);
+
+  // --- WEATHER & LOSS LOGIC ---
+  async function fetchWeather() {
+    // Simulated API call
+    setWeather({
+      rainMM: 8 + Math.random() * 10,
+      condition: "Partly Cloudy",
+      risk: 15 + Math.floor(Math.random() * 20)
+    });
+  }
+
+  function calculateLoss(rainMM: number) {
+    // User requested logic: loss = rainMM * 10
+    const calculatedLoss = Math.round(rainMM * 10);
+    const planLimit = profile?.plan_id === 'elite' ? 600 : (profile?.plan_id === 'pro' ? 240 : 60);
+    
+    setLoss(calculatedLoss);
+    setCoverage(planLimit);
+    setRemaining(Math.max(0, calculatedLoss - planLimit));
+  }
+
+  function simulateWeather() {
+    setSimulating(true);
+    const simulatedRain = 50 + Math.random() * 50;
+
+    setTimeout(async () => {
+      setWeather({
+        rainMM: simulatedRain,
+        condition: "Heavy Rain",
+        risk: 85
+      });
+
+      calculateLoss(simulatedRain);
+      
+      // Also trigger the Firestore claim record logic
+      if (user && db && profile) {
+        try {
+          const currentLoc = await getUserLocation();
+          const workerLoc = profile.location || { lat: profile.lat || 0, lng: profile.lng || 0 };
+          const gpsResult = gpsCheck(workerLoc, currentLoc);
+          const trustScore = 75 + Math.floor(Math.random() * 25); 
+
+          await addDoc(collection(db, "claims"), {
+            worker_id: user.uid,
+            amount: profile.plan_id === 'elite' ? 600 : (profile.plan_id === 'pro' ? 240 : 60),
+            compensation: profile.plan_id === 'elite' ? 600 : (profile.plan_id === 'pro' ? 240 : 60),
+            location: currentLoc,
+            gps_verification: gpsResult,
+            trust_score: trustScore,
+            status: gpsResult === 'PASSED' ? "approved" : "failed",
+            created_at: serverTimestamp(),
+            trigger_description: "Simulated Severe Monsoon"
+          });
+        } catch (e) {
+          console.error("Simulation Firestore Error:", e);
+        }
+      }
+      
+      setSimulating(false);
+    }, 1500);
+  }
+
+  // --- INITIALIZATION ---
+  useEffect(() => {
+    fetchWeather();
+  }, []);
+
   const handleLogout = async () => {
     try {
       await auth.signOut();
@@ -62,7 +138,6 @@ export default function WorkerDashboard() {
     }
   };
 
-  // 3. SAVE USER LOCATION (ON MOUNT)
   useEffect(() => {
     async function autoAnchorLocation() {
       if (user && db && !profile?.location) {
@@ -81,39 +156,6 @@ export default function WorkerDashboard() {
     }
     if (!isUserLoading && user) autoAnchorLocation();
   }, [user, isUserLoading, db, profile?.location]);
-
-  // 4. CLAIM CREATION & 7. DECISION LOGIC
-  const handleSimulateWeather = async () => {
-    if (!user || !db || !profile) return;
-    setSimulating(true);
-    try {
-      const currentLoc = await getUserLocation();
-      const workerLoc = profile.location || { lat: profile.lat || 0, lng: profile.lng || 0 };
-      const gpsResult = gpsCheck(workerLoc, currentLoc);
-      
-      const trustScore = Math.floor(Math.random() * 60) + 40; // Prototype range 40-100
-      
-      let status: "approved" | "review" | "failed" = "approved";
-      if (gpsResult === "FAILED" || trustScore < 40) status = "failed";
-      else if (trustScore <= 70) status = "review";
-
-      await addDoc(collection(db, "claims"), {
-        worker_id: user.uid,
-        amount: profile.plan_id === 'elite' ? 600 : (profile.plan_id === 'pro' ? 240 : 60),
-        compensation: profile.plan_id === 'elite' ? 600 : (profile.plan_id === 'pro' ? 240 : 60),
-        location: currentLoc,
-        gps_verification: gpsResult,
-        trust_score: trustScore,
-        status: status,
-        created_at: serverTimestamp(),
-        trigger_description: "Simulated Heavy Monsoon"
-      });
-    } catch (e) {
-      console.error("Simulation Error:", e);
-    } finally {
-      setSimulating(false);
-    }
-  };
 
   // UI Chart Data (Derived)
   const hourlyChartData = [
@@ -138,10 +180,9 @@ export default function WorkerDashboard() {
     );
   }
 
-  // Derived Calculations
+  // Derived Values for UI
   const currentDnaRate = dna?.evening_rate || 78;
   const planMaxPayout = profile?.plan_id === 'elite' ? 600 : (profile?.plan_id === 'pro' ? 240 : 60);
-  const potentialLoss = Math.round(currentDnaRate * 6);
 
   return (
     <div className="min-h-screen bg-[#EEEEFF] flex flex-col font-body">
@@ -200,15 +241,15 @@ export default function WorkerDashboard() {
               <Brain className="h-5 w-5 text-[#6C47FF]" />
             </div>
             <div className="flex justify-between items-end mb-4">
-              <div className="text-4xl font-bold text-[#1A1A2E]">12mm</div>
-              <Badge className="bg-[#EDE9FF] text-[#6C47FF] border-none font-bold px-3 py-1">Light Rain</Badge>
+              <div className="text-4xl font-bold text-[#1A1A2E]">{weather.rainMM.toFixed(0)}mm</div>
+              <Badge className="bg-[#EDE9FF] text-[#6C47FF] border-none font-bold px-3 py-1">{weather.condition}</Badge>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-[10px] font-bold text-[#64748B]">
                 <span>Disruption Probability</span>
-                <span>35%</span>
+                <span>{weather.risk}%</span>
               </div>
-              <Progress value={35} className="h-2 bg-[#F1F0FF]" />
+              <Progress value={weather.risk} className="h-2 bg-[#F1F0FF]" />
             </div>
           </Card>
 
@@ -256,7 +297,7 @@ export default function WorkerDashboard() {
             <CardTitle className="text-lg font-headline font-bold text-[#1A1A2E]">Earnings Protection Summary</CardTitle>
             <Button 
               className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold h-10 px-6 rounded-xl"
-              onClick={handleSimulateWeather}
+              onClick={simulateWeather}
               disabled={simulating}
             >
               {simulating ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Zap className="mr-2 h-4 w-4 fill-current" />}
@@ -267,17 +308,17 @@ export default function WorkerDashboard() {
             <div className="grid gap-8 md:grid-cols-3">
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
-                <p className="text-3xl font-bold text-[#EF4444]">₹{potentialLoss}</p>
-                <p className="text-[10px] text-[#94A3B8]">Based on Evening DNA rate (6 hrs)</p>
+                <p className="text-3xl font-bold text-[#EF4444]">₹{loss}</p>
+                <p className="text-[10px] text-[#94A3B8]">Based on current weather intensity</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
-                <p className="text-3xl font-bold text-[#22C55E]">₹{planMaxPayout}</p>
+                <p className="text-3xl font-bold text-[#22C55E]">₹{coverage}</p>
                 <p className="text-[10px] text-[#94A3B8]">Capped by plan limit</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
-                <p className="text-3xl font-bold text-[#EF4444]">₹{Math.max(0, potentialLoss - planMaxPayout)}</p>
+                <p className="text-3xl font-bold text-[#EF4444]">₹{remaining}</p>
                 <p className="text-[10px] text-[#94A3B8]">Uncovered amount during event</p>
               </div>
             </div>
@@ -287,7 +328,7 @@ export default function WorkerDashboard() {
                 <AlertCircle className="text-[#F59E0B] h-5 w-5" />
               </div>
               <p className="text-xs font-medium text-[#D97706] leading-relaxed">
-                <span className="font-bold">Pro Tip:</span> {potentialLoss > planMaxPayout ? "Consider upgrading to Elite Shield to cover your evening peak income completely during heavy monsoons." : "Your current plan provides full coverage for your average earning patterns."}
+                <span className="font-bold">Pro Tip:</span> {remaining > 0 ? "Consider upgrading to Elite Shield to cover your income completely during heavy monsoons." : "Your current plan provides full coverage for your average earning patterns."}
               </p>
             </div>
           </CardContent>
