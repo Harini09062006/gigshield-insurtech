@@ -35,6 +35,7 @@ export default function WorkerDashboard() {
 
   useEffect(() => {
     setMounted(true);
+    console.log("[Dashboard] Initializing Dashboard. Auth Loading:", isUserLoading, "User UID:", user?.uid);
     if (!isUserLoading && !user) {
       console.log("[Dashboard] Unauthenticated access, redirecting...");
       router.replace("/");
@@ -78,7 +79,7 @@ export default function WorkerDashboard() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || isUserLoading || !user?.uid) return null;
-    console.log("[Dashboard] Subscribing to user claims for:", user.uid);
+    console.log("[Dashboard] Initiating Claims listener for UID:", user.uid);
     return query(
       collection(db, "claims"), 
       where("worker_id", "==", user.uid), 
@@ -87,7 +88,13 @@ export default function WorkerDashboard() {
     );
   }, [db, isUserLoading, user?.uid]);
   
-  const { data: claims, isLoading: isClaimsLoading } = useCollection(claimsQuery);
+  const { data: claims, isLoading: isClaimsLoading, error: claimsError } = useCollection(claimsQuery);
+
+  useEffect(() => {
+    if (claimsError) {
+      console.error("[Dashboard] Claims fetch error:", claimsError);
+    }
+  }, [claimsError]);
 
   const simulateWeather = async () => {
     if (!user?.uid || !profile || !db) return;

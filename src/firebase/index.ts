@@ -21,6 +21,7 @@ let firestore: Firestore;
 export function initializeFirebase() {
   if (!app) {
     if (!getApps().length) {
+      console.log("[Firebase] Initializing App with Project:", firebaseConfig.projectId);
       app = initializeApp(firebaseConfig);
     } else {
       app = getApp();
@@ -37,6 +38,7 @@ export function initializeFirebase() {
 
   if (!firestore) {
     firestore = getFirestore(app);
+    console.log("[Firestore] Service Initialized Instance:", firestore.type === 'firestore' ? 'READY' : 'ERROR');
   }
 
   return {

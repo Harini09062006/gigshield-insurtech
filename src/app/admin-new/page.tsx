@@ -66,25 +66,31 @@ export default function AdminNewPage() {
   // Firestore Subscriptions with Auth-Ready Gating
   const usersQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    console.log("[Admin] Subscribing to Users...");
+    console.log("[Admin] Initiating real-time Users collection listener...");
     return query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));
   }, [db, isAuthReady]);
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    console.log("[Admin] Subscribing to Claims...");
+    console.log("[Admin] Initiating real-time Claims collection listener...");
     return query(collection(db, "claims"), orderBy("created_at", "desc"), limit(100));
   }, [db, isAuthReady]);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    console.log("[Admin] Subscribing to Support Messages...");
+    console.log("[Admin] Initiating real-time Support Messages listener...");
     return query(collection(db, "support_messages"), orderBy("timestamp", "desc"), limit(500));
   }, [db, isAuthReady]);
 
-  const { data: realUsers, isLoading: loadingUsers } = useCollection(usersQuery);
-  const { data: realClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
-  const { data: rawMessages, isLoading: loadingMessages } = useCollection(messagesQuery);
+  const { data: realUsers, isLoading: loadingUsers, error: usersError } = useCollection(usersQuery);
+  const { data: realClaims, isLoading: loadingClaims, error: claimsError } = useCollection(claimsQuery);
+  const { data: rawMessages, isLoading: loadingMessages, error: messagesError } = useCollection(messagesQuery);
+
+  useEffect(() => {
+    if (usersError || claimsError || messagesError) {
+      console.error("[Admin Dashboard] Sync Errors Detected:", { usersError, claimsError, messagesError });
+    }
+  }, [usersError, claimsError, messagesError]);
 
   const userMap = useMemo(() => {
     const map = new Map<string, any>();
