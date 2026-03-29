@@ -16,6 +16,7 @@ let firestore: Firestore;
 
 /**
  * Initializes Firebase services as singletons and configures persistence.
+ * Persistence is set to 'browserLocalPersistence' to ensure sessions survive refreshes.
  */
 export function initializeFirebase() {
   if (!app) {
@@ -28,9 +29,9 @@ export function initializeFirebase() {
 
   if (!auth) {
     auth = getAuth(app);
-    // Configure persistence once on the singleton instance
+    // Explicitly set persistence on initialization
     setPersistence(auth, browserLocalPersistence).catch((err) => {
-      console.error("❌ Persistence configuration failed:", err);
+      console.error("❌ Firebase Auth Persistence Error:", err);
     });
   }
 

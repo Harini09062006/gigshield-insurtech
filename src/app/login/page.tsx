@@ -23,7 +23,7 @@ export default function LoginPage() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // Redirect if already logged in
+  // Redirect if already logged in - Check role first
   useEffect(() => {
     async function handleAuthenticatedRedirect() {
       if (user && !isUserLoading) {
@@ -36,7 +36,6 @@ export default function LoginPage() {
             router.replace("/register");
           }
         } catch (e) {
-          console.error("Redirect logic failed:", e);
           router.replace("/dashboard");
         }
       }
@@ -44,60 +43,42 @@ export default function LoginPage() {
     handleAuthenticatedRedirect();
   }, [user, isUserLoading, router, db]);
 
-  function validatePhone(phone: string) {
-    const cleaned = phone.replace(/\s/g, "").replace("+91", "").trim();
-    if (cleaned.length !== 10) {
-      setErrorMessage("Enter a valid 10-digit phone number");
-      return false;
-    }
-    return true;
-  }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
 
-    if (!validatePhone(phone)) return;
-
     const cleanPhone = phone.replace(/\s/g, "").replace("+91", "").trim();
+    if (cleanPhone.length !== 10) {
+      setErrorMessage("Enter a valid 10-digit phone number");
+      return;
+    }
+
     const email = cleanPhone + "@gigshield.app";
     const password = cleanPhone.slice(-6) + "GIG#" + cleanPhone.slice(0, 4);
 
     setLoading(true);
 
     try {
-      // 1. CRITICAL: Ensure persistence is set and AWAITED before signing in
+      // CRITICAL: Await persistence BEFORE sign in
       await setPersistence(auth, browserLocalPersistence);
-
-      // 2. Perform sign in
+      
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
-      // 3. Fetch user profile role
+      
+      // Fetch role to determine routing
       const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-
       if (!userDoc.exists()) {
-        throw new Error("Account profile not found. Please register first.");
+        throw new Error("Profile not found. Please register first.");
       }
 
-      const userData = userDoc.data();
+      const role = userDoc.data().role;
       
-      // 4. Brief delay to allow FirebaseProvider state to sync before routing
+      // Brief delay to allow Firebase state to propagate
       await new Promise(resolve => setTimeout(resolve, 500));
-
-      // 5. Route to appropriate portal
-      router.push(userData.role === "admin" ? "/admin" : "/dashboard");
+      router.push(role === "admin" ? "/admin" : "/dashboard");
 
     } catch (error: any) {
       console.error("Login Error:", error);
-      if (
-        error.code === "auth/user-not-found" ||
-        error.code === "auth/wrong-password" ||
-        error.code === "auth/invalid-credential"
-      ) {
-        setErrorMessage("Invalid credentials. Please register or check your number.");
-      } else {
-        setErrorMessage(error.message || "Authentication failed. Please try again.");
-      }
+      setErrorMessage("Invalid credentials or network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -119,10 +100,7 @@ export default function LoginPage() {
         className="w-full max-w-md space-y-6 flex flex-col items-center"
       >
         <div className="w-full flex justify-start mb-4">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-[#6C47FF] hover:text-[#5535E8] font-bold text-sm transition-all group"
-          >
+          <Link href="/" className="flex items-center gap-2 text-[#6C47FF] hover:text-[#5535E8] font-bold text-sm transition-all group">
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
             Back to Home
           </Link>
@@ -132,42 +110,28 @@ export default function LoginPage() {
           <div className="h-16 w-16 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn mb-3">
             <Shield className="h-9 w-9 text-white" />
           </div>
-          <span className="text-4xl font-headline font-bold text-[#1A1A2E] tracking-tight">
-            GigShield
-          </span>
+          <span className="text-4xl font-headline font-bold text-[#1A1A2E] tracking-tight">GigShield</span>
         </Link>
 
         <Card className="w-full border-none shadow-card rounded-[24px] bg-white p-2">
           <CardHeader className="text-center pt-8">
-            <CardTitle className="text-3xl font-headline font-bold text-[#1A1A2E]">
-              Welcome Back
-            </CardTitle>
-            <CardDescription className="text-[#64748B] text-base mt-2">
-              Enter your registered phone number
-            </CardDescription>
+            <CardTitle className="text-3xl font-headline font-bold text-[#1A1A2E]">Welcome Back</CardTitle>
+            <CardDescription className="text-[#64748B] text-base mt-2">Enter your registered phone number</CardDescription>
           </CardHeader>
 
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-6 px-8 pt-4">
               <div className="space-y-3">
-                <Label
-                  htmlFor="phone"
-                  className="text-[#1A1A2E] font-semibold text-sm"
-                >
-                  Phone Number
-                </Label>
-                <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6C47FF]" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="9342460938"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="pl-12 rounded-xl h-14 border-[#E8E6FF] bg-[#F8F9FF] focus:border-[#6C47FF] text-lg font-medium transition-all"
-                    required
-                  />
-                </div>
+                <Label htmlFor="phone" className="text-[#1A1A2E] font-semibold text-sm">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="9342460938"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="rounded-xl h-14 border-[#E8E6FF] bg-[#F8F9FF] focus:border-[#6C47FF] text-lg font-medium transition-all"
+                  required
+                />
               </div>
 
               {errorMessage && (
@@ -178,29 +142,11 @@ export default function LoginPage() {
             </CardContent>
 
             <CardFooter className="flex flex-col gap-6 px-8 pb-10 pt-2">
-              <Button
-                className="w-full h-14 font-bold bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn rounded-xl text-white text-lg transition-all active:scale-[0.98]"
-                type="submit"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                    Authenticating...
-                  </>
-                ) : (
-                  "Sign In"
-                )}
+              <Button className="w-full h-14 font-bold bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn rounded-xl text-white text-lg" type="submit" disabled={loading}>
+                {loading ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : "Sign In"}
               </Button>
-
               <p className="text-sm text-center text-[#64748B]">
-                New worker?{" "}
-                <Link
-                  href="/register"
-                  className="text-[#6C47FF] hover:underline font-bold"
-                >
-                  Get Protected →
-                </Link>
+                New worker? <Link href="/register" className="text-[#6C47FF] hover:underline font-bold">Get Protected →</Link>
               </p>
             </CardFooter>
           </form>

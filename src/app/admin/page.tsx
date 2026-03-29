@@ -7,12 +7,11 @@ import { doc, getDoc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Shield, LayoutDashboard, Bell, Users, LogOut, Loader2, Lock, Headphones, Activity, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 /**
- * ADMIN CENTRAL DASHBOARD
- * Protected via RBAC: Auth verification -> Role fetching -> Access granting
+ * SECURE ADMIN DASHBOARD
+ * Handles asynchronous auth verification and role checking before rendering.
  */
 export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
@@ -25,23 +24,28 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function verifyAccess() {
+      // 1. Wait for Firebase Auth to finish initializing
       if (isUserLoading) return;
 
+      // 2. If no user after loading, redirect to login
       if (!user) {
+        console.log("Admin Guard: No user detected, redirecting to login");
         router.replace("/login");
         setCheckingAdmin(false);
         return;
       }
 
+      // 3. Verify 'admin' role in Firestore
       try {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists() && userDoc.data().role === "admin") {
           setIsAdmin(true);
         } else {
+          console.warn("Admin Guard: User lacks admin role, redirecting to home");
           router.replace("/");
         }
       } catch (error) {
-        console.error("Administrative check failed:", error);
+        console.error("Admin Guard: Firestore verification failed", error);
         router.replace("/");
       } finally {
         setCheckingAdmin(false);
@@ -50,6 +54,7 @@ export default function AdminDashboard() {
     verifyAccess();
   }, [user, isUserLoading, db, router]);
 
+  // Loading UI while auth or role check is in progress
   if (isUserLoading || checkingAdmin) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-[#EEEEFF] space-y-4">
@@ -62,6 +67,7 @@ export default function AdminDashboard() {
     );
   }
 
+  // Prevent flash of content if not admin
   if (!isAdmin) return null;
 
   return (
@@ -83,28 +89,13 @@ export default function AdminDashboard() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <Link href="/admin/users">
-                  <SidebarMenuButton>
-                    <Users className="h-4 w-4" />
-                    <span>Worker Directory</span>
-                  </SidebarMenuButton>
-                </Link>
+                <Link href="/admin/users"><SidebarMenuButton><Users className="h-4 w-4" /><span>Worker Directory</span></SidebarMenuButton></Link>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <Link href="/admin/claims">
-                  <SidebarMenuButton>
-                    <Bell className="h-4 w-4" />
-                    <span>Claims Queue</span>
-                  </SidebarMenuButton>
-                </Link>
+                <Link href="/admin/claims"><SidebarMenuButton><Bell className="h-4 w-4" /><span>Claims Queue</span></SidebarMenuButton></Link>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <Link href="/admin/support">
-                  <SidebarMenuButton>
-                    <Headphones className="h-4 w-4" />
-                    <span>Support Desk</span>
-                  </SidebarMenuButton>
-                </Link>
+                <Link href="/admin/support"><SidebarMenuButton><Headphones className="h-4 w-4" /><span>Support Desk</span></SidebarMenuButton></Link>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
