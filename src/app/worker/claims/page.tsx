@@ -111,7 +111,7 @@ export default function WorkerClaims() {
                     <div className="flex justify-between text-sm border-t border-border pt-2">
                       <span className="text-heading font-bold">Compensation</span>
                       {claim.gps_status === 'mismatch' ? (
-                        <span className="text-danger font-black">NOT APPROVED</span>
+                        <span className="text-danger font-black uppercase">Not Approved</span>
                       ) : (
                         <span className="text-primary text-lg font-black">₹{claim.compensation || "240"}</span>
                       )}
@@ -124,8 +124,8 @@ export default function WorkerClaims() {
                     {claim.gps_status === 'mismatch' ? 'Verification Failed' : 'Compensation Amount'}
                   </p>
                   {claim.gps_status === 'mismatch' ? (
-                    <div className="text-2xl font-black text-danger mb-1">
-                      NOT APPROVED
+                    <div className="text-2xl font-black text-danger mb-1 uppercase">
+                      Not Approved
                     </div>
                   ) : (
                     <div className="text-4xl font-black text-primary mb-1">
@@ -137,9 +137,13 @@ export default function WorkerClaims() {
                     <Badge className="bg-danger-bg text-danger border-none font-bold uppercase text-[10px]">
                       ⚠ MISMATCH
                     </Badge>
-                  ) : (
+                  ) : claim.status === 'paid' || claim.status === 'approved' ? (
                     <Badge className="bg-success-bg text-success border-none font-bold">
                       ✓ PAID INSTANTLY
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-warning-bg text-warning border-none font-bold uppercase text-[10px]">
+                      Pending Review
                     </Badge>
                   )}
                 </div>

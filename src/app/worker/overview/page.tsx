@@ -214,7 +214,7 @@ export default function WorkerOverview() {
               { label: "Total Claims", value: claims?.length || "0", color: "text-heading" },
               { 
                 label: "Total Payout", 
-                value: `₹${claims?.filter(c => c.status === 'paid' && c.gps_status !== 'mismatch').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0}`, 
+                value: `₹${claims?.filter(c => (c.status === 'paid' || c.status === 'approved') && c.gps_status !== 'mismatch').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0}`, 
                 color: "text-success" 
               },
               { label: "Total Hours Lost", value: claims?.filter(c => c.gps_status !== 'mismatch').reduce((sum, c) => sum + (c.hours_lost || 0), 0) || 0, color: "text-heading" },

@@ -184,13 +184,14 @@ export default function AdminClaims() {
                       <tr key={claim.id} className="hover:bg-[#EDE9FF]/30 transition-colors">
                         <td className="p-4 font-mono text-[10px] text-[#64748B]">{claim.worker_id || claim.userId}</td>
                         <td className="p-4 font-bold text-[#1A1A2E]">
-                          {claim.gps_status === 'mismatch' ? <span className="text-[#EF4444]">DENIED</span> : `₹${claim.compensation}`}
+                          {claim.gps_status === 'mismatch' ? <span className="text-[#EF4444] uppercase font-black">Denied</span> : `₹${claim.compensation}`}
                         </td>
                         <td className="p-4 capitalize text-[#64748B]">{claim.dna_time_slot}</td>
                         <td className="p-4">
                           <Badge variant="outline" className={`capitalize font-semibold ${
+                            claim.gps_status === 'mismatch' ? 'bg-[#FEE2E2] text-[#EF4444] border-transparent' :
                             claim.status === 'paid' || claim.status === 'approved' ? 'bg-[#DCFCE7] text-[#22C55E] border-transparent' : 
-                            claim.status === 'rejected' || claim.gps_status === 'mismatch' ? 'bg-[#FEE2E2] text-[#EF4444] border-transparent' : 
+                            claim.status === 'rejected' || claim.status === 'failed' ? 'bg-[#FEE2E2] text-[#EF4444] border-transparent' : 
                             'bg-[#FEF3C7] text-[#F59E0B] border-transparent'
                           }`}>
                             {claim.gps_status === 'mismatch' ? 'Not Approved' : (claim.status || 'pending')}

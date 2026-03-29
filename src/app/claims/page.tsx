@@ -5,7 +5,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth } from "
 import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Calendar, Zap, Home, FileText, Map as MapIcon, LogOut, Shield, AlertCircle, Loader2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Calendar, Zap, Home, FileText, Map as MapIcon, LogOut, Shield, AlertCircle, Loader2, AlertTriangle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -112,7 +112,8 @@ export default function WorkerClaims() {
                         <div className="flex justify-between"><span>DNA Time Slot</span><span className="font-bold">{claim.dna_time_slot}</span></div>
                         <div className="flex justify-between"><span>Registered Rate</span><span className="font-bold">₹{claim.dna_hourly_rate || 60}/hr</span></div>
                         <div className="flex justify-between pt-2 border-t border-[#E8E6FF] text-lg font-bold text-[#6C47FF]">
-                          <span>Compensation</span><span>₹{claim.compensation}</span>
+                          <span>Compensation</span>
+                          <span>{claim.gps_status === 'mismatch' ? <span className="text-red-500">NOT APPROVED</span> : `₹${claim.compensation}`}</span>
                         </div>
                       </div>
 
@@ -137,7 +138,7 @@ export default function WorkerClaims() {
                       
                       {claim.gps_status === 'mismatch' ? (
                         <Badge className="bg-red-50 text-red-500 border-none font-bold uppercase text-[10px]">⚠ Mismatch Detected</Badge>
-                      ) : claim.status === 'paid' ? (
+                      ) : claim.status === 'paid' || claim.status === 'approved' ? (
                         <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">✓ PAID INSTANTLY</Badge>
                       ) : (
                         <Badge className="bg-amber-100 text-amber-600 border-none font-bold uppercase text-[10px]">Review Required</Badge>
@@ -145,12 +146,12 @@ export default function WorkerClaims() {
                       
                       <div className="mt-3 bg-gray-50 border border-gray-100 rounded-xl p-3 text-center w-full">
                         <div className="font-bold text-gray-700 text-xs mb-1">
-                          {claim.gps_status === 'mismatch' ? 'Verification Failed' : claim.status === 'paid' ? 'Deposit Complete' : 'Verification Pending'}
+                          {claim.gps_status === 'mismatch' ? 'Verification Failed' : (claim.status === 'paid' || claim.status === 'approved') ? 'Deposit Complete' : 'Verification Pending'}
                         </div>
                         <div className="text-[10px] text-gray-500 leading-tight">
                           {claim.gps_status === 'mismatch' 
                             ? 'Proximity check failed. Claim flagged for manual review.' 
-                            : claim.status === 'paid' 
+                            : (claim.status === 'paid' || claim.status === 'approved') 
                               ? 'Funds deposited to your linked bank account.' 
                               : 'This claim requires manual review due to a location mismatch.'}
                         </div>
@@ -172,5 +173,3 @@ export default function WorkerClaims() {
     </motion.div>
   );
 }
-
-import { XCircle } from "lucide-react";

@@ -43,7 +43,7 @@ import { Button } from "@/components/ui/button";
 
 /**
  * REVERTED ADMIN UI WITH REAL-TIME FIRESTORE DATA
- * Enhanced with GPS mismatch visual cues.
+ * Enhanced with GPS mismatch visual cues and priority denial logic.
  */
 export default function AdminNewPage() {
   const db = useFirestore();
@@ -96,7 +96,7 @@ export default function AdminNewPage() {
     return map;
   }, [realUsers]);
 
-  // Aggregated Stats - Fixed to exclude GPS mismatches from total payout
+  // Aggregated Stats - Priority logic implemented
   const stats = useMemo(() => ({
     totalWorkers: realUsers?.length || 0,
     riskEvents: realClaims?.filter(c => c.gps_status === 'mismatch').length || 0,
@@ -283,7 +283,7 @@ export default function AdminNewPage() {
             <tr key={claim.id} className="hover:bg-[#F8F9FF]">
               <td className="px-6 py-4 font-bold text-[#1A1A2E]">{userMap.get(claim.worker_id)?.name || "Unknown"}</td>
               <td className="px-6 py-4 font-bold text-[#6C47FF]">
-                {claim.gps_status === 'mismatch' ? <span className="text-red-500">NOT APPROVED</span> : `₹${claim.compensation}`}
+                {claim.gps_status === 'mismatch' ? <span className="text-red-500 uppercase font-black">Not Approved</span> : `₹${claim.compensation}`}
               </td>
               <td className="px-6 py-4">
                 <Badge variant="outline" className={claim.gps_status === 'matched' ? 'border-[#22C55E] text-[#22C55E]' : 'border-[#EF4444] text-[#EF4444]'}>
