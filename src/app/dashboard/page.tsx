@@ -37,6 +37,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { AIAssistant } from "@/components/chatbot/AIAssistant";
+import { useRouter } from "next/navigation";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -45,6 +46,7 @@ export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const auth = useAuth();
+  const router = useRouter();
 
   // STATE
   const [chatOpen, setChatOpen] = useState(false);
@@ -59,6 +61,13 @@ export default function WorkerDashboard() {
     coverage: 240,
     remaining: 228
   });
+
+  // Auth Guard: Redirect if not logged in
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace("/");
+    }
+  }, [user, isUserLoading, router]);
 
   const profileRef = useMemoFirebase(() =>
     user ? doc(db, "users", user.uid) : null,
@@ -137,6 +146,11 @@ export default function WorkerDashboard() {
     calculateLoss(rain);
   };
 
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push("/");
+  };
+
   useEffect(() => {
     if (user) fetchWeather();
   }, [user, dna]);
@@ -148,6 +162,8 @@ export default function WorkerDashboard() {
       </div>
     );
   }
+
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-[#EEEEFF] font-body text-[#1A1A2E] pb-12">
@@ -166,7 +182,7 @@ export default function WorkerDashboard() {
           <Button variant="ghost" size="icon" className="h-9 w-9 bg-[#f0f2f9] text-[#6C47FF] rounded-xl"><Home className="h-4.5 w-4.5" /></Button>
           <Link href="/claims"><Button variant="ghost" size="icon" className="h-9 w-9 text-[#64748B] rounded-xl"><FileText className="h-4.5 w-4.5" /></Button></Link>
           <Link href="/heatmap"><Button variant="ghost" size="icon" className="h-9 w-9 text-[#64748B] rounded-xl"><MapIcon className="h-4.5 w-4.5" /></Button></Link>
-          <Button onClick={() => auth.signOut()} variant="ghost" size="icon" className="h-9 w-9 text-[#EF4444] rounded-xl"><LogOut className="h-4.5 w-4.5" /></Button>
+          <Button onClick={handleLogout} variant="ghost" size="icon" className="h-9 w-9 text-[#EF4444] rounded-xl"><LogOut className="h-4.5 w-4.5" /></Button>
         </div>
       </header>
 
@@ -328,10 +344,10 @@ export default function WorkerDashboard() {
           </div>
 
           {/* Side-by-Side Hero Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* LEFT: Peak Earning Hours Graph (Takes up 2 columns) */}
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 md:col-span-2 h-[300px]">
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 lg:col-span-2 h-[300px]">
               <h3 className="text-xs font-bold text-[#1A1A2E] mb-4">Peak Earning Hours (24-Hour Profile)</h3>
               <div className="h-[180px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
