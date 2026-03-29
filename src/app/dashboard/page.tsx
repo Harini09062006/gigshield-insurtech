@@ -14,12 +14,10 @@ import {
   FileText,
   Map as MapIcon,
   LogOut,
-  ChevronRight,
   IndianRupee,
   RefreshCcw,
   Calendar,
   Info,
-  AlertCircle
 } from "lucide-react";
 import { 
   AreaChart, 
@@ -30,7 +28,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from "@/firebase";
 import { doc } from "firebase/firestore";
@@ -47,7 +45,7 @@ export default function WorkerDashboard() {
   const db = useFirestore();
   const auth = useAuth();
 
-  // 1. DATA STATE
+  // DATA STATE
   const [weather, setWeather] = useState({
     rainMM: 12,
     condition: "Light Rain",
@@ -86,7 +84,7 @@ export default function WorkerDashboard() {
     { time: '11 PM', evening: 25, lunch: 0, active: 30 },
   ];
 
-  // 2. LOGIC: FETCH WEATHER
+  // FETCH WEATHER
   const fetchWeather = async () => {
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -290,8 +288,8 @@ export default function WorkerDashboard() {
           </div>
         </Card>
 
-        {/* 6. INCOME DNA PROFILE */}
-        <section className="space-y-8 pt-4">
+        {/* 6. INCOME DNA PROFILE (REFINED & COMPACT) */}
+        <section className="space-y-6 pt-4">
           <div className="flex justify-between items-center px-2">
             <h2 className="text-2xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
             <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest">Updated 17:25</p>
@@ -304,15 +302,15 @@ export default function WorkerDashboard() {
               { title: "EVENING", range: "5-9 PM", rate: 78, mult: "1.30x multiplier", color: "#6C47FF", icon: Sunset, peak: true },
               { title: "NIGHT", range: "9 PM-12 AM", rate: 51, mult: "0.85x multiplier", color: "#3B82F6", icon: Moon },
             ].map((slot, i) => (
-              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[20px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-3 h-[140px]">
+              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[20px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-2 h-[140px]">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-gray-50 rounded-lg">
+                  <div className="p-1 bg-gray-50 rounded-lg">
                     <slot.icon size={14} className="text-gray-400" />
                   </div>
                   <p className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{slot.title}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-gray-400 mb-1">{slot.range}</p>
+                  <p className="text-[10px] text-gray-400 mb-0.5">{slot.range}</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-bold text-[#1A1A2E]">₹{slot.rate}</span>
                     <span className="text-sm font-bold text-[#1A1A2E]">/hr</span>
@@ -326,7 +324,7 @@ export default function WorkerDashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: Expected Earnings */}
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-10 flex flex-col justify-between h-[400px]">
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 flex flex-col justify-between h-[400px]">
               <div className="space-y-2">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
                 <div className="text-7xl font-bold text-[#6C47FF]">₹3360</div>
@@ -335,12 +333,12 @@ export default function WorkerDashboard() {
                 </p>
               </div>
               
-              <div className="mt-12 pt-8 border-t border-gray-100 flex items-center justify-between">
+              <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
                 <div>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-1">RECOMMENDED PLAN</p>
                   <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
                 </div>
-                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#F1F0FF] rounded-xl px-8 h-12 transition-all text-sm">
+                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#F1F0FF] rounded-xl px-6 h-11 transition-all text-sm">
                   Upgrade Plan
                 </Button>
               </div>
@@ -348,7 +346,7 @@ export default function WorkerDashboard() {
 
             {/* Right: Chart */}
             <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 h-[400px] lg:col-span-2">
-              <h3 className="text-sm font-bold text-[#1A1A2E] mb-10">Peak Earning Hours (24-Hour Profile)</h3>
+              <h3 className="text-sm font-bold text-[#1A1A2E] mb-8">Peak Earning Hours (24-Hour Profile)</h3>
               <div className="h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
@@ -402,7 +400,7 @@ export default function WorkerDashboard() {
                 </ResponsiveContainer>
               </div>
               
-              <div className="mt-8 flex justify-center gap-8">
+              <div className="mt-6 flex justify-center gap-8">
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#6C47FF]" />
                   <span className="text-[9px] font-bold text-[#94A3B8] uppercase">EVENING PEAK</span>
