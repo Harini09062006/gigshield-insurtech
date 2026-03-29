@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -289,21 +288,22 @@ export default function WorkerDashboard() {
           </div>
         </Card>
 
-        {/* 6. INCOME DNA PROFILE (REFINED & COMPACT) */}
+        {/* 6. INCOME DNA PROFILE (Pixel-Perfect Structure) */}
         <section className="space-y-6 pt-4">
           <div className="flex justify-between items-center px-2">
             <h2 className="text-2xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
             <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest">Updated 17:25</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* DNA Grid - Horizontal Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {[
               { title: "MORNING", range: "6-10 AM", rate: 45, mult: "0.75x multiplier", color: "#F59E0B", icon: Sunrise },
               { title: "AFTERNOON", range: "12-4 PM", rate: 57, mult: "0.95x multiplier", color: "#EAB308", icon: Sun },
               { title: "EVENING", range: "5-9 PM", rate: 78, mult: "1.30x multiplier", color: "#6C47FF", icon: Sunset, peak: true },
               { title: "NIGHT", range: "9 PM-12 AM", rate: 51, mult: "0.85x multiplier", color: "#3B82F6", icon: Moon },
             ].map((slot, i) => (
-              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[20px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-2 h-[130px]">
+              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-2 h-[130px]">
                 <div className="flex items-center gap-2">
                   <div className="p-1 bg-gray-50 rounded-lg">
                     <slot.icon size={14} className="text-gray-400" />
@@ -318,18 +318,21 @@ export default function WorkerDashboard() {
                   </div>
                 </div>
                 <p className="text-[10px] font-bold text-[#6C47FF]">{slot.mult} {slot.peak && "← PEAK"}</p>
+                {/* Visual indicator line at bottom */}
                 <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: slot.color }} />
               </Card>
             ))}
           </div>
 
+          {/* Hero Section - Side by Side (Left: Earnings, Right: Graph) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left: Expected Earnings */}
+            
+            {/* LEFT: Expected Weekly Earnings (1 Column) */}
             <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 flex flex-col justify-between h-[360px]">
               <div className="space-y-2">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
                 <div className="text-6xl font-bold text-[#6C47FF]">₹3360</div>
-                <p className="text-xs text-gray-400 leading-relaxed max-w-[280px] mt-4">
+                <p className="text-xs text-gray-400 leading-relaxed mt-4">
                   Derived from your Income DNA earning pattern across 40 projected working hours.
                 </p>
               </div>
@@ -345,7 +348,7 @@ export default function WorkerDashboard() {
               </div>
             </Card>
 
-            {/* Right: Chart */}
+            {/* RIGHT: Peak Earning Hours Graph (2 Columns) */}
             <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 h-[360px] lg:col-span-2">
               <h3 className="text-sm font-bold text-[#1A1A2E] mb-6">Peak Earning Hours (24-Hour Profile)</h3>
               <div className="h-[200px] w-full">
@@ -401,6 +404,7 @@ export default function WorkerDashboard() {
                 </ResponsiveContainer>
               </div>
               
+              {/* Chart Legend */}
               <div className="mt-6 flex justify-center gap-8">
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#6C47FF]" />
@@ -421,6 +425,7 @@ export default function WorkerDashboard() {
 
       </main>
 
+      {/* Floating Action Button */}
       <Button 
         className="fixed bottom-10 right-10 h-16 w-16 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white"
       >
