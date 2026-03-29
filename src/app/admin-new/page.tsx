@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -37,7 +36,7 @@ import {
   where,
   limit,
   Timestamp,
-  getDocs
+  getDoc
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -61,24 +60,35 @@ export default function AdminNewPage() {
   const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   // 1. Verify Administrative Privileges
-  const profileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
-  const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
-
+  // We perform a direct role check only AFTER auth is confirmed
   useEffect(() => {
-    if (isUserLoading || isProfileLoading) return;
+    async function verifyRole() {
+      if (isUserLoading) return;
 
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
+      if (!user) {
+        // Only redirect if auth is finished and NO user is found
+        router.replace("/login");
+        setCheckingAdmin(false);
+        return;
+      }
 
-    if (profile?.role === "admin") {
-      setIsAdmin(true);
-    } else if (profile) {
-      router.replace("/");
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role === "admin") {
+          setIsAdmin(true);
+        } else {
+          // If logged in but not admin, send to public landing
+          router.replace("/");
+        }
+      } catch (err) {
+        console.error("RBAC Verification Failed", err);
+        router.replace("/");
+      } finally {
+        setCheckingAdmin(false);
+      }
     }
-    setCheckingAdmin(false);
-  }, [user, isUserLoading, profile, isProfileLoading, router]);
+    verifyRole();
+  }, [user, isUserLoading, db, router]);
 
   // 2. Navigation & Search State
   const [activeTab, setActiveTab] = useState("Dashboard");
@@ -89,6 +99,7 @@ export default function AdminNewPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 3. Real-time Firestore Hooks (only active if verified admin)
+  // We use the isAdmin flag to gate the collection hooks to prevent permission errors
   const usersQuery = useMemoFirebase(() => {
     if (!db || !isAdmin) return null;
     return query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));

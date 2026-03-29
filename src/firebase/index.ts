@@ -29,7 +29,7 @@ export function initializeFirebase() {
 
   if (!auth) {
     auth = getAuth(app);
-    // Explicitly set persistence on initialization to ensure session sticks
+    // CRITICAL: Ensure persistence is configured immediately
     setPersistence(auth, browserLocalPersistence).catch((err) => {
       console.error("❌ Firebase Auth Persistence Error:", err);
     });
