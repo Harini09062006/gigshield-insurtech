@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -129,6 +128,29 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-[#EEEEFF] flex flex-col items-center py-10 px-4 font-body">
       <div className="w-full max-w-4xl space-y-8">
+        
+        {/* NEW PROGRESS BAR SIBLING */}
+        <div className="w-full max-w-md mx-auto mb-12">
+          <div className="flex items-center justify-between mb-3 px-1">
+            {['Basic Info', 'Choose Plan', 'Done'].map((label, i) => (
+              <span 
+                key={label} 
+                className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                  i <= 1 ? 'text-[#6C47FF]' : 'text-[#94A3B8] opacity-40'
+                }`}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+          <div className="h-1.5 w-full bg-[#E8E6FF] rounded-full overflow-hidden shadow-inner">
+            <div 
+              className="h-full bg-[#6C47FF] w-2/3 transition-all duration-1000 ease-in-out" 
+              style={{ boxShadow: '0 0 10px rgba(108, 71, 255, 0.3)' }}
+            />
+          </div>
+        </div>
+
         <div className="w-full flex justify-start">
           <Link href="/" className="flex items-center gap-2 text-[#6C47FF] hover:text-[#5535E8] font-bold text-sm group">
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Back to Home
