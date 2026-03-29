@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
@@ -31,6 +30,7 @@ import { getUserLocation as getGpsCoords, gpsCheck } from "@/lib/gps";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 
+// AUTHORIZED API KEY
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
 
 export default function WorkerDashboard() {
@@ -69,6 +69,7 @@ export default function WorkerDashboard() {
   // --- CORE LOGIC FUNCTIONS ---
 
   async function fetchWeather(lat: number, lng: number) {
+    console.log("[Weather] Fetching live data for:", { lat, lng });
     try {
       const response = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${WEATHER_API_KEY}&units=metric`
@@ -95,20 +96,19 @@ export default function WorkerDashboard() {
       calculateLoss(rain);
     } catch (e) {
       console.error("Weather Sync Error:", e);
-      // Fallback safe values
-      setWeather(prev => ({ ...prev, condition: "Offline" }));
+      setWeather(prev => ({ ...prev, condition: "Offline", rainMM: 0, risk: 0 }));
     }
   }
 
   function calculateLoss(rainMM: number) {
     const hourlyRate = profile?.avg_hourly_earnings || 60;
     
-    // Parametric calculation: more rain = more estimated hours of disruption
-    // Simulation logic for prototypes: loss increases with rain intensity
+    // Parametric calculation: loss increases with rain intensity
     const estimatedHoursLost = rainMM > 0 ? (rainMM / 8) + 1 : 0;
     const calculatedLoss = Math.round(hourlyRate * estimatedHoursLost);
     
     const planId = profile?.plan_id || 'pro';
+    // Elite: 600, Pro: 240, Basic: 60
     const planLimit = planId === 'elite' ? 600 : (planId === 'pro' ? 240 : 60);
     
     setLoss(calculatedLoss);
@@ -130,7 +130,6 @@ export default function WorkerDashboard() {
 
       calculateLoss(simulatedRain);
       
-      // Push record to Firestore if user is active
       if (user && db && profile) {
         try {
           const currentLoc = await getGpsCoords();
@@ -149,7 +148,9 @@ export default function WorkerDashboard() {
             trust_score: trustScore,
             status: gpsResult === 'PASSED' ? "approved" : "review",
             created_at: serverTimestamp(),
-            trigger_description: "Simulated Monsoon Trigger"
+            trigger_description: "Simulated Monsoon Trigger",
+            registered_rate: profile.avg_hourly_earnings || 60,
+            dna_time_slot: "Evening 5-9 PM"
           });
         } catch (e) {
           console.error("Simulation Storage Error:", e);
@@ -167,7 +168,7 @@ export default function WorkerDashboard() {
         const coords = await getGpsCoords();
         fetchWeather(coords.lat, coords.lng);
       } catch (e) {
-        console.warn("GPS Denied - Falling back to default location (Mumbai)");
+        console.warn("GPS Denied - Falling back to default (Mumbai)");
         fetchWeather(19.0760, 72.8777);
       }
     }

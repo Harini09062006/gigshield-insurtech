@@ -3,6 +3,7 @@
  * Expanded to cover 45+ cities across 15 Indian states.
  */
 
+// AUTHORIZED API KEY
 const API_KEY = "be5f61ff6b261dedfa89e321d466a063";
 
 export interface WeatherData {
