@@ -50,6 +50,7 @@ export default function SupportPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 1. ALL HOOKS MUST BE AT THE TOP LEVEL
+  // Guard the refs/queries internally rather than using early returns for the component
   const profileRef = useMemoFirebase(
     () => (db && user ? doc(db, "users", user.uid) : null),
     [db, user?.uid]
@@ -59,7 +60,8 @@ export default function SupportPage() {
 
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
-    // Composite Index Required: userId (Asc), timestamp (Asc)
+    // Note: This query requires a composite index: userId (Asc), timestamp (Asc)
+    // If permission error persists, ensure index is 'Enabled' in Firebase Console
     return query(
       collection(db, "support_messages"),
       where("userId", "==", user.uid),
@@ -84,13 +86,15 @@ export default function SupportPage() {
     }
   }, [user, isUserLoading, router]);
 
-  if (isUserLoading || !user) {
+  if (isUserLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
         <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
       </div>
     );
   }
+
+  if (!user) return null;
 
   const handleSend = async () => {
     const text = input.trim();
@@ -126,7 +130,7 @@ export default function SupportPage() {
       toast({
         variant: "destructive",
         title: "Connection Issue",
-        description: "Failed to sync message. Please check your data connection."
+        description: "Failed to sync message. Check your data connection or index status."
       });
     } finally {
       setLoading(false);
