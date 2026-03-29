@@ -68,8 +68,17 @@ export default function WorkerDashboard() {
 
   // --- CORE LOGIC FUNCTIONS ---
 
+  function calculateWeeklyEarnings(dnaData: any) {
+    if (!dnaData) return 6111;
+    const m = dnaData.morning_rate || 45;
+    const a = dnaData.afternoon_rate || 57;
+    const e = dnaData.evening_rate || 78;
+    const n = dnaData.night_rate || 51;
+    // Formula: (M*2 + A*3 + E*4 + N*2) * 7
+    return (m * 2 + a * 3 + e * 4 + n * 2) * 7;
+  }
+
   async function fetchWeather(lat: number, lng: number) {
-    console.log("[Weather] Fetching live data for:", { lat, lng });
     try {
       const response = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${WEATHER_API_KEY}&units=metric`
@@ -80,7 +89,6 @@ export default function WorkerDashboard() {
       const rain = data.rain?.['1h'] || 0;
       const condition = data.weather[0]?.main || "Clear";
       
-      // Risk Calculation based on Rain intensity
       let riskLevel = 0;
       if (rain === 0) riskLevel = 5 + Math.floor(Math.random() * 10);
       else if (rain < 5) riskLevel = 30 + Math.floor(Math.random() * 10);
@@ -101,14 +109,13 @@ export default function WorkerDashboard() {
   }
 
   function calculateLoss(rainMM: number) {
-    const hourlyRate = profile?.avg_hourly_earnings || 60;
+    // Use DNA Evening Rate as the peak loss multiplier for serious events
+    const hourlyRate = dna?.evening_rate || profile?.avg_hourly_earnings || 60;
     
-    // Parametric calculation: loss increases with rain intensity
     const estimatedHoursLost = rainMM > 0 ? (rainMM / 8) + 1 : 0;
     const calculatedLoss = Math.round(hourlyRate * estimatedHoursLost);
     
     const planId = profile?.plan_id || 'pro';
-    // Elite: 600, Pro: 240, Basic: 60
     const planLimit = planId === 'elite' ? 600 : (planId === 'pro' ? 240 : 60);
     
     setLoss(calculatedLoss);
@@ -118,7 +125,6 @@ export default function WorkerDashboard() {
 
   async function simulateWeather() {
     setSimulating(true);
-    // Simulation creates an extreme weather event (50-100mm)
     const simulatedRain = 50 + Math.random() * 50;
 
     setTimeout(async () => {
@@ -161,15 +167,13 @@ export default function WorkerDashboard() {
     }, 1200);
   }
 
-  // --- INITIALIZATION ---
   useEffect(() => {
     async function initDashboard() {
       try {
         const coords = await getGpsCoords();
         fetchWeather(coords.lat, coords.lng);
       } catch (e) {
-        console.warn("GPS Denied - Falling back to default (Mumbai)");
-        fetchWeather(19.0760, 72.8777);
+        fetchWeather(19.0760, 72.8777); // Default to Mumbai
       }
     }
     
@@ -187,26 +191,6 @@ export default function WorkerDashboard() {
     }
   };
 
-  useEffect(() => {
-    async function autoAnchorLocation() {
-      if (user && db && !profile?.location) {
-        try {
-          const loc = await getGpsCoords();
-          await updateDoc(doc(db, "users", user.uid), {
-            location: loc,
-            lat: loc.lat,
-            lng: loc.lng,
-            updatedAt: serverTimestamp()
-          });
-        } catch (e) {
-          console.warn("Auto-anchor failed: Location access required.");
-        }
-      }
-    }
-    if (!isUserLoading && user) autoAnchorLocation();
-  }, [user, isUserLoading, db, profile?.location]);
-
-  // UI Chart Data (Static for Visualization)
   const hourlyChartData = [
     { hour: '6am', earning: 40 }, { hour: '8am', earning: 45 }, { hour: '10am', earning: 55 },
     { hour: '12pm', earning: 50 }, { hour: '2pm', earning: 52 }, { hour: '4pm', earning: 60 },
@@ -230,6 +214,7 @@ export default function WorkerDashboard() {
   }
 
   const planMaxPayout = profile?.plan_id === 'elite' ? 600 : (profile?.plan_id === 'pro' ? 240 : 60);
+  const weeklyEarnings = calculateWeeklyEarnings(dna);
 
   return (
     <div className="min-h-screen bg-[#EEEEFF] flex flex-col font-body">
@@ -260,6 +245,11 @@ export default function WorkerDashboard() {
       </header>
 
       <main className="flex-1 space-y-8 p-6 lg:p-10 max-w-7xl mx-auto w-full">
+        <header>
+          <h1 className="text-3xl font-headline font-bold text-[#1A1A2E]">Welcome back, {profile?.name?.split(' ')[0] || 'User'}</h1>
+          <p className="text-[#64748B] text-sm mt-1">Status: Active Protection in {profile?.city || 'India'}</p>
+        </header>
+
         {/* 2. TOP 3 CARDS */}
         <div className="grid gap-6 md:grid-cols-3">
           {/* Card 1: Purple Gradient */}
@@ -393,22 +383,45 @@ export default function WorkerDashboard() {
             </p>
           </div>
 
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-            {[
-              { label: "Morning (6-10 AM)", rate: `₹${dna?.morning_rate || 45}/hr`, icon: "🌅", progress: 45 },
-              { label: "Afternoon (12-4 PM)", rate: `₹${dna?.afternoon_rate || 57}/hr`, icon: "☀", progress: 57 },
-              { label: "Evening (5-9 PM)", rate: `₹${dna?.evening_rate || 78}/hr`, icon: "🌆", progress: 78 },
-              { label: "Night (9 PM-12 AM)", rate: `₹${dna?.night_rate || 51}/hr`, icon: "🌙", progress: 51 }
-            ].map((slot, i) => (
-              <Card key={i} className="bg-white border-[#E8E6FF] shadow-sm p-5 rounded-2xl">
-                <div className="text-2xl mb-3">{slot.icon}</div>
-                <p className="text-[10px] font-bold text-[#94A3B8] uppercase mb-1">{slot.label}</p>
-                <p className="text-xl font-bold text-[#1A1A2E]">{slot.rate}</p>
-                <div className="h-1 w-full bg-[#F1F0FF] rounded-full mt-4 overflow-hidden">
-                  <div className="h-full bg-[#6C47FF]" style={{ width: `${slot.progress}%` }} />
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="bg-white border-[#E8E6FF] shadow-card rounded-card p-6 flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest mb-2">Expected Weekly Earnings</p>
+                <div className="text-5xl font-bold text-[#6C47FF]">₹{Math.round(weeklyEarnings)}</div>
+                <p className="text-xs text-[#64748B] mt-2">Calculated from your live Income DNA earning patterns</p>
+              </div>
+              <div className="mt-8 pt-6 border-t border-[#E8E6FF] flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-[#94A3B8] uppercase mb-1">Status</p>
+                  <p className="text-lg font-bold text-[#22C55E]">High Consistency</p>
                 </div>
-              </Card>
-            ))}
+                <Link href="/worker/income-dna">
+                  <Button variant="outline" className="border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#EDE9FF] rounded-xl">
+                    View DNA Details
+                  </Button>
+                </Link>
+              </div>
+            </Card>
+
+            <div className="grid gap-4 grid-cols-2">
+              {[
+                { label: "Morning (6-10 AM)", rate: `₹${dna?.morning_rate || 45}/hr`, icon: "🌅", progress: 45 },
+                { label: "Afternoon (12-4 PM)", rate: `₹${dna?.afternoon_rate || 57}/hr`, icon: "☀", progress: 57 },
+                { label: "Evening (5-9 PM)", rate: `₹${dna?.evening_rate || 78}/hr`, icon: "🌆", progress: 78 },
+                { label: "Night (9 PM-12 AM)", rate: `₹${dna?.night_rate || 51}/hr`, icon: "🌙", progress: 51 }
+              ].map((slot, i) => (
+                <Card key={i} className="bg-white border-[#E8E6FF] shadow-sm p-5 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <div className="text-2xl mb-3">{slot.icon}</div>
+                    <p className="text-[10px] font-bold text-[#94A3B8] uppercase mb-1">{slot.label}</p>
+                    <p className="text-xl font-bold text-[#1A1A2E]">{slot.rate}</p>
+                  </div>
+                  <div className="h-1 w-full bg-[#F1F0FF] rounded-full mt-4 overflow-hidden">
+                    <div className="h-full bg-[#6C47FF]" style={{ width: `${slot.progress}%` }} />
+                  </div>
+                </Card>
+              ))}
+            </div>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
