@@ -51,7 +51,6 @@ export default function AdminClaims() {
   }, [user, isUserLoading, db, router]);
   
   const claimsQuery = useMemoFirebase(() => {
-    // Only execute collection-wide query if we are confirmed as Admin
     if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "claims"), orderBy("created_at", "desc"));
   }, [db, isAdmin, checkingAdmin]);

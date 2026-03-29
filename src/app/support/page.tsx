@@ -39,6 +39,7 @@ interface Message {
 }
 
 export default function SupportPage() {
+  // 1. ALL HOOKS MUST BE AT THE TOP LEVEL
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
@@ -49,7 +50,6 @@ export default function SupportPage() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. ALL HOOKS MUST BE AT THE TOP LEVEL
   const profileRef = useMemoFirebase(
     () => (db && user ? doc(db, "users", user.uid) : null),
     [db, user?.uid]
