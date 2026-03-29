@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -39,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { AIAssistant } from "@/components/chatbot/AIAssistant";
 import { useRouter } from "next/navigation";
+import { getUserLocation, gpsCheck } from "@/services/locationService";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -99,12 +99,10 @@ export default function WorkerDashboard() {
   // FETCH WEATHER
   const fetchWeather = async () => {
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
-      }).catch(() => null);
+      const position = await getUserLocation().catch(() => null);
 
-      const lat = position?.coords.latitude || 19.0760;
-      const lon = position?.coords.longitude || 72.8777;
+      const lat = position?.lat || 19.0760;
+      const lon = position?.lng || 72.8777;
 
       const res = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`
@@ -137,10 +135,13 @@ export default function WorkerDashboard() {
     });
   };
 
-  // 🌧️ SIMULATE WEATHER & WRITE TO CLAIM HISTORY
+  // 🌧️ SIMULATE WEATHER & WRITE TO CLAIM HISTORY WITH GPS VALIDATION
   const simulateWeather = async () => {
     if (!user || !db) return;
 
+    // Capture real location at the time of claim simulation
+    const currentLoc = await getUserLocation().catch(() => null);
+    
     const rain = 50 + Math.random() * 50;
     const roundedRain = Math.round(rain);
     
@@ -155,7 +156,11 @@ export default function WorkerDashboard() {
     try {
       const baseRate = profile?.avg_hourly_earnings || 60;
       const eveningRate = dna?.evening_rate || Math.round(baseRate * 1.3);
-      const compensation = 240; // Simulated compensation capped for Pro Shield
+      const compensation = 240; 
+
+      // Perform real GPS Check against base profile
+      const workerLoc = profile?.lat ? { lat: profile.lat, lng: profile.lng } : undefined;
+      const verificationStatus = gpsCheck(workerLoc, currentLoc || undefined);
 
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
@@ -167,9 +172,9 @@ export default function WorkerDashboard() {
         hours_lost: 4,
         compensation: compensation,
         status: "paid",
-        lat: 19.0760,
-        lng: 72.8777,
-        gps_verification: "PASSED",
+        lat: currentLoc?.lat || 19.0760,
+        lng: currentLoc?.lng || 72.8777,
+        gps_verification: verificationStatus,
         created_at: serverTimestamp()
       });
     } catch (err) {
@@ -199,7 +204,6 @@ export default function WorkerDashboard() {
   return (
     <div className="min-h-screen bg-[#EEEEFF] font-body text-[#1A1A2E] pb-12">
       
-      {/* 1. TOP NAVBAR */}
       <header className="bg-white px-6 py-3 flex items-center justify-between border-b border-[#E8E6FF] sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
@@ -219,7 +223,6 @@ export default function WorkerDashboard() {
 
       <main className="p-6 max-w-7xl mx-auto space-y-6">
         
-        {/* 2. GREETING & STATUS */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-[#1A1A2E]">Welcome, {profile?.name || "User"}</h1>
@@ -236,9 +239,7 @@ export default function WorkerDashboard() {
           </Button>
         </div>
 
-        {/* 3. PRIMARY INSIGHT GRID */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1 - Active Protection */}
           <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-6 flex flex-col justify-between shadow-xl relative overflow-hidden min-h-[200px]">
             <Shield className="absolute top-6 right-6 h-7 w-7 opacity-40" />
             <div>
@@ -257,7 +258,6 @@ export default function WorkerDashboard() {
             </div>
           </Card>
 
-          {/* Card 2 - AI Risk Prediction */}
           <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
             <Brain className="absolute top-6 right-6 h-5 w-5 text-[#6C47FF]" />
             <div>
@@ -276,7 +276,6 @@ export default function WorkerDashboard() {
             </div>
           </Card>
 
-          {/* Card 3 - Commitment Status */}
           <Card className="bg-[#FEFCE8] rounded-[24px] border border-[#FEF08A] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
             <RefreshCcw className="absolute top-6 right-6 h-5 w-5 text-[#F59E0B]" />
             <div>
@@ -290,7 +289,6 @@ export default function WorkerDashboard() {
           </Card>
         </div>
 
-        {/* 4. POLICY STATUS SECTION - NEAT CONSOLIDATED BOX */}
         <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden">
           <div className="px-6 pt-5">
             <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#1A1A2E]">Policy Status</h3>
@@ -315,7 +313,6 @@ export default function WorkerDashboard() {
           </div>
         </Card>
 
-        {/* 5. EARNINGS PROTECTION SUMMARY */}
         <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-[#1A1A2E]">Earnings Protection Summary</h3>
@@ -339,14 +336,12 @@ export default function WorkerDashboard() {
           </div>
         </Card>
 
-        {/* 6. INCOME DNA PROFILE */}
         <section className="space-y-4 pt-2">
           <div className="flex justify-between items-center px-1">
             <h2 className="text-xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
             <p className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest">Updated 17:25</p>
           </div>
 
-          {/* DNA Grid - Horizontal Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { title: "MORNING", range: "6-10 AM", rate: 45, mult: "0.75x multiplier", color: "#F59E0B", icon: Sunrise },
@@ -374,10 +369,7 @@ export default function WorkerDashboard() {
             ))}
           </div>
 
-          {/* Side-by-Side Hero Section - Balanced 2-column layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* LEFT: Peak Earning Hours Graph */}
             <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 h-[300px]">
               <h3 className="text-xs font-bold text-[#1A1A2E] mb-4">Peak Earning Hours (24-Hour Profile)</h3>
               <div className="h-[180px] w-full">
@@ -418,7 +410,6 @@ export default function WorkerDashboard() {
               </div>
             </Card>
 
-            {/* RIGHT: Expected Weekly Earnings */}
             <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 flex flex-col justify-between h-[300px]">
               <div className="space-y-1.5">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
@@ -439,7 +430,6 @@ export default function WorkerDashboard() {
 
       </main>
 
-      {/* Floating Action Button */}
       <Button 
         onClick={() => setChatOpen(true)}
         className="fixed bottom-8 right-8 h-14 w-14 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"
@@ -447,7 +437,6 @@ export default function WorkerDashboard() {
         <Brain className="h-7 w-7" />
       </Button>
 
-      {/* Controlled Chatbot Component */}
       <AIAssistant open={chatOpen} onOpenChange={setChatOpen} />
 
     </div>

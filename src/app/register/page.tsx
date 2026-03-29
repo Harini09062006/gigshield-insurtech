@@ -44,14 +44,14 @@ export default function RegisterPage() {
   const db = useFirestore();
   const auth = useAuth();
 
-  // Try to capture location on page load
+  // Try to capture location on page load for base location lock
   useEffect(() => {
     async function initLoc() {
       try {
         const loc = await getUserLocation();
         setLocation(loc);
       } catch (e) {
-        console.warn("Initial GPS capture skipped.");
+        console.warn("Initial GPS capture skipped or denied.");
       }
     }
     initLoc();
@@ -77,7 +77,7 @@ export default function RegisterPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
-      // Fallback location if user denied GPS
+      // Fallback location if user denied GPS - use city centroid
       let finalLat = location?.lat || 0;
       let finalLng = location?.lng || 0;
 
@@ -138,7 +138,6 @@ export default function RegisterPage() {
         <div className="flex flex-col items-center gap-4">
           <div className="h-12 w-12 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn"><Shield className="h-7 w-7 text-white" /></div>
           
-          {/* Refined Progress Bar - Repositioned Below Shield */}
           <div className="w-full max-w-3xl mx-auto mt-4 mb-4 px-6">
             <div className="flex items-center justify-between mb-3 px-1">
               {['Basic Info', 'Choose Plan', 'Done'].map((label, i) => (
@@ -202,12 +201,15 @@ export default function RegisterPage() {
                     </Select>
                   </div>
                 </div>
+                
+                {/* NEW: Visual feedback for GPS lock */}
                 {location && (
                   <div className="bg-[#DCFCE7] border border-[#BBF7D0] p-3 rounded-xl flex items-center gap-3">
                     <Check className="h-4 w-4 text-[#22C55E]" />
                     <p className="text-[10px] font-bold text-[#16A34A] uppercase">GPS Coordinates Locked: {location.lat.toFixed(2)}, {location.lng.toFixed(2)}</p>
                   </div>
                 )}
+
                 <Button className="w-full h-14 font-bold bg-[#6C47FF] hover:bg-[#5535E8] rounded-xl text-white mt-4 shadow-btn" onClick={handleNext}>Next → Choose Plan</Button>
               </Card>
             </motion.div>

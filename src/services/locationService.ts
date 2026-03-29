@@ -15,7 +15,7 @@ export interface GeoLocation {
  */
 export async function getUserLocation(): Promise<GeoLocation> {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
       reject(new Error("Geolocation is not supported by your browser."));
       return;
     }
@@ -45,13 +45,9 @@ export async function getUserLocation(): Promise<GeoLocation> {
 export async function saveUserLocation(db: Firestore, userId: string, location: GeoLocation) {
   const userRef = doc(db, "users", userId);
   await updateDoc(userRef, {
-    location: {
-      lat: location.lat,
-      lng: location.lng
-    },
-    // Keep flat fields for backward compatibility if needed by other components
     lat: location.lat,
-    lng: location.lng
+    lng: location.lng,
+    updatedAt: new Date().toISOString()
   });
 }
 
