@@ -13,7 +13,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { getUserLocation } from "@/services/locationService";
+import { getUserLocation, saveUserLocation } from "@/services/locationService";
 import { CITIES_LIST } from "@/services/weatherService";
 
 const PLATFORMS = ["Swiggy", "Zomato", "Uber Eats", "Ola", "Dunzo", "Blinkit", "Other"];
@@ -104,6 +104,10 @@ export default function RegisterPage() {
         plan_activated_at: serverTimestamp(),
         createdAt: serverTimestamp()
       });
+
+      // Capture and save precise location object if available
+      // Call saveUserLocation(userId) ONLY after successful registration
+      await saveUserLocation(db, uid);
 
       const rate = Number(hourlyEarnings);
       await setDoc(doc(db, "income_dna", uid), {

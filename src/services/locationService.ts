@@ -42,20 +42,30 @@ export async function getUserLocation(): Promise<GeoLocation> {
 /**
  * Defensive update function for user location.
  * Ensure base location is ONLY stored if it doesn't already exist.
+ * This is typically called during or after registration.
  */
-export async function saveUserLocation(db: Firestore, userId: string, location: GeoLocation) {
-  const userRef = doc(db, "users", userId);
-  const userSnap = await getDoc(userRef);
-  
-  // Rule: Lock base location if it hasn't been set yet (usually happens during registration)
-  if (userSnap.exists() && (!userSnap.data().lat || !userSnap.data().lng)) {
-    await updateDoc(userRef, {
-      lat: location.lat,
-      lng: location.lng,
-      updatedAt: new Date().toISOString()
-    });
-  } else {
-    console.warn("[LocationGuard] Attempted to overwrite locked worker location. Action blocked.");
+export async function saveUserLocation(db: Firestore, userId: string) {
+  try {
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+    
+    // IMPORTANT CONDITION: Save location ONLY if it does NOT already exist
+    if (userSnap.exists() && !userSnap.data().location) {
+      const loc = await getUserLocation();
+      await updateDoc(userRef, {
+        location: {
+          lat: loc.lat,
+          lng: loc.lng
+        },
+        // Maintain legacy top-level fields for compatibility with existing components
+        lat: loc.lat,
+        lng: loc.lng,
+        updatedAt: new Date().toISOString()
+      });
+      console.log("[LocationService] Base location locked for user:", userId);
+    }
+  } catch (error) {
+    console.warn("[LocationService] Skipping GPS capture:", error);
   }
 }
 
@@ -80,13 +90,20 @@ export function calculateDistance(lat1: number, lng1: number, lat2: number, lng2
  * Core validation function for GPS-based fraud detection.
  * Returns "PASSED" if distance is under 1km, else "FAILED".
  */
-export function gpsCheck(workerLoc?: GeoLocation, claimLoc?: GeoLocation): "PASSED" | "FAILED" | "NOT_AVAILABLE" {
-  if (!workerLoc?.lat || !workerLoc?.lng || !claimLoc?.lat || !claimLoc?.lng) {
+export function gpsCheck(workerLoc?: any, claimLoc?: any): "PASSED" | "FAILED" | "NOT_AVAILABLE" {
+  // Support both old flat structure and new nested structure for worker
+  const wLat = workerLoc?.location?.lat ?? workerLoc?.lat;
+  const wLng = workerLoc?.location?.lng ?? workerLoc?.lng;
+  
+  // Claim location is captured live during the simulation/payout trigger
+  const cLat = claimLoc?.lat;
+  const cLng = claimLoc?.lng;
+
+  if (wLat === undefined || wLng === undefined || !cLat || !cLng) {
     return "NOT_AVAILABLE";
   }
 
-  const distance = calculateDistance(workerLoc.lat, workerLoc.lng, claimLoc.lat, claimLoc.lng);
+  const distance = calculateDistance(wLat, wLng, cLat, cLng);
   
-  // Requirement: If distance < 1 km → return "PASSED"
   return distance < 1 ? "PASSED" : "FAILED";
 }

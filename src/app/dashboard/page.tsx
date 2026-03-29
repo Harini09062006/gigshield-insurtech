@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -39,7 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { AIAssistant } from "@/components/chatbot/AIAssistant";
 import { useRouter } from "next/navigation";
-import { getUserLocation, calculateDistance } from "@/services/locationService";
+import { getUserLocation, calculateDistance, gpsCheck } from "@/services/locationService";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -144,9 +143,10 @@ export default function WorkerDashboard() {
     const currentLoc = await getUserLocation().catch(() => null);
     
     // 2. Fetch Stored Worker Location (BASE LOCATION)
-    const workerLoc = profile?.lat && profile?.lng 
-      ? { lat: Number(profile.lat), lng: Number(profile.lng) } 
-      : null;
+    // Support both nested 'location' and legacy top-level fields
+    const workerLoc = profile?.location 
+      ? { lat: Number(profile.location.lat), lng: Number(profile.location.lng) }
+      : (profile?.lat && profile?.lng ? { lat: Number(profile.lat), lng: Number(profile.lng) } : null);
     
     const rain = 50 + Math.random() * 50;
     const roundedRain = Math.round(rain);
@@ -165,19 +165,10 @@ export default function WorkerDashboard() {
       const compensation = 240; 
 
       // 3. GPS Validation Layer
-      let gps_status: 'matched' | 'mismatch' | 'unknown' = 'unknown';
-      let claim_status = 'paid';
-
-      if (workerLoc && currentLoc) {
-        const distance = calculateDistance(workerLoc.lat, workerLoc.lng, currentLoc.lat, currentLoc.lng);
-        if (distance <= 1) {
-          gps_status = 'matched';
-          claim_status = 'paid';
-        } else {
-          gps_status = 'mismatch';
-          claim_status = 'review'; // Mark for review if outside 1km
-        }
-      }
+      // Use the centralized gpsCheck logic which supports nested fields
+      const validationStatus = gpsCheck(profile, currentLoc);
+      const gps_status = validationStatus === 'PASSED' ? 'matched' : (validationStatus === 'FAILED' ? 'mismatch' : 'unknown');
+      const claim_status = gps_status === 'matched' ? 'paid' : 'review';
 
       console.log("[GPS Validation]", {
         workerBase: workerLoc,
@@ -196,8 +187,8 @@ export default function WorkerDashboard() {
         hours_lost: 4,
         compensation: compensation,
         status: claim_status,
-        lat: currentLoc?.lat || profile?.lat || 19.0760,
-        lng: currentLoc?.lng || profile?.lng || 72.8777,
+        lat: currentLoc?.lat || workerLoc?.lat || 19.0760,
+        lng: currentLoc?.lng || workerLoc?.lng || 72.8777,
         gps_status: gps_status,
         created_at: serverTimestamp()
       });
