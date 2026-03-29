@@ -14,7 +14,8 @@ export default function Home() {
   useEffect(() => {
     if (!isUserLoading) {
       if (user) {
-        router.replace("/dashboard");
+        // Don't auto-redirect from home, let them pick admin or worker if they are on home
+        setCheckingAuth(false);
       } else {
         setCheckingAuth(false);
       }

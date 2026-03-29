@@ -2,7 +2,7 @@
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
 import { collection, query, limit, doc, getDoc } from "firebase/firestore";
-import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, Loader2, Lock } from "lucide-react";
+import { Shield, LayoutDashboard, Bell, Users, LogOut, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
