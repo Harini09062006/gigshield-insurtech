@@ -165,6 +165,7 @@ export default function PlansPage() {
       const plan = PLANS.find(p => p.id === selectedPlan);
       const avgEarnings = Number(hourlyEarnings);
       
+      // Update plan details but NOT coordinates (coords are locked during reg)
       await updateDoc(doc(db, "users", user.uid), {
         plan_id: selectedPlan,
         avg_hourly_earnings: avgEarnings,
@@ -194,6 +195,8 @@ export default function PlansPage() {
       });
 
       toast({ title: "Protection Activated", description: `You are now covered by ${plan?.name}.` });
+      
+      // EXPLICIT NAVIGATION TO DASHBOARD
       router.push("/dashboard");
     } catch (error: any) {
       toast({ variant: "destructive", title: "Activation Failed", description: error.message });
@@ -215,7 +218,6 @@ export default function PlansPage() {
             <Shield className="h-7 w-7 text-white" />
           </div>
 
-          {/* Refined Horizontal Step Progress Bar - Repositioned Below Shield */}
           <div className="w-full max-w-3xl mx-auto mt-4 mb-4 px-6">
             <div className="flex items-center justify-between mb-3 px-1">
               {['Basic Info', 'Choose Plan', 'Done'].map((step, i) => (

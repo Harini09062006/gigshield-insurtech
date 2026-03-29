@@ -2,7 +2,7 @@
  * @fileOverview Location service for handling browser geolocation and fraud detection distance checks.
  */
 
-import { Firestore, doc, updateDoc } from 'firebase/firestore';
+import { Firestore, doc, updateDoc, getDoc } from 'firebase/firestore';
 
 export interface GeoLocation {
   lat: number;
@@ -40,15 +40,23 @@ export async function getUserLocation(): Promise<GeoLocation> {
 }
 
 /**
- * Saves location to a user's profile in Firestore.
+ * Defensive update function for user location.
+ * Ensure base location is ONLY stored if it doesn't already exist.
  */
 export async function saveUserLocation(db: Firestore, userId: string, location: GeoLocation) {
   const userRef = doc(db, "users", userId);
-  await updateDoc(userRef, {
-    lat: location.lat,
-    lng: location.lng,
-    updatedAt: new Date().toISOString()
-  });
+  const userSnap = await getDoc(userRef);
+  
+  // Rule: Lock base location if it hasn't been set yet (usually happens during registration)
+  if (userSnap.exists() && (!userSnap.data().lat || !userSnap.data().lng)) {
+    await updateDoc(userRef, {
+      lat: location.lat,
+      lng: location.lng,
+      updatedAt: new Date().toISOString()
+    });
+  } else {
+    console.warn("[LocationGuard] Attempted to overwrite locked worker location. Action blocked.");
+  }
 }
 
 /**

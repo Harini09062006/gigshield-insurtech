@@ -44,7 +44,7 @@ export default function RegisterPage() {
   const db = useFirestore();
   const auth = useAuth();
 
-  // Try to capture location on page load for base location lock
+  // Capture base location ONLY during registration phase
   useEffect(() => {
     async function initLoc() {
       try {
@@ -77,7 +77,7 @@ export default function RegisterPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
-      // Fallback location if user denied GPS - use city centroid
+      // Fallback location logic: Priority given to captured GPS, then city centroid
       let finalLat = location?.lat || 0;
       let finalLng = location?.lng || 0;
 
@@ -87,6 +87,7 @@ export default function RegisterPage() {
         finalLng = cityData?.lng || 0;
       }
 
+      // CRITICAL: Location is locked here and never updated again
       await setDoc(doc(db, "users", uid), {
         name: formData.name,
         phone: cleanPhone,
@@ -117,6 +118,7 @@ export default function RegisterPage() {
         updated_at: serverTimestamp()
       });
       
+      // SUCCESS: Navigate to dashboard
       router.push("/dashboard");
     } catch (error: any) {
       setErrorMessage(error.message || 'Registration failed.');
@@ -202,7 +204,6 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 
-                {/* NEW: Visual feedback for GPS lock */}
                 {location && (
                   <div className="bg-[#DCFCE7] border border-[#BBF7D0] p-3 rounded-xl flex items-center gap-3">
                     <Check className="h-4 w-4 text-[#22C55E]" />
