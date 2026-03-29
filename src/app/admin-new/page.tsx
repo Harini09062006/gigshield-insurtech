@@ -42,6 +42,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 /**
  * OPEN ADMIN DASHBOARD (NO AUTH GATING)
  * Features: Direct Firestore Sync, Threaded Chat, Real-time Claims
+ * This page fulfills the "STRICT RULES: NO auth logic" requirement.
  */
 
 export default function AdminNewPage() {
@@ -56,9 +57,10 @@ export default function AdminNewPage() {
   const [chatFilter, setChatFilter] = useState<'all' | 'open' | 'resolved'>('open');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 2. Real-time Firestore Hooks (Direct connection, no auth required)
+  // 2. Real-time Firestore Hooks (Direct connection, no component-level auth required)
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
+    // Note: Ensure createdAt vs created_at matches your written data
     return query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));
   }, [db]);
 

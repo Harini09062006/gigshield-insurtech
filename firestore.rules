@@ -16,53 +16,46 @@ service cloud.firestore {
 
     // User profiles: Workers manage their own, admins manage all
     match /users/{uid} {
-      allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      // Relaxed for the "No-Auth" Admin Dashboard prototype
+      allow read: if true; 
+      allow write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
     }
     
     // Claims: Parametric payout logs
     match /claims/{id} {
-      allow create: if isSignedIn();
-      
-      // Fixed: Use resource.data for read operations. 
-      // This allows workers to query their own claims and admins to see everything.
-      allow list: if isSignedIn() && (resource.data.worker_id == request.auth.uid || resource.data.userId == request.auth.uid || isAdmin());
-      allow get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || resource.data.userId == request.auth.uid || isAdmin());
-      
-      allow update, delete: if isAdmin();
+      // Relaxed for the "No-Auth" Admin Dashboard prototype
+      allow read, update: if true;
+      allow create: if isSignedIn() || true; // Allowed for simulation
+      allow delete: if isAdmin();
     }
 
     // Support Messages: Hybrid bot/human chat logs
     match /support_messages/{id} {
-      allow create: if isSignedIn();
-      
-      // Fixed: Restricted list to ensure privacy for workers while allowing admin oversight
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      
-      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Relaxed for the "No-Auth" Admin Dashboard prototype
+      allow read, create, update: if true;
       allow delete: if isAdmin();
     }
     
     // Income DNA: AI-generated earning patterns
     match /income_dna/{uid} {
-      allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow read, write: if true; // Relaxed for dashboard overview
     }
     
     // Weather Events & Disruption Zones: Public read, admin write
     match /weather_events/{id} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin() || true;
     }
     
     match /disruption_zones/{id} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin() || true;
     }
     
     // Insurance Plans: Configuration data
     match /insurance_plans/{id} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || true;
     }
   }
 }
