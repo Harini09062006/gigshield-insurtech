@@ -36,6 +36,7 @@ import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import { AIAssistant } from "@/components/chatbot/AIAssistant";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -44,6 +45,8 @@ export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const auth = useAuth();
+
+  const [chatOpen, setChatOpen] = useState(false);
 
   // DATA STATE
   const [weather, setWeather] = useState({
@@ -425,12 +428,16 @@ export default function WorkerDashboard() {
 
       </main>
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button - FIXED */}
       <Button 
-        className="fixed bottom-10 right-10 h-16 w-16 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white"
+        onClick={() => setChatOpen(true)}
+        className="fixed bottom-10 right-10 h-16 w-16 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"
       >
         <Brain className="h-8 w-8" />
       </Button>
+
+      {/* Conditionally rendered AIAssistant */}
+      {chatOpen && <AIAssistant open={chatOpen} onOpenChange={setChatOpen} />}
 
     </div>
   );

@@ -3,19 +3,20 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { MessageSquare, Send, Bot, User, Loader2, Mic, MicOff } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Send, Bot, User, Loader2, Mic, MicOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getMockAIResponse } from "@/lib/mockAI"; // We'll create this helper
+import { getMockAIResponse } from "@/lib/mockAI";
+import { useToast } from "@/hooks/use-toast";
 
-interface Message {
-  role: "bot" | "user";
-  text: string;
+interface AIAssistantProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function AIAssistant() {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
+export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
+  const { toast } = useToast();
+  const [messages, setMessages] = useState<{ role: "bot" | "user"; text: string }[]>([
     { role: "bot", text: "Hi! I am GigShield AI. How can I help you today with your income protection?" }
   ]);
   const [input, setInput] = useState("");
@@ -47,23 +48,14 @@ export function AIAssistant() {
 
   const toggleSpeech = () => {
     setIsRecording(!isRecording);
-    // In a real app, integrate Web Speech API here
     if (!isRecording) {
       toast({ title: "Listening...", description: "Speak now to interact with AI." });
     }
   };
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button 
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl z-50 bg-primary hover:bg-primary/90"
-          size="icon"
-        >
-          <MessageSquare className="h-6 w-6" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0 bg-card">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0 bg-card z-[100]">
         <SheetHeader className="p-6 border-b border-border/50 bg-muted/20">
           <SheetTitle className="flex items-center gap-2">
             <Bot className="h-6 w-6 text-primary" />
@@ -123,8 +115,4 @@ export function AIAssistant() {
       </SheetContent>
     </Sheet>
   );
-}
-
-function toast(arg0: { title: string; description: string; }) {
-  // Placeholder for a toast hook call if we were inside a component
 }
