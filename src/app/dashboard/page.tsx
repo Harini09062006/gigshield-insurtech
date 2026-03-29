@@ -35,19 +35,30 @@ export default function WorkerDashboard() {
 
   useEffect(() => {
     setMounted(true);
-    if (!isUserLoading && !user) router.replace("/");
+    if (!isUserLoading && !user) {
+      console.log("[Dashboard] Unauthenticated access, redirecting...");
+      router.replace("/");
+    }
   }, [user, isUserLoading, router]);
 
   // Proactively get location for GPS validation
   useEffect(() => {
     if (mounted) {
+      console.log("[Dashboard] Capturing proactive location...");
       getUserLocation()
-        .then(loc => setCurrentLoc(loc))
-        .catch(err => console.warn("Location capture failed:", err.message));
+        .then(loc => {
+          console.log("[Dashboard] Location captured:", loc);
+          setCurrentLoc(loc);
+        })
+        .catch(err => console.warn("[Dashboard] Location capture skipped:", err.message));
     }
   }, [mounted]);
 
-  const profileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
+  const profileRef = useMemoFirebase(() => {
+    if (!db || isUserLoading || !user) return null;
+    return doc(db, "users", user.uid);
+  }, [db, isUserLoading, user?.uid]);
+
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
   useEffect(() => {
@@ -66,21 +77,23 @@ export default function WorkerDashboard() {
   }, [rainfall]);
 
   const claimsQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null;
+    if (!db || isUserLoading || !user?.uid) return null;
+    console.log("[Dashboard] Subscribing to user claims for:", user.uid);
     return query(
       collection(db, "claims"), 
       where("worker_id", "==", user.uid), 
       orderBy("created_at", "desc"),
       limit(10)
     );
-  }, [db, user?.uid]);
+  }, [db, isUserLoading, user?.uid]);
   
-  const { data: claims } = useCollection(claimsQuery);
+  const { data: claims, isLoading: isClaimsLoading } = useCollection(claimsQuery);
 
   const simulateWeather = async () => {
     if (!user?.uid || !profile || !db) return;
     setIsSimulating(true);
     try {
+      console.log("[Dashboard] Triggering weather simulation...");
       // Refresh location if possible
       const freshLoc = await getUserLocation().catch(() => currentLoc);
       const workerAnchor = { lat: profile.lat, lng: profile.lng };
@@ -110,6 +123,7 @@ export default function WorkerDashboard() {
 
       toast({ title: evaluation.status === 'failed' ? "Simulation Blocked" : "Claim Logged", description: evaluation.reason });
     } catch (e: any) {
+      console.error("[Dashboard] Simulation error:", e);
       toast({ variant: "destructive", title: "Simulation Error", description: e.message });
     } finally {
       setIsSimulating(false);
@@ -197,7 +211,9 @@ export default function WorkerDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E8E6FF]">
-                {claims?.map(c => (
+                {isClaimsLoading ? (
+                  <tr><td colSpan={5} className="p-10 text-center"><Loader2 className="animate-spin h-6 w-6 inline text-[#6C47FF]" /></td></tr>
+                ) : claims?.map(c => (
                   <tr key={c.id}>
                     <td className="p-4 font-mono text-[10px]">#{c.claim_number}</td>
                     <td className="p-4 font-bold text-[#1A1A2E]">₹{c.compensation}</td>
@@ -218,7 +234,7 @@ export default function WorkerDashboard() {
                     <td className="p-4 text-[10px] text-[#64748B] max-w-[250px] truncate">{c.reason}</td>
                   </tr>
                 ))}
-                {(!claims || claims.length === 0) && (
+                {(!isClaimsLoading && (!claims || claims.length === 0)) && (
                   <tr>
                     <td colSpan={5} className="p-10 text-center text-[#94A3B8] italic">No claims processed yet.</td>
                   </tr>

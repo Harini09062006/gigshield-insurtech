@@ -22,7 +22,7 @@ import {
   CheckCircle2,
   ArrowRight
 } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { 
   collection, 
   query, 
@@ -47,15 +47,40 @@ import { Button } from "@/components/ui/button";
 export default function AdminNewPage() {
   const db = useFirestore();
   const router = useRouter();
+  const { user, isUserLoading } = useUser();
   
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
-  // Firestore Subscriptions
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100)) : null, [db]);
-  const claimsQuery = useMemoFirebase(() => db ? query(collection(db, "claims"), orderBy("created_at", "desc"), limit(100)) : null, [db]);
-  const messagesQuery = useMemoFirebase(() => db ? query(collection(db, "support_messages"), orderBy("timestamp", "desc"), limit(500)) : null, [db]);
+  const isAuthReady = !isUserLoading;
+
+  useEffect(() => {
+    console.log("[Admin Dashboard] Connection Check:", {
+      dbInitialized: !!db,
+      authReady: isAuthReady,
+      currentUid: user?.uid || 'anonymous'
+    });
+  }, [db, isAuthReady, user]);
+
+  // Firestore Subscriptions with Auth-Ready Gating
+  const usersQuery = useMemoFirebase(() => {
+    if (!db || !isAuthReady) return null;
+    console.log("[Admin] Subscribing to Users...");
+    return query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));
+  }, [db, isAuthReady]);
+
+  const claimsQuery = useMemoFirebase(() => {
+    if (!db || !isAuthReady) return null;
+    console.log("[Admin] Subscribing to Claims...");
+    return query(collection(db, "claims"), orderBy("created_at", "desc"), limit(100));
+  }, [db, isAuthReady]);
+
+  const messagesQuery = useMemoFirebase(() => {
+    if (!db || !isAuthReady) return null;
+    console.log("[Admin] Subscribing to Support Messages...");
+    return query(collection(db, "support_messages"), orderBy("timestamp", "desc"), limit(500));
+  }, [db, isAuthReady]);
 
   const { data: realUsers, isLoading: loadingUsers } = useCollection(usersQuery);
   const { data: realClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
@@ -108,7 +133,7 @@ export default function AdminNewPage() {
         updatedAt: serverTimestamp() 
       });
     } catch (e) {
-      console.error(e);
+      console.error("[Admin] Update claim status failed:", e);
     }
   };
 
@@ -126,7 +151,7 @@ export default function AdminNewPage() {
         timestamp: serverTimestamp()
       });
     } catch (e) {
-      console.error(e);
+      console.error("[Admin] Send reply failed:", e);
     }
   };
 
@@ -239,7 +264,8 @@ export default function AdminNewPage() {
           </tr>
         </thead>
         <tbody className="divide-y divide-[#F5F3FF]">
-          {realClaims?.map(claim => (
+          {loadingClaims ? [1,2,3].map(i => <tr key={i}><td colSpan={5} className="px-6 py-4"><Skeleton className="h-6 w-full"/></td></tr>) : 
+            realClaims?.map(claim => (
             <tr key={claim.id} className="hover:bg-[#F8F9FF]">
               <td className="px-6 py-4 font-bold text-[#1A1A2E]">{userMap.get(claim.worker_id)?.name || "Unknown"}</td>
               <td className="px-6 py-4 font-bold text-[#6C47FF]">₹{claim.compensation}</td>
@@ -318,7 +344,8 @@ export default function AdminNewPage() {
                   <h3 className="text-xs font-black uppercase text-[#94A3B8] tracking-widest">Open Conversations</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                  {threads.map(t => (
+                  {loadingMessages ? <div className="p-4"><Skeleton className="h-20 w-full rounded-xl"/></div> : 
+                    threads.map(t => (
                     <button 
                       key={t.userId} 
                       onClick={() => setActiveChatUserId(t.userId)}
