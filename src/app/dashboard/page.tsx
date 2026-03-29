@@ -52,6 +52,16 @@ export default function WorkerDashboard() {
 
   const [simulating, setSimulating] = useState(false);
 
+  // 2. LOGOUT LOGIC
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   // 3. SAVE USER LOCATION (ON MOUNT)
   useEffect(() => {
     async function autoAnchorLocation() {
