@@ -9,6 +9,7 @@ service cloud.firestore {
 
     // Helper function to check if the current user is an administrator
     // Note: get() uses 1 read unit per evaluation. Use sparingly.
+    // Refined to be more robust and recursion-safe.
     function isAdmin() {
       return isSignedIn() && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
@@ -16,31 +17,31 @@ service cloud.firestore {
 
     // User profiles: Workers manage their own, admins manage all
     match /users/{uid} {
-      // Allow user to read/write their own document without calling isAdmin() to avoid recursion
+      // Direct owner check bypasses isAdmin() to prevent recursive rule evaluation
       allow read, write: if isSignedIn() && request.auth.uid == uid;
-      // Allow admins to access all user documents
+      // Admins can see all profiles
       allow read, write: if isAdmin();
     }
     
     // Claims: parametric payout logs
     match /claims/{id} {
       allow create: if isSignedIn();
-      // Split list/get for better query analyzer performance
-      allow list: if isSignedIn() && resource.data.worker_id == request.auth.uid;
-      allow get: if isSignedIn() && resource.data.worker_id == request.auth.uid;
-      // Admins have full access
-      allow list, get, update, delete: if isAdmin();
+      // Split list/get for better performance and deterministic query validation
+      allow list: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
+      // Mutation is restricted to admins
+      allow update, delete: if isAdmin();
     }
 
     // Support Messages: Smart bot/human chat logs
     match /support_messages/{id} {
       allow create: if isSignedIn();
-      // Split list/get to help the query analyzer verify filtered queries
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
-      // Admins have full access to management
-      allow list, get, update, delete: if isAdmin();
+      // Combine conditions for query analyzer efficiency
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Users can update status, admins have full management
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
     }
     
     // Income DNA: AI-generated earning patterns

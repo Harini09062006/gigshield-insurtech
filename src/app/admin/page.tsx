@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
 import { collection, query, limit, doc, getDoc } from "firebase/firestore";
-import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, Loader2 } from "lucide-react";
+import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -16,35 +15,43 @@ export default function AdminDashboard() {
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
+  
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   useEffect(() => {
     async function checkRole() {
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists() && userDoc.data().role === "admin") {
-            setIsAdmin(true);
-          } else {
-            router.replace("/");
-          }
-        } catch (error) {
-          console.error("Role check failed", error);
+      // 1. Wait for Auth to load
+      if (isUserLoading) return;
+
+      // 2. If no user, send to login
+      if (!user) {
+        router.replace("/login");
+        setCheckingAdmin(false);
+        return;
+      }
+
+      // 3. Verify admin role in Firestore
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role === "admin") {
+          setIsAdmin(true);
+        } else {
+          // If logged in but not admin, send to landing
           router.replace("/");
-        } finally {
-          setCheckingAdmin(false);
         }
-      } else if (!isUserLoading) {
+      } catch (error) {
+        console.error("Administrative verification failed:", error);
         router.replace("/");
+      } finally {
         setCheckingAdmin(false);
       }
     }
     checkRole();
   }, [user, isUserLoading, db, router]);
 
+  // CRITICAL: Only attempt filtered queries if we are confirmed as Admin
   const zonesQuery = useMemoFirebase(() => {
-    // CRITICAL: Only attempt an unfiltered query if we are SURE the user is an admin
     if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "disruption_zones"), limit(10));
   }, [db, isAdmin, checkingAdmin]);
@@ -53,13 +60,25 @@ export default function AdminDashboard() {
 
   if (isUserLoading || checkingAdmin) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
-        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
+      <div className="h-screen flex flex-col items-center justify-center bg-[#EEEEFF] space-y-4">
+        <div className="relative">
+          <Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" />
+          <Lock className="absolute inset-0 m-auto h-4 w-4 text-[#6C47FF]" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-bold text-[#1A1A2E] animate-pulse">Checking security credentials...</p>
+          <p className="text-[10px] text-[#64748B] uppercase tracking-widest mt-1">Authorized Access Only</p>
+        </div>
       </div>
     );
   }
 
   if (!isAdmin) return null;
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push("/login");
+  };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex h-screen w-full bg-[#EEEEFF] overflow-hidden font-body">
@@ -74,7 +93,7 @@ export default function AdminDashboard() {
           <Button onClick={() => router.push('/admin/claims')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Bell size={18} /> Claims</Button>
           <Button onClick={() => router.push('/admin/support')} variant="ghost" className="w-full justify-start gap-2 text-[#64748B] font-bold"><Shield size={18} /> Support Queue</Button>
         </nav>
-        <Button onClick={() => auth.signOut().then(() => router.push("/"))} variant="ghost" className="text-[#EF4444] justify-start gap-2 font-bold"><LogOut size={18} /> Logout</Button>
+        <Button onClick={handleLogout} variant="ghost" className="text-[#EF4444] justify-start gap-2 font-bold hover:bg-[#FEE2E2]"><LogOut size={18} /> Logout</Button>
       </aside>
 
       <main className="flex-1 overflow-y-auto p-6 lg:p-10 space-y-10">

@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
 import { collection, query, orderBy, getDoc, doc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, Search, Calendar, Loader2 } from "lucide-react";
+import { Shield, LayoutDashboard, Bell, Users, BarChart3, LogOut, Search, Calendar, Loader2, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,27 +18,31 @@ export default function AdminUsers() {
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
+  
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   useEffect(() => {
     async function checkRole() {
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists() && userDoc.data().role === "admin") {
-            setIsAdmin(true);
-          } else {
-            router.replace("/");
-          }
-        } catch (error) {
-          console.error("Role check failed", error);
+      if (isUserLoading) return;
+      
+      if (!user) {
+        router.replace("/login");
+        setCheckingAdmin(false);
+        return;
+      }
+
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role === "admin") {
+          setIsAdmin(true);
+        } else {
           router.replace("/");
-        } finally {
-          setCheckingAdmin(false);
         }
-      } else if (!isUserLoading) {
+      } catch (error) {
+        console.error("Role check failed", error);
         router.replace("/");
+      } finally {
         setCheckingAdmin(false);
       }
     }
@@ -47,19 +50,29 @@ export default function AdminUsers() {
   }, [user, isUserLoading, db, router]);
   
   const usersQuery = useMemoFirebase(() => {
-    // Only attempt unfiltered query if we are confirmed as Admin
     if (!db || !isAdmin || checkingAdmin) return null;
-    return query(collection(db, "users"), orderBy("created_at", "desc"));
+    return query(collection(db, "users"), orderBy("createdAt", "desc"));
   }, [db, isAdmin, checkingAdmin]);
 
   const { data: users, isLoading } = useCollection(usersQuery);
 
   const handleLogout = async () => {
     await auth.signOut();
-    router.push("/");
+    router.push("/login");
   };
 
-  if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-bg-page"><Loader2 className="animate-spin text-primary h-10 w-10" /></div>;
+  if (isUserLoading || checkingAdmin) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-[#EEEEFF] space-y-4">
+        <div className="relative">
+          <Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" />
+          <Lock className="absolute inset-0 m-auto h-4 w-4 text-[#6C47FF]" />
+        </div>
+        <p className="text-sm font-bold text-[#1A1A2E] animate-pulse">Checking security credentials...</p>
+      </div>
+    );
+  }
+
   if (!isAdmin) return null;
 
   return (
@@ -99,10 +112,12 @@ export default function AdminUsers() {
                 </Link>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <BarChart3 className="h-4 w-4" />
-                  <span>System Analytics</span>
-                </SidebarMenuButton>
+                <Link href="/admin/support">
+                  <SidebarMenuButton>
+                    <Shield className="h-4 w-4" />
+                    <span>Support Queue</span>
+                  </SidebarMenuButton>
+                </Link>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
@@ -158,7 +173,7 @@ export default function AdminUsers() {
                       </td>
                       <td className="p-4 text-body text-xs">
                         <Calendar className="h-3 w-3 inline mr-1 text-primary" />
-                        {user.created_at?.seconds ? format(new Date(user.created_at.seconds * 1000), "MMM dd, yyyy") : "Recently"}
+                        {user.createdAt?.seconds ? format(new Date(user.createdAt.seconds * 1000), "MMM dd, yyyy") : "Recently"}
                       </td>
                       <td className="p-4 text-right">
                         <Button variant="ghost" size="sm" className="text-primary font-bold hover:bg-primary-light h-8">View DNA</Button>
