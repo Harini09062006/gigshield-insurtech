@@ -139,7 +139,7 @@ export default function WorkerDashboard() {
   const simulateWeather = async () => {
     if (!user || !db) return;
 
-    // Capture real location at the time of claim simulation
+    // Capture real location at the time of claim simulation (CLAIM LOCATION)
     const currentLoc = await getUserLocation().catch(() => null);
     
     const rain = 50 + Math.random() * 50;
@@ -158,9 +158,19 @@ export default function WorkerDashboard() {
       const eveningRate = dna?.evening_rate || Math.round(baseRate * 1.3);
       const compensation = 240; 
 
-      // Perform real GPS Check against base profile
-      const workerLoc = profile?.lat ? { lat: profile.lat, lng: profile.lng } : undefined;
-      const verificationStatus = gpsCheck(workerLoc, currentLoc || undefined);
+      // ✅ FIX: Worker Location Source must be from profile, Claim location from live GPS
+      const workerLoc = profile?.lat && profile?.lng 
+        ? { lat: Number(profile.lat), lng: Number(profile.lng) } 
+        : undefined;
+      
+      const claimLoc = currentLoc ? { lat: currentLoc.lat, lng: currentLoc.lng } : undefined;
+
+      // Debug Verification (Confirming sources are different)
+      console.log("[GPS Validation] Worker Base Location (from profile):", workerLoc);
+      console.log("[GPS Validation] Current Claim Location (from browser):", claimLoc);
+
+      const verificationStatus = gpsCheck(workerLoc, claimLoc || undefined);
+      console.log("[GPS Validation] Final Verification Result:", verificationStatus);
 
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
