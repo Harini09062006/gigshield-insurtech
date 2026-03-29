@@ -329,31 +329,10 @@ export default function WorkerDashboard() {
             ))}
           </div>
 
-          {/* Hero Section - Side by Side (Left: Earnings, Right: Graph) */}
+          {/* Hero Section - Side by Side (Left: Graph, Right: Earnings) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* LEFT: Expected Weekly Earnings (1 Column) */}
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 flex flex-col justify-between h-[360px]">
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
-                <div className="text-6xl font-bold text-[#6C47FF]">₹3360</div>
-                <p className="text-xs text-gray-400 leading-relaxed mt-4">
-                  Derived from your Income DNA earning pattern across 40 projected working hours.
-                </p>
-              </div>
-              
-              <div className="mt-6 pt-6 border-t border-gray-100 flex items-center justify-between">
-                <div>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-1">RECOMMENDED PLAN</p>
-                  <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
-                </div>
-                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#F1F0FF] rounded-xl px-6 h-11 transition-all text-sm">
-                  Upgrade Plan
-                </Button>
-              </div>
-            </Card>
-
-            {/* RIGHT: Peak Earning Hours Graph (2 Columns) */}
+            {/* LEFT: Peak Earning Hours Graph (2 Columns) */}
             <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 h-[360px] lg:col-span-2">
               <h3 className="text-sm font-bold text-[#1A1A2E] mb-6">Peak Earning Hours (24-Hour Profile)</h3>
               <div className="h-[200px] w-full">
@@ -425,6 +404,28 @@ export default function WorkerDashboard() {
                 </div>
               </div>
             </Card>
+
+            {/* RIGHT: Expected Weekly Earnings (1 Column) */}
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 flex flex-col justify-between h-[360px]">
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
+                <div className="text-6xl font-bold text-[#6C47FF]">₹3360</div>
+                <p className="text-xs text-gray-400 leading-relaxed mt-4">
+                  Derived from your Income DNA earning pattern across 40 projected working hours.
+                </p>
+              </div>
+              
+              <div className="mt-6 pt-6 border-t border-gray-100 flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-1">RECOMMENDED PLAN</p>
+                  <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
+                </div>
+                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#F1F0FF] rounded-xl px-6 h-11 transition-all text-sm">
+                  Upgrade Plan
+                </Button>
+              </div>
+            </Card>
+
           </div>
         </section>
 
