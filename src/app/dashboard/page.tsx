@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -259,7 +260,7 @@ export default function WorkerDashboard() {
           </Card>
         </div>
 
-        {/* 4. POLICY STATUS SECTION - CONSOLIDATED NEAT BOX */}
+        {/* 4. POLICY STATUS SECTION - NEAT CONSOLIDATED BOX */}
         <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden">
           <div className="px-6 pt-5">
             <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#1A1A2E]">Policy Status</h3>
@@ -343,11 +344,11 @@ export default function WorkerDashboard() {
             ))}
           </div>
 
-          {/* Side-by-Side Hero Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Side-by-Side Hero Section - Fixed to equal width 2-column layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* LEFT: Peak Earning Hours Graph (Takes up 2 columns) */}
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 lg:col-span-2 h-[300px]">
+            {/* LEFT: Peak Earning Hours Graph */}
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 h-[300px]">
               <h3 className="text-xs font-bold text-[#1A1A2E] mb-4">Peak Earning Hours (24-Hour Profile)</h3>
               <div className="h-[180px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -387,7 +388,7 @@ export default function WorkerDashboard() {
               </div>
             </Card>
 
-            {/* RIGHT: Expected Weekly Earnings (Takes up 1 column) */}
+            {/* RIGHT: Expected Weekly Earnings */}
             <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 flex flex-col justify-between h-[300px]">
               <div className="space-y-1.5">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
