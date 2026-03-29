@@ -10,21 +10,17 @@ import {
   LogOut, 
   Zap, 
   AlertTriangle, 
-  CheckCircle2, 
   TrendingUp, 
-  MapPin,
   Clock,
   Search,
   MoreVertical,
   Send,
   XCircle,
   CheckCircle,
-  Filter,
   Loader2,
-  Lock,
   User as UserIcon
 } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser, useDoc } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { 
   collection, 
   query, 
@@ -33,10 +29,9 @@ import {
   updateDoc, 
   doc, 
   serverTimestamp, 
-  where,
   limit,
-  Timestamp,
-  getDoc
+  getDocs,
+  where
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -45,52 +40,15 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * PRODUCTION-READY CONNECTED ADMIN DASHBOARD
- * Features: Firestore Real-time Sync, Threaded Chat Grouping, RBAC Verification
+ * OPEN ADMIN DASHBOARD (NO AUTH GATING)
+ * Features: Direct Firestore Sync, Threaded Chat, Real-time Claims
  */
 
 export default function AdminNewPage() {
   const db = useFirestore();
-  const auth = useAuth();
   const router = useRouter();
-  const { user, isUserLoading } = useUser();
   
-  // RBAC State
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
-
-  // 1. Verify Administrative Privileges
-  // We perform a direct role check only AFTER auth is confirmed
-  useEffect(() => {
-    async function verifyRole() {
-      if (isUserLoading) return;
-
-      if (!user) {
-        // Only redirect if auth is finished and NO user is found
-        router.replace("/login");
-        setCheckingAdmin(false);
-        return;
-      }
-
-      try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists() && userDoc.data().role === "admin") {
-          setIsAdmin(true);
-        } else {
-          // If logged in but not admin, send to public landing
-          router.replace("/");
-        }
-      } catch (err) {
-        console.error("RBAC Verification Failed", err);
-        router.replace("/");
-      } finally {
-        setCheckingAdmin(false);
-      }
-    }
-    verifyRole();
-  }, [user, isUserLoading, db, router]);
-
-  // 2. Navigation & Search State
+  // 1. Navigation & Search State
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [chatInput, setChatInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,28 +56,27 @@ export default function AdminNewPage() {
   const [chatFilter, setChatFilter] = useState<'all' | 'open' | 'resolved'>('open');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 3. Real-time Firestore Hooks (only active if verified admin)
-  // We use the isAdmin flag to gate the collection hooks to prevent permission errors
+  // 2. Real-time Firestore Hooks (Direct connection, no auth required)
   const usersQuery = useMemoFirebase(() => {
-    if (!db || !isAdmin) return null;
+    if (!db) return null;
     return query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));
-  }, [db, isAdmin]);
+  }, [db]);
 
   const claimsQuery = useMemoFirebase(() => {
-    if (!db || !isAdmin) return null;
+    if (!db) return null;
     return query(collection(db, "claims"), orderBy("created_at", "desc"), limit(100));
-  }, [db, isAdmin]);
+  }, [db]);
 
   const messagesQuery = useMemoFirebase(() => {
-    if (!db || !isAdmin) return null;
+    if (!db) return null;
     return query(collection(db, "support_messages"), orderBy("timestamp", "desc"), limit(300));
-  }, [db, isAdmin]);
+  }, [db]);
 
   const { data: realUsers, isLoading: loadingUsers } = useCollection(usersQuery);
   const { data: realClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
   const { data: rawMessages, isLoading: loadingMessages } = useCollection(messagesQuery);
 
-  // 4. Derived Chat Logic: Group flat messages into "Threads"
+  // 3. Derived Chat Logic: Group flat messages into "Threads"
   const threads = useMemo(() => {
     if (!rawMessages) return [];
     
@@ -133,7 +90,6 @@ export default function AdminNewPage() {
           lastMessage: msg.text,
           status: msg.status || 'open',
           timestamp: msg.timestamp,
-          messages: []
         });
       }
     });
@@ -159,7 +115,7 @@ export default function AdminNewPage() {
     }
   }, [activeChatMessages]);
 
-  // 5. Actions
+  // 4. Actions
   const handleSendChat = async () => {
     if (!chatInput.trim() || !activeChatUserId || !db) return;
     
@@ -176,9 +132,9 @@ export default function AdminNewPage() {
         timestamp: serverTimestamp()
       });
 
-      // Update current thread to in-progress in Firestore
-      const threadDocs = rawMessages?.filter(m => m.userId === activeChatUserId && m.status === 'open') || [];
-      for (const m of threadDocs) {
+      // Update current thread to in-progress in Firestore for any "open" messages
+      const threadMsgs = rawMessages?.filter(m => m.userId === activeChatUserId && m.status === 'open') || [];
+      for (const m of threadMsgs) {
         await updateDoc(doc(db, "support_messages", m.id), { status: "in-progress" });
       }
     } catch (e) {
@@ -189,8 +145,8 @@ export default function AdminNewPage() {
   const markResolved = async () => {
     if (!activeChatUserId || !db || !rawMessages) return;
     try {
-      const threadDocs = rawMessages.filter(m => m.userId === activeChatUserId && m.status !== 'resolved');
-      for (const m of threadDocs) {
+      const threadMsgs = rawMessages.filter(m => m.userId === activeChatUserId && m.status !== 'resolved');
+      for (const m of threadMsgs) {
         await updateDoc(doc(db, "support_messages", m.id), { status: "resolved" });
       }
       setActiveChatUserId(null);
@@ -200,6 +156,7 @@ export default function AdminNewPage() {
   };
 
   const updateClaim = async (id: string, status: string) => {
+    if (!db) return;
     try {
       await updateDoc(doc(db, "claims", id), { status, updatedAt: serverTimestamp() });
     } catch (e) {
@@ -207,40 +164,22 @@ export default function AdminNewPage() {
     }
   };
 
-  // 🔄 Loading screen
-  if (isUserLoading || checkingAdmin) {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center bg-[#EEEEFF] space-y-4">
-        <div className="relative">
-          <Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" />
-          <Lock className="absolute inset-0 m-auto h-4 w-4 text-[#6C47FF]" />
-        </div>
-        <div className="text-center">
-          <p className="text-sm font-bold text-[#1A1A2E] animate-pulse">Establishing Secure Connection...</p>
-          <p className="text-[10px] text-[#64748B] uppercase tracking-widest mt-1">Authorized Admin Access Only</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) return null;
-
-  // 6. Render Components
+  // 5. Render Components
   const renderDashboard = () => (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: "Total Workers", value: realUsers?.length || 0, change: "+12%", icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
+          { label: "Total Workers", value: realUsers?.length || 0, change: "LIVE", icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
           { label: "Risk Events", value: "14", change: "-2", icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-50" },
-          { label: "Pending Claims", value: realClaims?.filter(c => c.status === 'pending').length || 0, change: "new", icon: Bell, color: "text-purple-500", bg: "bg-purple-50" },
-          { label: "Total Payouts", value: `₹${(realClaims?.reduce((sum, c) => sum + (c.compensation || 0), 0) / 1000).toFixed(1)}k`, change: "+18%", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50" },
+          { label: "Pending Claims", value: realClaims?.filter(c => c.status === 'pending').length || 0, change: "NEW", icon: Bell, color: "text-purple-500", bg: "bg-purple-50" },
+          { label: "Total Payouts", value: `₹${(realClaims?.reduce((sum, c) => sum + (c.compensation || 0), 0) / 1000 || 0).toFixed(1)}k`, change: "TOTAL", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50" },
         ].map((stat) => (
           <div key={stat.label} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-4">
               <div className={`p-3 rounded-xl ${stat.bg} ${stat.color}`}>
                 <stat.icon size={20} />
               </div>
-              <span className={`text-xs font-bold px-2 py-1 rounded-md bg-emerald-50 text-emerald-600`}>
+              <span className={`text-[10px] font-black px-2 py-1 rounded-md bg-emerald-50 text-emerald-600`}>
                 {stat.change}
               </span>
             </div>
@@ -273,7 +212,7 @@ export default function AdminNewPage() {
           </div>
           <div className="bg-[#1A1A2E] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
             <h3 className="text-lg font-bold mb-2">Manual System Override</h3>
-            <p className="text-sm text-gray-400 max-w-md mb-6">Force trigger city-wide disruption events for maintenance or emergency testing purposes.</p>
+            <p className="text-sm text-gray-400 max-w-md mb-6">Directly interface with the risk intelligence engine without authentication gates.</p>
             <div className="flex gap-3">
               <button onClick={() => alert("Simulation started")} className="bg-[#6C47FF] hover:bg-[#5535E8] text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all">Simulate Outage</button>
               <button className="bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-xl text-sm font-bold">Deploy Update</button>
@@ -282,15 +221,15 @@ export default function AdminNewPage() {
           </div>
         </div>
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Clock className="text-gray-400 h-5 w-5" /> Live Feed</h2>
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Clock className="text-gray-400 h-5 w-5" /> Live Activity</h2>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50 overflow-hidden">
             {realClaims?.slice(0, 5).map((claim, i) => (
               <div key={i} className="p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex justify-between items-start mb-1">
                   <span className="text-sm font-bold text-gray-900">Claim #{claim.id.slice(0, 5)}</span>
-                  <span className="text-[10px] text-gray-400">Just now</span>
+                  <span className="text-[10px] text-gray-400">Live</span>
                 </div>
-                <p className="text-xs text-gray-500">New claim filed for ₹{claim.compensation}</p>
+                <p className="text-xs text-gray-500">Processing ₹{claim.compensation} payout for {claim.trigger_type}</p>
               </div>
             ))}
           </div>
@@ -302,11 +241,11 @@ export default function AdminNewPage() {
   const renderWorkers = () => (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Worker Management</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Worker Directory</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <Input 
-            placeholder="Search workers..." 
+            placeholder="Search partners..." 
             className="pl-10 pr-4 h-10 w-64 rounded-xl text-sm"
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -344,7 +283,7 @@ export default function AdminNewPage() {
 
   const renderClaims = () => (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-      <h2 className="text-2xl font-bold text-gray-900">Claims Queue</h2>
+      <h2 className="text-2xl font-bold text-gray-900">Parametric Claims Queue</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loadingClaims ? [1,2,3].map(i => <Skeleton key={i} className="h-40 w-full rounded-2xl"/>) : 
           realClaims?.map(claim => (
@@ -354,11 +293,11 @@ export default function AdminNewPage() {
                 <p className="text-[10px] font-black text-[#6C47FF] uppercase tracking-widest">{claim.trigger_type}</p>
                 <h4 className="text-lg font-bold text-gray-900 mt-1">₹{claim.compensation}</h4>
               </div>
-              <Badge variant={claim.status === 'paid' ? 'default' : 'outline'} className="capitalize">{claim.status}</Badge>
+              <Badge variant={claim.status === 'paid' ? 'default' : 'outline'} className="capitalize">{claim.status || 'pending'}</Badge>
             </div>
             <div className="flex justify-between items-end">
               <p className="text-[10px] text-gray-400 font-mono">ID: {claim.id.slice(0, 8)}</p>
-              {claim.status === 'pending' && (
+              {(claim.status === 'pending' || !claim.status) && (
                 <div className="flex gap-2">
                   <button onClick={() => updateClaim(claim.id, 'rejected')} className="p-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"><XCircle size={20} /></button>
                   <button onClick={() => updateClaim(claim.id, 'paid')} className="p-2 text-emerald-500 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors"><CheckCircle size={20} /></button>
@@ -375,7 +314,7 @@ export default function AdminNewPage() {
     <div className="flex h-[calc(100vh-160px)] bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-sm animate-in slide-in-from-bottom-4 duration-500">
       <div className="w-80 border-r border-gray-100 flex flex-col">
         <div className="p-6 border-b border-gray-50 flex justify-between items-center">
-          <h3 className="font-bold text-gray-900">Active Chats</h3>
+          <h3 className="font-bold text-gray-900">Active Threads</h3>
           <div className="flex gap-1">
             {(['open', 'all'] as const).map(f => (
               <button key={f} onClick={() => setChatFilter(f as any)} className={`text-[9px] font-black uppercase px-2 py-1 rounded ${chatFilter === f ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400'}`}>{f}</button>
@@ -383,12 +322,13 @@ export default function AdminNewPage() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-          {threads.length === 0 ? <p className="p-10 text-center text-xs text-gray-400 italic">No threads found</p> : 
+          {loadingMessages ? [1,2,3].map(i => <div key={i} className="p-4"><Skeleton className="h-12 w-full"/></div>) : 
+            threads.length === 0 ? <p className="p-10 text-center text-xs text-gray-400 italic">No tickets found</p> : 
             threads.map((thread) => (
             <button key={thread.userId} onClick={() => setActiveChatUserId(thread.userId)} className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${activeChatUserId === thread.userId ? "bg-[#F5F3FF]" : ""}`}>
               <div className="flex justify-between items-center mb-1">
                 <span className="text-sm font-bold text-gray-900 truncate">{thread.userName}</span>
-                <span className="text-[10px] text-gray-400">{thread.timestamp?.seconds ? format(new Date(thread.timestamp.seconds * 1000), "HH:mm") : '...'}</span>
+                <span className="text-[10px] text-gray-400">{thread.timestamp?.seconds ? format(new Date(thread.timestamp.seconds * 1000), "HH:mm") : 'Live'}</span>
               </div>
               <p className="text-xs text-gray-500 truncate italic">"{thread.lastMessage}"</p>
             </button>
@@ -408,13 +348,13 @@ export default function AdminNewPage() {
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-4" ref={scrollRef}>
               {activeChatMessages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.sender === 'admin' ? "justify-end" : "justify-start"}`}>
+                <div key={msg.id || i} className={`flex ${msg.sender === 'admin' ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[70%] p-4 rounded-2xl text-sm shadow-sm ${
                     msg.sender === 'admin' ? "bg-[#6C47FF] text-white rounded-tr-none" : "bg-white text-gray-700 rounded-tl-none"
                   }`}>
                     {msg.text}
                     <p className={`text-[9px] mt-1 opacity-60 text-right ${msg.sender === 'admin' ? "text-white" : "text-gray-400"}`}>
-                      {msg.timestamp?.seconds ? format(new Date(msg.timestamp.seconds * 1000), "HH:mm") : 'Syncing...'}
+                      {msg.timestamp?.seconds ? format(new Date(msg.timestamp.seconds * 1000), "HH:mm") : 'Sending...'}
                     </p>
                   </div>
                 </div>
@@ -423,7 +363,7 @@ export default function AdminNewPage() {
             <div className="p-6 bg-white border-t border-gray-100">
               <div className="flex gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-100">
                 <input 
-                  placeholder="Type official reply..." 
+                  placeholder="Type reply to partner..." 
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
@@ -438,7 +378,7 @@ export default function AdminNewPage() {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-4">
             <Headphones size={48} className="opacity-20" />
-            <p className="text-sm font-bold uppercase tracking-widest">Select a thread to begin assisting</p>
+            <p className="text-sm font-bold uppercase tracking-widest">Select a thread to manage</p>
           </div>
         )}
       </div>
@@ -447,49 +387,55 @@ export default function AdminNewPage() {
 
   return (
     <div className="flex h-screen w-full bg-[#F8F9FC] font-sans overflow-hidden">
+      {/* SIDEBAR */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-10">
             <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-lg">
               <Shield className="text-white h-6 w-6" />
             </div>
-            <span className="text-xl font-bold text-gray-900 tracking-tight">GigShield<span className="text-[#6C47FF] text-xs ml-1 font-black">PRO</span></span>
+            <span className="text-xl font-bold text-gray-900 tracking-tight">GigShield<span className="text-[#6C47FF] text-xs ml-1 font-black">ADMIN</span></span>
           </div>
           <nav className="space-y-1">
             {[
               { label: "Dashboard", icon: LayoutDashboard },
-              { label: "Worker Management", icon: Users },
+              { label: "Worker Directory", icon: Users },
               { label: "Claims Queue", icon: Bell },
               { label: "Support Chat", icon: Headphones },
             ].map((item) => (
-              <button key={item.label} onClick={() => setActiveTab(item.label)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === item.label ? "bg-[#F5F3FF] text-[#6C47FF]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}>
+              <button 
+                key={item.label} 
+                onClick={() => setActiveTab(item.label)} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === item.label ? "bg-[#F5F3FF] text-[#6C47FF]" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}
+              >
                 <item.icon size={18} /> {item.label}
               </button>
             ))}
           </nav>
         </div>
         <div className="mt-auto p-6 border-t border-gray-100">
-          <button onClick={() => auth.signOut().then(() => router.push("/"))} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-colors">
-            <LogOut size={18} /> Sign Out
+          <button onClick={() => router.push("/")} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50">
+            <LogOut size={18} /> Exit Admin
           </button>
         </div>
       </aside>
 
+      {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto">
         <header className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-10 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{activeTab}</h1>
-            <p className="text-sm text-gray-500 font-medium">Real-time system health and risk monitoring</p>
+            <p className="text-sm text-gray-500 font-medium">Real-time monitoring engine active</p>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-full">
             <div className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Live Engine Active</span>
+            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Live Firestore Link</span>
           </div>
         </header>
 
         <div className="p-8 max-w-7xl mx-auto">
           {activeTab === 'Dashboard' && renderDashboard()}
-          {activeTab === 'Worker Management' && renderWorkers()}
+          {activeTab === 'Worker Directory' && renderWorkers()}
           {activeTab === 'Claims Queue' && renderClaims()}
           {activeTab === 'Support Chat' && renderSupport()}
         </div>
