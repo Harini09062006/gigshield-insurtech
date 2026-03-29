@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Phone, Loader2, AlertCircle } from "lucide-react";
+import { Shield, Phone, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,10 @@ import { motion } from "framer-motion";
 
 /**
  * SECURE LOGIN PORTAL
- * Handles role-aware redirection to prevent users from being stuck in unauthorized loops.
+ * Features:
+ * - Role-aware redirection (Admin vs Worker)
+ * - Session persistence handling
+ * - Back-navigation to Landing Page
  */
 export default function LoginPage() {
   const [phone, setPhone] = useState("");
@@ -29,7 +32,7 @@ export default function LoginPage() {
 
   // Smart redirect: If user is already logged in, send them to the correct dashboard based on role
   useEffect(() => {
-    const handleAuthenticatedRedirect = async () => {
+    async function handleAuthenticatedRedirect() {
       if (user && !isUserLoading) {
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -37,14 +40,13 @@ export default function LoginPage() {
             const role = userDoc.data().role;
             router.replace(role === "admin" ? "/admin" : "/dashboard");
           } else {
-            // Profile not created yet
             router.replace("/register");
           }
         } catch (e) {
           router.replace("/dashboard");
         }
       }
-    };
+    }
     handleAuthenticatedRedirect();
   }, [user, isUserLoading, router, db]);
 
@@ -79,7 +81,6 @@ export default function LoginPage() {
       }
       
       const userData = userDoc.data();
-      // Role-aware navigation on initial login
       router.push(userData.role === 'admin' ? '/admin' : '/dashboard');
     } catch (error: any) {
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -101,8 +102,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#EEEEFF] p-4 font-body">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#EEEEFF] p-4 font-body">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-6 flex flex-col items-center">
+        
+        {/* Navigation Header */}
+        <div className="w-full flex justify-start mb-4">
+          <Link href="/" className="flex items-center gap-2 text-[#6C47FF] hover:text-[#5535E8] font-bold text-sm transition-all group">
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+            Back to Home
+          </Link>
+        </div>
+
         <Link href="/" className="flex flex-col items-center">
           <div className="h-16 w-16 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn mb-3">
             <Shield className="h-9 w-9 text-white" />
