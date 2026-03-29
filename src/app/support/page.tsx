@@ -39,7 +39,7 @@ interface Message {
 }
 
 export default function SupportPage() {
-  // 1. ALL HOOKS MUST BE AT THE TOP LEVEL
+  // 1. DEFINING ALL HOOKS AT TOP LEVEL (Rule of Hooks)
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
@@ -50,6 +50,7 @@ export default function SupportPage() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Memoize refs and queries so they are stable across renders
   const profileRef = useMemoFirebase(
     () => (db && user ? doc(db, "users", user.uid) : null),
     [db, user?.uid]
@@ -69,30 +70,21 @@ export default function SupportPage() {
 
   const { data: messages } = useCollection<Message>(messagesQuery);
 
-  // Scroll to bottom effect
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  // 2. CHECK AUTH STATE AFTER HOOK DEFINITIONS
+  // 2. AUTH CHECK LOGIC AFTER HOOK DEFINITIONS
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.replace("/login");
     }
   }, [user, isUserLoading, router]);
 
-  if (isUserLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
-        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
-      </div>
-    );
-  }
+  // Scroll handler
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
-  if (!user) return null;
-
+  // Handle Send logic
   const handleSend = async () => {
     const text = input.trim();
     if (!text || !user || !db) return;
@@ -101,7 +93,7 @@ export default function SupportPage() {
     setInput("");
 
     try {
-      // 1. Save user message
+      // Save User Message
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
@@ -111,10 +103,10 @@ export default function SupportPage() {
         timestamp: serverTimestamp()
       });
 
-      // 2. Get smart bot response
+      // Get smart bot response
       const { botResponse, needsEscalation } = getBotResponse(text, profile?.name);
 
-      // 3. Save bot response
+      // Save Bot Response
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         text: botResponse,
@@ -127,12 +119,23 @@ export default function SupportPage() {
       toast({
         variant: "destructive",
         title: "Connection Issue",
-        description: "Failed to sync message. Please ensure your account is valid."
+        description: "Failed to sync message. Please check your internet connection."
       });
     } finally {
       setLoading(false);
     }
   };
+
+  // Rendering conditional states after all hooks
+  if (isUserLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
+        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   return (
     <div className="h-screen flex flex-col bg-[#EEEEFF] font-body">
@@ -180,6 +183,8 @@ export default function SupportPage() {
               <div className={`max-w-[80%] p-4 rounded-2xl shadow-sm text-sm ${
                 m.sender === "user"
                   ? "bg-[#6C47FF] text-white rounded-tr-none"
+                  : m.sender === "bot"
+                  ? "bg-[#EEEEFF] border border-[#D4CCFF] text-[#1A1A2E] rounded-tl-none italic"
                   : "bg-white border border-[#E8E6FF] text-[#1A1A2E] rounded-tl-none"
               }`}>
                 <p className="leading-relaxed">{m.text}</p>

@@ -21,19 +21,23 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function checkRole() {
+      // 1. Wait for Auth to load
       if (isUserLoading) return;
 
+      // 2. If no user, redirect to login
       if (!user) {
         router.replace("/login");
         setCheckingAdmin(false);
         return;
       }
 
+      // 3. Verify Admin Role in Firestore
       try {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists() && userDoc.data().role === "admin") {
           setIsAdmin(true);
         } else {
+          // Logged in but not admin
           router.replace("/");
         }
       } catch (error) {
@@ -46,6 +50,7 @@ export default function AdminDashboard() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
+  // Gate queries until role is confirmed
   const zonesQuery = useMemoFirebase(() => {
     if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "disruption_zones"), limit(10));

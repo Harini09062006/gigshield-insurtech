@@ -8,7 +8,6 @@ service cloud.firestore {
     }
 
     // Helper function to check if the current user is an administrator
-    // Note: get() uses 1 read unit. Recursive calls are prevented by the logic in /users/{uid}
     function isAdmin() {
       return isSignedIn() && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
@@ -16,8 +15,7 @@ service cloud.firestore {
 
     // User profiles: Workers manage their own, admins manage all
     match /users/{uid} {
-      // CRITICAL: request.auth.uid == uid must come first to prevent infinite recursion
-      // when isAdmin() lookups trigger this rule.
+      // Direct UID comparison is prioritized to avoid recursion in isAdmin()
       allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
     }
     
@@ -27,8 +25,11 @@ service cloud.firestore {
       
       // Split list rules for query analyzer efficiency. 
       // This ensures worker queries (filtered by worker_id) pass immediately.
-      allow list: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
-      allow get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && resource.data.worker_id == request.auth.uid;
+      allow list: if isAdmin();
+      
+      allow get: if isSignedIn() && resource.data.worker_id == request.auth.uid;
+      allow get: if isAdmin();
       
       // Mutation is restricted to admins
       allow update, delete: if isAdmin();
@@ -39,8 +40,11 @@ service cloud.firestore {
       allow create: if isSignedIn();
       
       // Split list/get for better query support
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isAdmin();
+      
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isAdmin();
       
       // Users can update status (resolved), admins have full management
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());

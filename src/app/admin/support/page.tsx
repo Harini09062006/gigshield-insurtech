@@ -23,7 +23,7 @@ export default function AdminSupport() {
   const [replyText, setReplyText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Check Admin Permissions
+  // 1. Verify Admin Session
   useEffect(() => {
     async function checkRole() {
       if (isUserLoading) return;
@@ -51,7 +51,7 @@ export default function AdminSupport() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 2. Fetch recent support messages - Gated by isAdmin verification
+  // 2. Gate collection query until admin role is confirmed
   const allMessagesQuery = useMemoFirebase(() => {
     if (!db || !isAdmin || checkingAdmin) return null;
     return query(collection(db, "support_messages"), orderBy("timestamp", "desc"));
@@ -59,11 +59,11 @@ export default function AdminSupport() {
 
   const { data: allMessages, isLoading: isMessagesLoading } = useCollection(allMessagesQuery);
 
-  // 3. Logic to extract active tickets (grouped by user)
+  // 3. Thread Grouping Logic
   const activeTickets = Array.from(new Set(allMessages?.filter(m => m.status !== 'resolved').map(m => m.userId)))
     .map(uid => {
       const userMsgs = allMessages?.filter(m => m.userId === uid);
-      const lastMsg = userMsgs?.[0]; // already ordered desc
+      const lastMsg = userMsgs?.[0];
       return { 
         userId: uid, 
         userName: lastMsg?.userName || "Anonymous Worker", 
@@ -73,7 +73,6 @@ export default function AdminSupport() {
       };
     });
 
-  // 4. Filter messages for the active selected chat
   const activeChatMessages = allMessages
     ?.filter(m => m.userId === activeChatUserId)
     .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
@@ -157,7 +156,6 @@ export default function AdminSupport() {
         </Sidebar>
 
         <main className="flex-1 flex overflow-hidden">
-          {/* Active Ticket List */}
           <section className="w-80 border-r border-[#E8E6FF] bg-white flex flex-col shadow-sm relative z-10">
             <header className="p-6 border-b border-[#E8E6FF]">
               <h2 className="font-bold text-lg text-[#1A1A2E]">Active Tickets</h2>
@@ -189,7 +187,6 @@ export default function AdminSupport() {
             </div>
           </section>
 
-          {/* Chat Interface */}
           <section className="flex-1 flex flex-col bg-[#F8F9FF]">
             {activeChatUserId ? (
               <>
