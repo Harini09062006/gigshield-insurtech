@@ -2,51 +2,41 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if the current user is signed in
-    function isSignedIn() {
-      return request.auth != null;
+    // Allow public read and write access to all primary collections for the prototype.
+    // This ensures that the No-Auth admin dashboard and worker components 
+    // can sync data without permission errors during development.
+    
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    
+    match /claims/{claimId} {
+      allow read, write: if true;
+    }
+    
+    match /support_messages/{messageId} {
+      allow read, write: if true;
+    }
+    
+    match /income_dna/{userId} {
+      allow read, write: if true;
+    }
+    
+    match /weather_events/{eventId} {
+      allow read, write: if true;
+    }
+    
+    match /disruption_zones/{zoneId} {
+      allow read, write: if true;
+    }
+    
+    match /insurance_plans/{planId} {
+      allow read, write: if true;
     }
 
-    // Helper function to check if the current user is an administrator
-    function isAdmin() {
-      return isSignedIn() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // User profiles: Public read for the "No-Auth" admin prototype
-    match /users/{uid} {
-      allow read: if true; 
-      allow write: if true; // Relaxed for prototype simulation
-    }
-    
-    // Claims: Public access for the "No-Auth" admin prototype
-    match /claims/{id} {
-      allow read, create, update, delete: if true;
-    }
-
-    // Support Messages: Public access for the "No-Auth" admin prototype
-    match /support_messages/{id} {
-      allow read, create, update, delete: if true;
-    }
-    
-    // Income DNA: Public read/write for dashboard overview
-    match /income_dna/{uid} {
-      allow read, write: if true;
-    }
-    
-    // Weather Events & Disruption Zones: Public access for live map updates
-    match /weather_events/{id} {
-      allow read, write: if true;
-    }
-    
-    match /disruption_zones/{id} {
-      allow read, write: if true;
-    }
-    
-    // Insurance Plans: Configuration data
-    match /insurance_plans/{id} {
-      allow read, write: if true;
+    // Default rule for any other potential collections
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
