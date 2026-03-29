@@ -38,7 +38,6 @@ export default function RegisterPage() {
   const [hourlyEarnings, setHourlyEarnings] = useState("60");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   
   const router = useRouter();
   const db = useFirestore();
@@ -64,7 +63,6 @@ export default function RegisterPage() {
 
     try {
       // 1. TRIGGER GPS CAPTURE IMMEDIATELY
-      // This ensures the browser identifies the request as part of a user gesture
       let finalLat = 0;
       let finalLng = 0;
       
@@ -78,7 +76,6 @@ export default function RegisterPage() {
         }
       } catch (e) {
         console.warn("[Registration] GPS capture skipped or denied. Using city fallback.");
-        // Fallback to city centroid if GPS fails
         if (formData.city) {
           const cityData = CITIES_LIST.find(c => c.name.toLowerCase() === formData.city.toLowerCase());
           finalLat = cityData?.lat || 0;
@@ -130,7 +127,11 @@ export default function RegisterPage() {
       router.push("/dashboard");
     } catch (error: any) {
       console.error("[Registration] Failed:", error);
-      setErrorMessage(error.message || 'Registration failed.');
+      if (error.code === 'auth/email-already-in-use') {
+        setErrorMessage("This phone number is already registered. Please login instead.");
+      } else {
+        setErrorMessage(error.message || 'Registration failed.');
+      }
     } finally {
       setLoading(false);
     }
