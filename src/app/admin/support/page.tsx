@@ -142,11 +142,17 @@ export default function AdminSupportPortal() {
 
   const resolveTicket = async () => {
     if (!activeChatUserId || !db || !rawMessages) return;
+    
+    // Select all messages in this thread that aren't already resolved
     const threadMsgs = rawMessages.filter(m => m.userId === activeChatUserId && m.status !== 'resolved');
-    for (const m of threadMsgs) {
-      await updateDoc(doc(db, "support_messages", m.id), { status: "resolved" });
-    }
-    setActiveChatUserId(null);
+    
+    // Batch update them to 'resolved'
+    const promises = threadMsgs.map(m => 
+      updateDoc(doc(db, "support_messages", m.id), { status: "resolved" })
+    );
+    
+    await Promise.all(promises);
+    setActiveChatUserId(null); // Clear active chat to refresh view
   };
 
   if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" /></div>;

@@ -161,6 +161,21 @@ export default function AdminNewPage() {
     }
   };
 
+  const resolveThread = async () => {
+    if (!activeChatUserId || !db || !rawMessages) return;
+    
+    // Select all messages in this thread that aren't already resolved
+    const threadMsgs = rawMessages.filter(m => m.userId === activeChatUserId && m.status !== 'resolved');
+    
+    // Batch update them to 'resolved'
+    const promises = threadMsgs.map(m => 
+      updateDoc(doc(db, "support_messages", m.id), { status: "resolved" })
+    );
+    
+    await Promise.all(promises);
+    setActiveChatUserId(null); // Clear active chat to refresh view
+  };
+
   const renderDashboard = () => (
     <div className="space-y-10 animate-in fade-in duration-500">
       {/* 4 Stats Cards */}
@@ -376,7 +391,7 @@ export default function AdminNewPage() {
                         <div className="h-10 w-10 bg-[#6C47FF] rounded-full flex items-center justify-center text-white font-black">{userMap.get(activeChatUserId)?.name?.[0] || "W"}</div>
                         <h3 className="font-bold text-[#1A1A2E]">{userMap.get(activeChatUserId)?.name || "Worker"}</h3>
                       </div>
-                      <Button variant="outline" size="sm" className="text-[#22C55E] border-[#22C55E] hover:bg-[#DCFCE7] font-bold">Mark Resolved</Button>
+                      <Button onClick={resolveThread} variant="outline" size="sm" className="text-[#22C55E] border-[#22C55E] hover:bg-[#DCFCE7] font-bold">Mark Resolved</Button>
                     </header>
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
                       {activeChatMessages.map((m, i) => (
