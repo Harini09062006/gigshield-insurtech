@@ -329,7 +329,7 @@ export default function WorkerDashboard() {
             ))}
           </div>
 
-          {/* Hero Section - Side by Side (Left: Graph, Right: Earnings) */}
+          {/* Hero Section - Side by Side (Swapped: Chart Left, Earnings Right) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* LEFT: Peak Earning Hours Graph (2 Columns) */}
