@@ -25,8 +25,8 @@ import {
 } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getCityRainfall } from "@/services/weatherService";
 import { useToast } from "@/hooks/use-toast";
+import { getBotResponse } from "@/services/supportBotService";
 
 interface Message {
   id?: string;
@@ -59,7 +59,7 @@ export default function SupportPage() {
 
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
-    // This query requires a composite index: userId (Asc), timestamp (Asc)
+    // Composite Index Required: userId (Asc), timestamp (Asc)
     return query(
       collection(db, "support_messages"),
       where("userId", "==", user.uid),
@@ -70,6 +70,7 @@ export default function SupportPage() {
 
   const { data: messages } = useCollection<Message>(messagesQuery);
 
+  // Scroll to bottom effect
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -99,6 +100,7 @@ export default function SupportPage() {
     setInput("");
 
     try {
+      // 1. Save user message
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
@@ -108,20 +110,10 @@ export default function SupportPage() {
         timestamp: serverTimestamp()
       });
 
-      let botResponse = "";
-      let needsEscalation = false;
-      const lowText = text.toLowerCase();
+      // 2. Get smart bot response
+      const { botResponse, needsEscalation } = getBotResponse(text, profile?.name);
 
-      if (lowText.includes("rain") || lowText.includes("weather") || lowText.includes("risk")) {
-        const rainfall = await getCityRainfall(profile?.city || "Mumbai");
-        botResponse = `Current rainfall in ${profile?.city || "your city"} is ${rainfall.toFixed(1)}mm. Your protection coverage is active.`;
-      } else if (lowText.includes("payment") || lowText.includes("problem") || lowText.includes("claim") || lowText.includes("not received")) {
-        botResponse = "I've detected a priority issue. I'm connecting you to a support agent now. Please hold on.";
-        needsEscalation = true;
-      } else {
-        botResponse = "I'm the GigShield Assistant. I can help with weather risk, claims info, or escalate you to a human agent if you have a specific problem.";
-      }
-
+      // 3. Save bot response
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         text: botResponse,
@@ -133,8 +125,8 @@ export default function SupportPage() {
     } catch (e) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Failed to send message. Please check your connection."
+        title: "Connection Issue",
+        description: "Failed to sync message. Please check your data connection."
       });
     } finally {
       setLoading(false);
@@ -166,10 +158,12 @@ export default function SupportPage() {
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages?.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-50">
-            <Shield className="h-12 w-12 text-[#6C47FF]" />
+            <div className="h-16 w-16 bg-[#EDE9FF] rounded-full flex items-center justify-center text-[#6C47FF]">
+              <Shield className="h-8 w-8" />
+            </div>
             <div>
               <p className="font-bold text-[#1A1A2E]">How can we help today?</p>
-              <p className="text-xs text-[#64748B]">Ask about weather risk or payment issues</p>
+              <p className="text-xs text-[#64748B]">Ask about weather risks or payout statuses</p>
             </div>
           </div>
         )}
@@ -198,7 +192,7 @@ export default function SupportPage() {
         
         {loading && (
           <div className="flex items-center gap-2 text-xs font-bold text-[#6C47FF] italic animate-pulse">
-            <Loader2 className="h-3 w-3 animate-spin" /> GigShield is thinking...
+            <Loader2 className="h-3 w-3 animate-spin" /> GigShield assistant is thinking...
           </div>
         )}
       </div>
@@ -209,7 +203,7 @@ export default function SupportPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Describe your issue..."
+            placeholder="Describe your issue or ask a question..."
             className="h-12 rounded-xl border-[#E8E6FF] focus:border-[#6C47FF] transition-all bg-[#F8F9FF]"
             disabled={loading}
           />

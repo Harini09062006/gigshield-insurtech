@@ -13,7 +13,8 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // User profiles: Workers can manage their own, admins can manage all
+    // User profiles: Workers manage their own, admins manage all
+    // Optimization: separate owner check to prevent infinite recursion in isAdmin()
     match /users/{uid} {
       allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
     }
@@ -21,16 +22,16 @@ service cloud.firestore {
     // Claims: parametric payout logs
     match /claims/{id} {
       allow create: if isSignedIn();
-      // Separating list/get to help query analyzer
+      // Optimization: split list/get for query analyzer performance
       allow list: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
       allow get: if isSignedIn() && (resource.data.worker_id == request.auth.uid || isAdmin());
       allow update, delete: if isAdmin();
     }
 
-    // Support Messages: Hybrid bot/admin chat logs
+    // Support Messages: Smart bot/admin chat logs
     match /support_messages/{id} {
       allow create: if isSignedIn();
-      // Separating list/get to help query analyzer verify indexes
+      // Optimization: separate list/get conditions for faster validation
       allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
@@ -54,7 +55,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Insurance Plans: Static configuration data
+    // Insurance Plans: Configuration data
     match /insurance_plans/{id} {
       allow read: if true;
       allow write: if isAdmin();
