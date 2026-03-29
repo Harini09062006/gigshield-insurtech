@@ -168,6 +168,15 @@ export default function WorkerDashboard() {
     }, 1200);
   }
 
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   useEffect(() => {
     async function initDashboard() {
       try {
@@ -182,15 +191,6 @@ export default function WorkerDashboard() {
       initDashboard();
     }
   }, [user, isUserLoading]);
-
-  const handleLogout = async () => {
-    try {
-      await auth.signOut();
-      router.push("/");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
 
   const hourlyChartData = [
     { hour: '6am', earning: 40 }, { hour: '8am', earning: 45 }, { hour: '10am', earning: 55 },

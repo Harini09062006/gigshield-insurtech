@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -61,7 +60,7 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (err: FirestoreError) => {
-        // Standard error handling as requested
+        // Standard error handling
         console.error("Firestore collection error:", err);
         setError(err);
         setData(null);
