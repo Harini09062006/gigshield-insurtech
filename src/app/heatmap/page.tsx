@@ -1,9 +1,11 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Loader2, Shield, Search, X, ArrowLeft, Home } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 import { 
   CITIES_LIST,
   getWeatherByCoords,
@@ -87,7 +89,6 @@ export default function HeatmapPage() {
     setSearchQuery(city.name);
     setSuggestions([]);
     setSelectedCity(city);
-    // Keep city selected to maintain the 'focused' state in the map
   };
 
   const clearSearch = () => {
@@ -156,22 +157,26 @@ export default function HeatmapPage() {
             )}
           </div>
 
-          {/* NAVIGATION CONTROLS */}
+          {/* NAVIGATION CONTROLS - FIXED CONSISTENCY */}
           <div className="flex items-center gap-2 border-l border-[#E8E6FF] pl-3 ml-1">
-            <button 
-              onClick={() => router.push('/')}
-              className="h-9 w-9 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all hover:scale-105 active:scale-95 shadow-sm"
-              title="Go Home"
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => router.push('/dashboard')}
+              className="h-9 w-9 bg-[#f0f2f9] text-[#6C47FF] rounded-xl transition-all hover:scale-105 active:scale-95 shadow-sm"
+              title="Go to Dashboard"
             >
               <Home className="h-4.5 w-4.5" />
-            </button>
-            <button 
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
               onClick={() => router.back()}
-              className="h-9 w-9 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#64748B] hover:bg-[#F5F3FF] hover:text-[#6C47FF] transition-all hover:scale-105 active:scale-95 shadow-sm"
+              className="h-9 w-9 bg-white border border-[#E8E6FF] text-[#64748B] hover:text-[#6C47FF] rounded-xl transition-all hover:scale-105 active:scale-95 shadow-sm"
               title="Go Back"
             >
               <ArrowLeft className="h-4.5 w-4.5" />
-            </button>
+            </Button>
           </div>
           
           <div className="hidden lg:flex flex-col items-end border-l border-[#E8E6FF] pl-3 ml-1">

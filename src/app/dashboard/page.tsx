@@ -32,7 +32,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +63,7 @@ export default function WorkerDashboard() {
     remaining: 228
   });
 
-  // Auth Guard: Redirect if not logged in
+  // 🛡️ AUTH PROTECTION: Redirect if not logged in
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.replace("/");
@@ -137,14 +137,44 @@ export default function WorkerDashboard() {
     });
   };
 
-  const simulateWeather = () => {
+  // 🌧️ SIMULATE WEATHER & WRITE TO CLAIM HISTORY
+  const simulateWeather = async () => {
+    if (!user || !db) return;
+
     const rain = 50 + Math.random() * 50;
+    const roundedRain = Math.round(rain);
+    
     setWeather({
-      rainMM: Math.round(rain),
+      rainMM: roundedRain,
       condition: "Heavy Rain",
       risk: 95
     });
+    
     calculateLoss(rain);
+
+    try {
+      const baseRate = profile?.avg_hourly_earnings || 60;
+      const eveningRate = dna?.evening_rate || Math.round(baseRate * 1.3);
+      const compensation = 240; // Simulated compensation capped for Pro Shield
+
+      await addDoc(collection(db, "claims"), {
+        worker_id: user.uid,
+        claim_number: "SIM-" + Math.floor(100000 + Math.random() * 900000),
+        trigger_type: "Severe Rain Simulation",
+        trigger_description: "Simulated " + roundedRain + "mm Rainfall Event",
+        dna_time_slot: "Evening 5-9 PM",
+        dna_hourly_rate: eveningRate,
+        hours_lost: 4,
+        compensation: compensation,
+        status: "paid",
+        lat: 19.0760,
+        lng: 72.8777,
+        gps_verification: "PASSED",
+        created_at: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Simulation claim write failed:", err);
+    }
   };
 
   const handleLogout = async () => {
@@ -344,7 +374,7 @@ export default function WorkerDashboard() {
             ))}
           </div>
 
-          {/* Side-by-Side Hero Section - Fixed to equal width 2-column layout */}
+          {/* Side-by-Side Hero Section - Balanced 2-column layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* LEFT: Peak Earning Hours Graph */}
