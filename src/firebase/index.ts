@@ -14,24 +14,29 @@ let app: FirebaseApp;
 let auth: Auth;
 let firestore: Firestore;
 
-// 🔥 Initialize Firebase ONCE (correctly)
+/**
+ * Initializes Firebase services as singletons and configures persistence.
+ */
 export function initializeFirebase() {
-  if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
-  } else {
-    app = getApp();
+  if (!app) {
+    if (!getApps().length) {
+      app = initializeApp(firebaseConfig);
+    } else {
+      app = getApp();
+    }
   }
 
-  // 🔥 Auth setup
-  auth = getAuth(app);
+  if (!auth) {
+    auth = getAuth(app);
+    // Configure persistence once on the singleton instance
+    setPersistence(auth, browserLocalPersistence).catch((err) => {
+      console.error("❌ Persistence configuration failed:", err);
+    });
+  }
 
-  // 🔥 CRITICAL: Ensure local persistence is configured during initialization
-  setPersistence(auth, browserLocalPersistence).catch((err) => {
-    console.error("❌ Persistence configuration failed:", err);
-  });
-
-  // 🔥 Firestore
-  firestore = getFirestore(app);
+  if (!firestore) {
+    firestore = getFirestore(app);
+  }
 
   return {
     firebaseApp: app,
@@ -40,7 +45,9 @@ export function initializeFirebase() {
   };
 }
 
-// 🔥 Ensure same instance is reused everywhere
+/**
+ * Helper to get initialized SDKs from a provided app instance.
+ */
 export function getSdks(firebaseApp: FirebaseApp) {
   return {
     firebaseApp,
@@ -49,7 +56,7 @@ export function getSdks(firebaseApp: FirebaseApp) {
   };
 }
 
-// 🔥 exports
+// Global exports
 export * from "./provider";
 export * from "./client-provider";
 export * from "./firestore/use-collection";

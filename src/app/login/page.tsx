@@ -23,7 +23,7 @@ export default function LoginPage() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // ✅ Redirect if already logged in
+  // Redirect if already logged in
   useEffect(() => {
     async function handleAuthenticatedRedirect() {
       if (user && !isUserLoading) {
@@ -61,24 +61,19 @@ export default function LoginPage() {
 
     const cleanPhone = phone.replace(/\s/g, "").replace("+91", "").trim();
     const email = cleanPhone + "@gigshield.app";
-    const password =
-      cleanPhone.slice(-6) + "GIG#" + cleanPhone.slice(0, 4);
+    const password = cleanPhone.slice(-6) + "GIG#" + cleanPhone.slice(0, 4);
 
     setLoading(true);
 
     try {
-      // 🔥 CRITICAL FIX: Ensure persistence is set BEFORE signing in
-      // This guarantees the session is stored in the browser's local storage immediately.
+      // 1. CRITICAL: Ensure persistence is set and AWAITED before signing in
       await setPersistence(auth, browserLocalPersistence);
 
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+      // 2. Perform sign in
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-      const uid = userCredential.user.uid;
-      const userDoc = await getDoc(doc(db, "users", uid));
+      // 3. Fetch user profile role
+      const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
 
       if (!userDoc.exists()) {
         throw new Error("Account profile not found. Please register first.");
@@ -86,12 +81,11 @@ export default function LoginPage() {
 
       const userData = userDoc.data();
       
-      // Delay slightly to ensure state is synchronized across listeners
-      setTimeout(() => {
-        router.push(
-          userData.role === "admin" ? "/admin" : "/dashboard"
-        );
-      }, 800);
+      // 4. Brief delay to allow FirebaseProvider state to sync before routing
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 5. Route to appropriate portal
+      router.push(userData.role === "admin" ? "/admin" : "/dashboard");
 
     } catch (error: any) {
       console.error("Login Error:", error);
@@ -100,13 +94,9 @@ export default function LoginPage() {
         error.code === "auth/wrong-password" ||
         error.code === "auth/invalid-credential"
       ) {
-        setErrorMessage(
-          "Invalid credentials. Please register or check your number."
-        );
+        setErrorMessage("Invalid credentials. Please register or check your number.");
       } else {
-        setErrorMessage(
-          error.message || "Authentication failed. Please try again."
-        );
+        setErrorMessage(error.message || "Authentication failed. Please try again.");
       }
     } finally {
       setLoading(false);
