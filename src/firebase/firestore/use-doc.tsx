@@ -1,3 +1,4 @@
+
 'use client';
     
 import { useState, useEffect } from 'react';
@@ -58,6 +59,7 @@ export function useDoc<T = any>(
         setIsLoading(false);
       },
       (err: FirestoreError) => {
+        // Standard error handling as requested
         console.error("Firestore document error:", err);
         setError(err);
         setData(null);
