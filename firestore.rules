@@ -9,7 +9,6 @@ service cloud.firestore {
     }
 
     // Helper function to check if the current user is an administrator
-    // Added exists check to prevent rule evaluation failure if doc is missing
     function isAdmin() {
       return isSignedIn() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -18,7 +17,6 @@ service cloud.firestore {
 
     // User profiles: Workers manage their own, admins manage all
     match /users/{uid} {
-      // Prioritize direct UID comparison to avoid recursion loops in isAdmin()
       allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
     }
     
@@ -27,14 +25,12 @@ service cloud.firestore {
       allow create: if isSignedIn();
       
       // Split list rules for query analyzer efficiency. 
-      // This ensures worker queries (filtered by worker_id) pass immediately.
       allow list: if isSignedIn() && resource.data.worker_id == request.auth.uid;
       allow list: if isAdmin();
       
       allow get: if isSignedIn() && resource.data.worker_id == request.auth.uid;
       allow get: if isAdmin();
       
-      // Mutation restricted to admins
       allow update, delete: if isAdmin();
     }
 
@@ -46,7 +42,7 @@ service cloud.firestore {
       allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       
-      // Users can update status (resolved), admins have full management
+      // Allow admins to update status, and users to acknowledge
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
     }
