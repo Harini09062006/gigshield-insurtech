@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -20,7 +21,8 @@ import {
   Send,
   User,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  MapPin
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { 
@@ -42,7 +44,7 @@ import { Button } from "@/components/ui/button";
 
 /**
  * REVERTED ADMIN UI WITH REAL-TIME FIRESTORE DATA
- * This version uses the original 4 stats + 3 city cards layout.
+ * Enhanced with GPS mismatch visual cues.
  */
 export default function AdminNewPage() {
   const db = useFirestore();
@@ -66,19 +68,16 @@ export default function AdminNewPage() {
   // Firestore Subscriptions with Auth-Ready Gating
   const usersQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    console.log("[Admin] Initiating real-time Users collection listener...");
     return query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));
   }, [db, isAuthReady]);
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    console.log("[Admin] Initiating real-time Claims collection listener...");
     return query(collection(db, "claims"), orderBy("created_at", "desc"), limit(100));
   }, [db, isAuthReady]);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    console.log("[Admin] Initiating real-time Support Messages listener...");
     return query(collection(db, "support_messages"), orderBy("timestamp", "desc"), limit(500));
   }, [db, isAuthReady]);
 
@@ -101,7 +100,7 @@ export default function AdminNewPage() {
   // Aggregated Stats
   const stats = useMemo(() => ({
     totalWorkers: realUsers?.length || 0,
-    riskEvents: realClaims?.filter(c => c.status === 'failed').length || 0,
+    riskEvents: realClaims?.filter(c => c.gps_status === 'mismatch').length || 0,
     pendingClaims: realClaims?.filter(c => c.status === 'review' || c.status === 'pending' || !c.status).length || 0,
     totalPayouts: realClaims?.filter(c => c.status === 'approved' || c.status === 'paid').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0
   }), [realUsers, realClaims]);
@@ -163,26 +162,18 @@ export default function AdminNewPage() {
 
   const resolveThread = async () => {
     if (!activeChatUserId || !db || !rawMessages) return;
-    
-    // Select all messages in this thread that aren't already resolved
     const threadMsgs = rawMessages.filter(m => m.userId === activeChatUserId && m.status !== 'resolved');
-    
-    // Batch update them to 'resolved'
-    const promises = threadMsgs.map(m => 
-      updateDoc(doc(db, "support_messages", m.id), { status: "resolved" })
-    );
-    
+    const promises = threadMsgs.map(m => updateDoc(doc(db, "support_messages", m.id), { status: "resolved" }));
     await Promise.all(promises);
-    setActiveChatUserId(null); // Clear active chat to refresh view
+    setActiveChatUserId(null);
   };
 
   const renderDashboard = () => (
     <div className="space-y-10 animate-in fade-in duration-500">
-      {/* 4 Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: "Total Workers", value: stats.totalWorkers, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
-          { label: "Risk Events", value: stats.riskEvents, icon: AlertTriangle, color: "text-red-500", bg: "bg-red-50" },
+          { label: "Location Mismatches", value: stats.riskEvents, icon: MapPin, color: "text-red-500", bg: "bg-red-50" },
           { label: "Pending Claims", value: stats.pendingClaims, icon: Clock, color: "text-amber-500", bg: "bg-amber-50" },
           { label: "Total Payouts", value: `₹${(stats.totalPayouts / 1000).toFixed(1)}k`, icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50" },
         ].map((stat) => (
@@ -196,7 +187,6 @@ export default function AdminNewPage() {
         ))}
       </div>
 
-      {/* 3 City Cards */}
       <div className="space-y-6">
         <h2 className="text-xl font-bold text-[#1A1A2E]">City Risk Monitoring</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -219,7 +209,6 @@ export default function AdminNewPage() {
         </div>
       </div>
 
-      {/* Activity Panel */}
       <div className="bg-white rounded-2xl border border-[#E8E6FF] shadow-sm overflow-hidden">
         <div className="p-6 border-b border-[#F5F3FF]">
           <h3 className="font-bold text-[#1A1A2E]">Recent Activity</h3>
@@ -236,7 +225,10 @@ export default function AdminNewPage() {
                   <p className="text-xs text-[#64748B]">Worker: {userMap.get(claim.worker_id)?.name || "Unknown"}</p>
                 </div>
               </div>
-              <p className="text-xs font-bold text-[#6C47FF]">₹{claim.compensation}</p>
+              <div className="text-right">
+                <p className="text-xs font-bold text-[#6C47FF]">₹{claim.compensation}</p>
+                {claim.gps_status === 'mismatch' && <p className="text-[8px] font-black text-red-500 uppercase">Location Mismatch</p>}
+              </div>
             </div>
           ))}
         </div>
@@ -279,7 +271,7 @@ export default function AdminNewPage() {
           <tr className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest">
             <th className="px-6 py-4">Worker</th>
             <th className="px-6 py-4">Amount</th>
-            <th className="px-6 py-4">GPS Verification</th>
+            <th className="px-6 py-4">GPS Check</th>
             <th className="px-6 py-4">Status</th>
             <th className="px-6 py-4 text-right">Actions</th>
           </tr>
@@ -291,8 +283,8 @@ export default function AdminNewPage() {
               <td className="px-6 py-4 font-bold text-[#1A1A2E]">{userMap.get(claim.worker_id)?.name || "Unknown"}</td>
               <td className="px-6 py-4 font-bold text-[#6C47FF]">₹{claim.compensation}</td>
               <td className="px-6 py-4">
-                <Badge variant="outline" className={claim.gps_verification === 'PASSED' ? 'border-[#22C55E] text-[#22C55E]' : 'border-[#EF4444] text-[#EF4444]'}>
-                  {claim.gps_verification || 'N/A'}
+                <Badge variant="outline" className={claim.gps_status === 'matched' ? 'border-[#22C55E] text-[#22C55E]' : 'border-[#EF4444] text-[#EF4444]'}>
+                  {claim.gps_status?.toUpperCase() || 'N/A'}
                 </Badge>
               </td>
               <td className="px-6 py-4 uppercase text-[10px] font-black">{claim.status || 'pending'}</td>
@@ -309,7 +301,6 @@ export default function AdminNewPage() {
 
   return (
     <div className="flex h-screen w-full bg-[#F8F9FC] font-body overflow-hidden">
-      {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-[#E8E6FF] flex flex-col shrink-0">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-10">
@@ -342,7 +333,6 @@ export default function AdminNewPage() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto">
         <header className="bg-white border-b border-[#E8E6FF] px-8 py-4 sticky top-0 z-10 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-[#1A1A2E]">{activeTab}</h1>
@@ -359,7 +349,6 @@ export default function AdminNewPage() {
           
           {activeTab === 'Support Chat' && (
             <div className="flex gap-6 h-full pb-8">
-              {/* Thread List */}
               <div className="w-80 bg-white border border-[#E8E6FF] rounded-2xl overflow-hidden flex flex-col">
                 <div className="p-4 border-b border-[#F5F3FF] bg-[#F8F9FF]">
                   <h3 className="text-xs font-black uppercase text-[#94A3B8] tracking-widest">Open Conversations</h3>
@@ -382,7 +371,6 @@ export default function AdminNewPage() {
                 </div>
               </div>
 
-              {/* Chat View */}
               <div className="flex-1 bg-white border border-[#E8E6FF] rounded-2xl flex flex-col overflow-hidden relative">
                 {activeChatUserId ? (
                   <>

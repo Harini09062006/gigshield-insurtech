@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -5,7 +6,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth } from "
 import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Calendar, Zap, Home, FileText, Map as MapIcon, LogOut, Shield, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, Calendar, Zap, Home, FileText, Map as MapIcon, LogOut, Shield, AlertCircle, Loader2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -26,7 +27,6 @@ export default function WorkerClaims() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
-    // Security rules require filtering by worker_id or userId
     return query(
       collection(db, "claims"), 
       where("worker_id", "==", user.uid), 
@@ -79,7 +79,7 @@ export default function WorkerClaims() {
             <AlertCircle className="h-12 w-12 text-[#EF4444] mx-auto" />
             <h3 className="text-lg font-bold text-[#1A1A2E]">Access Denied</h3>
             <p className="text-[#64748B] text-sm max-w-xs mx-auto">
-              Unable to load claims. Please ensure your account is properly registered and you have an active plan.
+              Unable to load claims. Please ensure your account is properly registered.
             </p>
           </div>
         ) : isLoading ? (
@@ -93,9 +93,9 @@ export default function WorkerClaims() {
             {claims && claims.length > 0 ? (
               claims.map((claim) => (
                 <Card key={claim.id} className="border-[#E8E6FF] shadow-card overflow-hidden bg-white rounded-2xl">
-                  <CardHeader className="bg-[#DCFCE7]/30 px-6 py-4 flex flex-row items-center justify-between border-b border-[#E8E6FF]/50">
+                  <CardHeader className={`${claim.status === 'paid' ? 'bg-[#DCFCE7]/30' : 'bg-amber-50'} px-6 py-4 flex flex-row items-center justify-between border-b border-[#E8E6FF]/50`}>
                     <div className="flex items-center gap-3">
-                      <CheckCircle2 className="h-5 w-5 text-[#22C55E]" />
+                      {claim.status === 'paid' ? <CheckCircle2 className="h-5 w-5 text-[#22C55E]" /> : <AlertTriangle className="h-5 w-5 text-amber-500" />}
                       <span className="font-bold text-[#1A1A2E] text-sm">Trigger: {claim.trigger_description || "Severe Weather"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-[#64748B] font-bold">
@@ -111,90 +111,39 @@ export default function WorkerClaims() {
                       </div>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between"><span>DNA Time Slot</span><span className="font-bold">{claim.dna_time_slot}</span></div>
-                        <div className="flex justify-between"><span>Registered Rate</span><span className="font-bold">₹{claim.registered_rate}/hr</span></div>
-                        <div className="flex justify-between bg-white p-2 rounded-lg border border-[#6C47FF]/20 text-[#6C47FF] font-bold">
-                          <span>Plan Max Payout</span><span>₹{claim.plan_max_payout || 600}</span>
-                        </div>
+                        <div className="flex justify-between"><span>Registered Rate</span><span className="font-bold">₹{claim.dna_hourly_rate || 60}/hr</span></div>
                         <div className="flex justify-between pt-2 border-t border-[#E8E6FF] text-lg font-bold text-[#6C47FF]">
                           <span>Compensation</span><span>₹{claim.compensation}</span>
                         </div>
                       </div>
 
-                      <div style={{
-                        borderTop: '1px solid #E8E6FF',
-                        paddingTop: '14px',
-                        marginTop: '14px'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          marginBottom: '10px',
-                          color: '#16A34A',
-                          fontWeight: '600',
-                          fontSize: '13px'
-                        }}>
-                          <span style={{
-                            width: '18px', height: '18px',
-                            borderRadius: '50%',
-                            background: '#DCFCE7',
-                            display: 'flex', alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '10px'
-                          }}>✓</span>
-                          FRAUD DETECTION STATUS: PASSED
+                      <div className="pt-4 mt-4 border-t border-[#E8E6FF]">
+                        <div className={`flex items-center gap-2 mb-2 font-bold text-[11px] uppercase ${claim.gps_status === 'matched' ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {claim.gps_status === 'matched' ? '✓ Location Match Verified' : '⚠ Location Mismatch Flagged'}
                         </div>
-                        
-                        <div style={{
-                          display: 'flex',
-                          gap: '8px',
-                          flexWrap: 'wrap'
-                        }}>
-                          {[
-                            'GPS Validation  Verified',
-                            'Weather Event  Confirmed',
-                            'Duplicate Check  Passed'
-                          ].map(label => (
-                            <span key={label} style={{
-                              background: '#DCFCE7',
-                              color: '#16A34A',
-                              padding: '4px 12px',
-                              borderRadius: '99px',
-                              fontSize: '12px',
-                              fontWeight: '500',
-                              border: '1px solid #BBF7D0'
-                            }}>
-                              {label}
-                            </span>
-                          ))}
+                        <div className="flex gap-2 flex-wrap">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${claim.gps_status === 'matched' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-500 border-red-100'}`}>
+                            GPS: {claim.gps_status?.toUpperCase()}
+                          </span>
+                          <span className="px-3 py-1 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-600 border-emerald-100">Weather: Confirmed</span>
                         </div>
                       </div>
                     </div>
                     <div className="p-6 border-l border-[#E8E6FF]/50 flex flex-col items-center justify-center bg-white text-center">
                       <div className="text-3xl font-bold text-[#6C47FF] mb-1">₹{claim.compensation}</div>
-                      <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">✓ PAID INSTANTLY</Badge>
-                      
-                      <div style={{
-                        background: '#F0FDF4',
-                        border: '1px solid #BBF7D0',
-                        borderRadius: '10px',
-                        padding: '12px 16px',
-                        marginTop: '10px',
-                        textAlign: 'center'
-                      }}>
-                        <div style={{
-                          fontWeight: '700',
-                          color: '#16A34A',
-                          fontSize: '14px',
-                          marginBottom: '4px'
-                        }}>
-                          Processing Complete
+                      {claim.status === 'paid' ? (
+                        <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">✓ PAID INSTANTLY</Badge>
+                      ) : (
+                        <Badge className="bg-amber-100 text-amber-600 border-none font-bold uppercase text-[10px]">Review Required</Badge>
+                      )}
+                      <div className="mt-3 bg-gray-50 border border-gray-100 rounded-xl p-3 text-center w-full">
+                        <div className="font-bold text-gray-700 text-xs mb-1">
+                          {claim.status === 'paid' ? 'Deposit Complete' : 'Verification Pending'}
                         </div>
-                        <div style={{
-                          color: '#64748B',
-                          fontSize: '12px'
-                        }}>
-                          Funds deposited to your account
+                        <div className="text-[10px] text-gray-500 leading-tight">
+                          {claim.status === 'paid' 
+                            ? 'Funds deposited to your linked bank account.' 
+                            : 'This claim requires manual review due to a location mismatch.'}
                         </div>
                       </div>
                     </div>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -38,7 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { AIAssistant } from "@/components/chatbot/AIAssistant";
 import { useRouter } from "next/navigation";
-import { getUserLocation, gpsCheck } from "@/services/locationService";
+import { getUserLocation, calculateDistance } from "@/services/locationService";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -135,12 +136,17 @@ export default function WorkerDashboard() {
     });
   };
 
-  // 🌧️ SIMULATE WEATHER & WRITE TO CLAIM HISTORY WITH GPS VALIDATION
+  // 🌧️ SIMULATE WEATHER & WRITE TO CLAIM HISTORY WITH ENHANCED GPS VERIFICATION
   const simulateWeather = async () => {
     if (!user || !db) return;
 
-    // Capture real location at the time of claim simulation (CLAIM LOCATION)
+    // 1. Capture real location at the time of claim (CLAIM LOCATION)
     const currentLoc = await getUserLocation().catch(() => null);
+    
+    // 2. Fetch Stored Worker Location (BASE LOCATION)
+    const workerLoc = profile?.lat && profile?.lng 
+      ? { lat: Number(profile.lat), lng: Number(profile.lng) } 
+      : null;
     
     const rain = 50 + Math.random() * 50;
     const roundedRain = Math.round(rain);
@@ -158,19 +164,27 @@ export default function WorkerDashboard() {
       const eveningRate = dna?.evening_rate || Math.round(baseRate * 1.3);
       const compensation = 240; 
 
-      // ✅ FIX: Worker Location Source must be from profile, Claim location from live GPS
-      const workerLoc = profile?.lat && profile?.lng 
-        ? { lat: Number(profile.lat), lng: Number(profile.lng) } 
-        : undefined;
-      
-      const claimLoc = currentLoc ? { lat: currentLoc.lat, lng: currentLoc.lng } : undefined;
+      // 3. GPS Validation Layer
+      let gps_status: 'matched' | 'mismatch' | 'unknown' = 'unknown';
+      let claim_status = 'paid';
 
-      // Debug Verification (Confirming sources are different)
-      console.log("[GPS Validation] Worker Base Location (from profile):", workerLoc);
-      console.log("[GPS Validation] Current Claim Location (from browser):", claimLoc);
+      if (workerLoc && currentLoc) {
+        const distance = calculateDistance(workerLoc.lat, workerLoc.lng, currentLoc.lat, currentLoc.lng);
+        if (distance <= 1) {
+          gps_status = 'matched';
+          claim_status = 'paid';
+        } else {
+          gps_status = 'mismatch';
+          claim_status = 'review'; // Mark for review if outside 1km
+        }
+      }
 
-      const verificationStatus = gpsCheck(workerLoc, claimLoc || undefined);
-      console.log("[GPS Validation] Final Verification Result:", verificationStatus);
+      console.log("[GPS Validation]", {
+        workerBase: workerLoc,
+        claimLive: currentLoc,
+        status: gps_status,
+        outcome: claim_status
+      });
 
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
@@ -181,10 +195,10 @@ export default function WorkerDashboard() {
         dna_hourly_rate: eveningRate,
         hours_lost: 4,
         compensation: compensation,
-        status: "paid",
-        lat: currentLoc?.lat || 19.0760,
-        lng: currentLoc?.lng || 72.8777,
-        gps_verification: verificationStatus,
+        status: claim_status,
+        lat: currentLoc?.lat || profile?.lat || 19.0760,
+        lng: currentLoc?.lng || profile?.lng || 72.8777,
+        gps_status: gps_status,
         created_at: serverTimestamp()
       });
     } catch (err) {
