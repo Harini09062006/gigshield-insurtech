@@ -2,16 +2,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 🔥 PROTOTYPE UNIVERSAL ACCESS
-    // This recursive wildcard rule ensures that all collections and documents 
-    // are accessible for both read and write operations during development.
-    // This resolved the 'Missing or insufficient permissions' errors when 
-    // listing collections like 'claims' or 'users'.
+    // 🛡️ GIGSHIELD PROTOTYPE RULES
+    // These rules are configured for development to allow the 'No-Auth' Admin 
+    // Dashboard and Worker Simulation flows to read and write data freely.
     
+    // Explicitly handle core collections to ensure 'list' methods are permitted
+    match /claims/{id} {
+      allow read, write: if true;
+    }
+    
+    match /users/{id} {
+      allow read, write: if true;
+    }
+    
+    match /support_messages/{id} {
+      allow read, write: if true;
+    }
+    
+    match /income_dna/{id} {
+      allow read, write: if true;
+    }
+
+    // Universal recursive wildcard for all other paths
     match /{document=**} {
       allow read, write: if true;
     }
     
-    // Deployment trigger timestamp: 2024-05-24T16:00:00Z
+    // Deployment trigger timestamp: 2025-02-18T14:30:00Z
   }
 }
