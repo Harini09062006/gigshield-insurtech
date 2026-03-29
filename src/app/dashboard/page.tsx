@@ -2,7 +2,7 @@
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuth } from "@/firebase";
 import { doc, collection, query, limit, where, addDoc, serverTimestamp } from "firebase/firestore";
-import { Shield, Zap, AlertCircle, Map as MapIcon, Brain, Home, FileText, LogOut, Loader2, IndianRupee, MapPin, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Shield, Zap, AlertCircle, Brain, Home, FileText, LogOut, Loader2, MapPin, CheckCircle2, IndianRupee } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,17 +17,20 @@ import { getUserLocation, gpsCheck } from "@/services/locationService";
 import { evaluateClaim } from "@/services/claimService";
 import { format } from "date-fns";
 
+/**
+ * REVERTED WORKER DASHBOARD UI
+ * Clean layout: Shield header, 3 Risk Cards, Claim History Table.
+ */
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  
   const [isSimulating, setIsSimulating] = useState(false);
   const [mounted, setMounted] = useState(false);
-  
   const [rainfall, setRainfall] = useState<number>(0);
-  const [isWeatherLoading, setIsWeatherLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -42,7 +45,6 @@ export default function WorkerDashboard() {
     const fetchWeather = async () => {
       const mm = await getCityRainfall(profile.city);
       setRainfall(mm);
-      setIsWeatherLoading(false);
     };
     fetchWeather();
   }, [profile?.city]);
@@ -55,60 +57,44 @@ export default function WorkerDashboard() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
-    return query(collection(db, "claims"), where("userId", "==", user.uid), limit(10));
+    return query(collection(db, "claims"), where("worker_id", "==", user.uid), limit(10));
   }, [db, user?.uid]);
   
   const { data: claims } = useCollection(claimsQuery);
 
   const simulateWeather = async () => {
     if (!user?.uid || !profile || !db) return;
-    
     setIsSimulating(true);
     try {
-      // 1. Get real user location
-      let currentLoc = null;
-      try {
-        currentLoc = await getUserLocation();
-      } catch (e) {
-        console.warn("Location permission denied or unavailable.");
-      }
-
-      // 2. Perform GPS check against profile anchor
-      const workerAnchor = profile.location || { lat: profile.lat, lng: profile.lng };
-      const verification = gpsCheck(
-        workerAnchor.lat && workerAnchor.lng ? { lat: workerAnchor.lat, lng: workerAnchor.lng } : undefined,
-        currentLoc || undefined
-      );
-
-      // 3. Generate trust score and evaluate decision
-      const randomTrust = Math.floor(Math.random() * 60) + 30; // Random 30-90 for simulation
-      const processing = evaluateClaim(verification, randomTrust);
+      const currentLoc = await getUserLocation().catch(() => null);
+      const workerAnchor = { lat: profile.lat, lng: profile.lng };
+      const verification = gpsCheck(workerAnchor, currentLoc || undefined);
+      
+      // Random trust score for prototype simulation
+      const randomTrust = Math.floor(Math.random() * 60) + 30; 
+      const evaluation = evaluateClaim(verification, randomTrust);
 
       const baseRate = profile.avg_hourly_earnings || 60;
       const compensation = Math.round(baseRate * 3.5);
 
-      // 4. Store in Firestore with correct structure
       await addDoc(collection(db, "claims"), {
         userId: user.uid,
         worker_id: user.uid,
         claim_number: `GS-${Math.floor(100000 + Math.random() * 900000)}`,
         trigger_type: "weather",
         compensation,
-        status: processing.status,
-        decision: processing.decision,
-        reason: processing.reason,
+        status: evaluation.status,
+        decision: evaluation.decision,
+        reason: evaluation.reason,
         trustScore: randomTrust,
-        location: currentLoc ? { lat: currentLoc.lat, lng: currentLoc.lng } : null,
         gps_verification: verification,
+        location: currentLoc,
         created_at: serverTimestamp()
       });
 
-      toast({ 
-        title: processing.status === 'failed' ? "Claim Blocked" : "Claim Submitted", 
-        description: processing.reason 
-      });
+      toast({ title: evaluation.status === 'failed' ? "Simulation Blocked" : "Claim Logged", description: evaluation.reason });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Simulation Error", description: e.message });
     } finally {
       setIsSimulating(false);
     }
@@ -120,6 +106,7 @@ export default function WorkerDashboard() {
 
   return (
     <div className="min-h-screen bg-[#EEEEFF] flex flex-col font-body">
+      {/* Original Header */}
       <header className="px-6 py-4 flex items-center justify-between border-b border-[#E8E6FF] bg-white sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-2">
           <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn"><Shield className="h-6 w-6 text-white" /></div>
@@ -135,24 +122,25 @@ export default function WorkerDashboard() {
       <main className="flex-1 space-y-8 p-6 lg:px-10 max-w-7xl mx-auto w-full">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#1A1A2E]">Welcome, {profile?.name?.split(' ')[0]}</h1>
+            <h1 className="text-2xl font-bold text-[#1A1A2E]">Welcome back, {profile?.name?.split(' ')[0]}</h1>
             <p className="text-sm text-[#64748B] font-medium flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" /> GPS Fraud Detection Active
+              <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" /> Active Protection Policy
             </p>
           </div>
           <Button onClick={simulateWeather} disabled={isSimulating} className="bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn rounded-xl h-11 px-6">
-            {isSimulating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <MapPin className="mr-2 h-4 w-4" />}
-            Simulate Disruption (GPS Test)
+            {isSimulating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Zap className="mr-2 h-4 w-4" />}
+            Simulate Weather Trigger
           </Button>
         </header>
 
+        {/* 3 Risk Cards */}
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="bg-[#6C47FF] text-white border-none shadow-btn rounded-[20px] p-6">
             <p className="text-[10px] font-bold uppercase opacity-80">Security Status</p>
-            <h3 className="text-2xl font-bold mb-4">GPS PROTECTED</h3>
+            <h3 className="text-2xl font-bold mb-4 uppercase">{profile?.plan_id || 'PRO'} SHIELD</h3>
             <div className="bg-white/10 p-3 rounded-xl">
               <p className="text-[9px] uppercase opacity-60">Base Coordinates</p>
-              <p className="text-xs font-bold">{profile?.lat || profile?.location?.lat ? `${(profile.lat || profile.location.lat).toFixed(3)}, ${(profile.lng || profile.location.lng).toFixed(3)}` : "Not set"}</p>
+              <p className="text-xs font-bold font-mono">{profile?.lat?.toFixed(3)}, {profile?.lng?.toFixed(3)}</p>
             </div>
           </Card>
           
@@ -173,11 +161,12 @@ export default function WorkerDashboard() {
               <p className="text-[10px] font-bold text-[#F59E0B] uppercase tracking-wider">Fraud Protection</p>
               <CheckCircle2 className="h-5 w-5 text-[#22C55E]" />
             </div>
-            <div className="text-xl font-bold text-[#1A1A2E]">Radius Locked</div>
-            <p className="text-[10px] text-[#64748B] mt-2 italic">Your 1km delivery zone is verified during triggers.</p>
+            <div className="text-xl font-bold text-[#1A1A2E]">GPS Verification</div>
+            <p className="text-[10px] text-[#64748B] mt-2 italic">Validation active for all parametric triggers.</p>
           </Card>
         </div>
 
+        {/* Claim History Table */}
         <section className="space-y-4">
           <h2 className="text-lg font-bold text-[#1A1A2E]">My Claim History</h2>
           <div className="bg-white rounded-2xl border border-[#E8E6FF] overflow-hidden shadow-sm">
@@ -185,39 +174,39 @@ export default function WorkerDashboard() {
               <thead className="bg-[#F8F9FF] border-b border-[#E8E6FF]">
                 <tr className="text-[10px] font-black text-[#94A3B8] uppercase">
                   <th className="p-4">Claim ID</th>
-                  <th className="p-4">Amount</th>
+                  <th className="p-4">Payout</th>
+                  <th className="p-4">GPS Result</th>
                   <th className="p-4">Status</th>
-                  <th className="p-4">Fraud Decision</th>
-                  <th className="p-4">Reason</th>
+                  <th className="p-4">Decision Reason</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E8E6FF]">
                 {claims?.map(c => (
                   <tr key={c.id}>
                     <td className="p-4 font-mono text-[10px]">#{c.claim_number}</td>
-                    <td className="p-4 font-bold">₹{c.compensation}</td>
+                    <td className="p-4 font-bold text-[#1A1A2E]">₹{c.compensation}</td>
                     <td className="p-4">
-                      <Badge variant="outline" className={`capitalize font-bold ${
-                        c.status === 'approved' ? 'bg-green-50 text-green-600 border-green-200' :
-                        c.status === 'review' ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                        'bg-red-50 text-red-600 border-red-200'
-                      }`}>
-                        {c.status === 'approved' ? '✅ Paid' : c.status === 'review' ? '⚠️ In Review' : '❌ Failed'}
+                      <Badge variant="outline" className={c.gps_verification === 'PASSED' ? 'text-[#22C55E] border-[#22C55E]' : 'text-[#EF4444] border-[#EF4444]'}>
+                        {c.gps_verification}
                       </Badge>
                     </td>
                     <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-black uppercase ${
-                          c.decision === 'APPROVED' ? 'text-green-600' : 
-                          c.decision === 'REVIEW' ? 'text-amber-600' : 'text-red-600'
-                        }`}>
-                          {c.decision}
-                        </span>
-                      </div>
+                      <Badge className={`capitalize font-bold border-none ${
+                        c.status === 'approved' ? 'bg-[#DCFCE7] text-[#22C55E]' :
+                        c.status === 'review' ? 'bg-[#FEF3C7] text-[#F59E0B]' :
+                        'bg-[#FEE2E2] text-[#EF4444]'
+                      }`}>
+                        {c.status || 'pending'}
+                      </Badge>
                     </td>
-                    <td className="p-4 text-[10px] text-[#64748B] max-w-[200px] truncate">{c.reason}</td>
+                    <td className="p-4 text-[10px] text-[#64748B] max-w-[250px] truncate">{c.reason}</td>
                   </tr>
                 ))}
+                {(!claims || claims.length === 0) && (
+                  <tr>
+                    <td colSpan={5} className="p-10 text-center text-[#94A3B8] italic">No claims processed yet.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
