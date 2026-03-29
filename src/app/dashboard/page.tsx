@@ -119,7 +119,7 @@ export default function WorkerDashboard() {
   const calculateLoss = (rainMM: number) => {
     const baseRate = profile?.avg_hourly_earnings || 60;
     const eveningRate = dna?.evening_rate || Math.round(baseRate * 1.3);
-    const loss = Math.round((rainMM || 1) * 0.5 * eveningRate); // Simple simulation logic
+    const loss = Math.round((rainMM || 1) * 0.5 * eveningRate);
     setCalc({
       potentialLoss: loss || 468,
       coverage: 240,
@@ -150,7 +150,7 @@ export default function WorkerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f2f9] font-body text-[#1A1A2E] pb-20">
+    <div className="min-h-screen bg-[#EEEEFF] font-body text-[#1A1A2E] pb-20">
       
       {/* 1. TOP NAVBAR */}
       <header className="bg-white px-8 py-4 flex items-center justify-between border-b border-[#E8E6FF] sticky top-0 z-50">
@@ -175,10 +175,10 @@ export default function WorkerDashboard() {
         {/* 2. GREETING & STATUS */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#1A1A2E]">Good afternoon, {profile?.name || "User"}</h1>
+            <h1 className="text-2xl font-bold text-[#1A1A2E]">Welcome, {profile?.name || "User"}</h1>
             <div className="flex items-center gap-2 mt-1">
-              <div className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" />
-              <p className="text-sm text-[#64748B] font-medium">Active on {profile?.platform || 'Zomato'} in {profile?.city || 'Howrah'}</p>
+              <div className="h-2 w-2 rounded-full bg-[#22C55E]" />
+              <p className="text-sm text-[#64748B] font-medium">Active on {profile?.platform || 'Zomato'} in {profile?.city || 'Mumbai'}</p>
             </div>
           </div>
           <Button 
@@ -191,7 +191,7 @@ export default function WorkerDashboard() {
 
         {/* 3. PRIMARY INSIGHT GRID */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Active Protection Card */}
+          {/* Card 1 - Active Protection */}
           <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-8 flex flex-col justify-between shadow-xl relative overflow-hidden h-[240px]">
             <Shield className="absolute top-8 right-8 h-8 w-8 opacity-40" />
             <div>
@@ -199,25 +199,25 @@ export default function WorkerDashboard() {
               <h2 className="text-3xl font-black uppercase">{profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "PRO SHIELD"}</h2>
             </div>
             <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="bg-white/10 p-4 rounded-2xl">
+              <div className="bg-black/20 p-4 rounded-2xl border border-white/10">
                 <p className="text-[9px] font-bold uppercase opacity-60 mb-1">Max Payout</p>
                 <p className="text-lg font-black">₹{profile?.max_payout || 240}</p>
               </div>
-              <div className="bg-white/10 p-4 rounded-2xl">
+              <div className="bg-black/20 p-4 rounded-2xl border border-white/10">
                 <p className="text-[9px] font-bold uppercase opacity-60 mb-1">Premium</p>
                 <p className="text-lg font-black">₹{profile?.premium || 25}</p>
               </div>
             </div>
           </Card>
 
-          {/* AI Risk Prediction Card */}
-          <Card className="bg-white rounded-[24px] border-none p-8 flex flex-col justify-between shadow-sm relative h-[240px]">
+          {/* Card 2 - AI Risk Prediction */}
+          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-8 flex flex-col justify-between shadow-sm relative h-[240px]">
             <Brain className="absolute top-8 right-8 h-6 w-6 text-[#6C47FF]" />
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-[#94A3B8] mb-2">AI Risk Prediction</p>
               <div className="flex items-center gap-4 mt-2">
                 <h2 className="text-5xl font-black text-[#1A1A2E]">{weather.rainMM}mm</h2>
-                <Badge className="bg-[#EDE9FF] text-[#6C47FF] hover:bg-[#EDE9FF] border-none font-bold py-1 px-3 rounded-lg text-xs">{weather.condition}</Badge>
+                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-1 px-3 rounded-lg text-xs">{weather.condition}</Badge>
               </div>
             </div>
             <div className="mt-6 space-y-3">
@@ -229,8 +229,8 @@ export default function WorkerDashboard() {
             </div>
           </Card>
 
-          {/* Commitment Status Card */}
-          <Card className="bg-[#FFFBEA] rounded-[24px] border-none p-8 flex flex-col justify-between shadow-sm relative h-[240px]">
+          {/* Card 3 - Commitment Status */}
+          <Card className="bg-[#FEFCE8] rounded-[24px] border border-[#FEF08A] p-8 flex flex-col justify-between shadow-sm relative h-[240px]">
             <RefreshCcw className="absolute top-8 right-8 h-6 w-6 text-[#F59E0B]" />
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-[#F59E0B] mb-2">Commitment Status</p>
@@ -243,9 +243,9 @@ export default function WorkerDashboard() {
           </Card>
         </div>
 
-        {/* 4. POLICY MANAGEMENT SECTION */}
+        {/* 4. POLICY STATUS SECTION */}
         <section className="space-y-6">
-          <h3 className="text-lg font-bold text-[#1A1A2E]">Policy Management</h3>
+          <h3 className="text-lg font-bold text-[#1A1A2E]">Policy Status</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
@@ -253,8 +253,8 @@ export default function WorkerDashboard() {
               { label: "Renewal Amount", value: "₹25", icon: IndianRupee },
               { label: "Commitment", value: "Week 1/4", icon: Info },
             ].map((stat, i) => (
-              <Card key={i} className="bg-white border-none rounded-[20px] p-5 flex items-center gap-4 shadow-sm h-[80px]">
-                <div className="h-12 w-12 bg-[#f0f2f9] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0">
+              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[20px] p-5 flex items-center gap-4 shadow-sm h-[80px]">
+                <div className="h-12 w-12 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0">
                   <stat.icon className="h-5 w-5" />
                 </div>
                 <div>
@@ -290,22 +290,21 @@ export default function WorkerDashboard() {
           </div>
         </Card>
 
-        {/* 6. INCOME DNA PROFILE (NEW SECTION BELOW) */}
+        {/* 6. INCOME DNA PROFILE */}
         <section className="space-y-8 pt-4">
           <div className="flex justify-between items-center px-2">
             <h2 className="text-2xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
             <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest">Updated 17:25</p>
           </div>
 
-          {/* DNA Shift Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
-              { title: "MORNING", range: "6-10 AM", rate: 45, mult: "0.75x", color: "#F59E0B", icon: Sunrise },
-              { title: "AFTERNOON", range: "12-4 PM", rate: 57, mult: "0.95x", color: "#3B82F6", icon: Sun },
-              { title: "EVENING", range: "5-9 PM", rate: 78, mult: "1.30x", color: "#6C47FF", icon: Sunset },
-              { title: "NIGHT", range: "9 PM-12 AM", rate: 51, mult: "0.85x", color: "#60A5FA", icon: Moon },
+              { title: "MORNING", range: "6-10 AM", rate: 45, mult: "0.75x multiplier", color: "#F59E0B", icon: Sunrise },
+              { title: "AFTERNOON", range: "12-4 PM", rate: 57, mult: "0.95x multiplier", color: "#EAB308", icon: Sun },
+              { title: "EVENING", range: "5-9 PM", rate: 78, mult: "1.30x multiplier", color: "#6C47FF", icon: Sunset, peak: true },
+              { title: "NIGHT", range: "9 PM-12 AM", rate: 51, mult: "0.85x multiplier", color: "#3B82F6", icon: Moon },
             ].map((slot, i) => (
-              <Card key={i} className="bg-white border-none rounded-[20px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-3 h-[140px]">
+              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[20px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-3 h-[140px]">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-gray-50 rounded-lg">
                     <slot.icon size={14} className="text-gray-400" />
@@ -319,18 +318,17 @@ export default function WorkerDashboard() {
                     <span className="text-sm font-bold text-[#1A1A2E]">/hr</span>
                   </div>
                 </div>
-                <p className="text-[10px] font-bold text-[#6C47FF]/60">{slot.mult} multiplier</p>
+                <p className="text-[10px] font-bold text-[#6C47FF]">{slot.mult} {slot.peak && "← PEAK"}</p>
                 <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: slot.color }} />
               </Card>
             ))}
           </div>
 
-          {/* DNA Detailed Analytics */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: Expected Earnings */}
-            <Card className="bg-white border-none rounded-[24px] shadow-sm p-10 flex flex-col justify-between h-[400px]">
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-10 flex flex-col justify-between h-[400px]">
               <div className="space-y-2">
-                <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
                 <div className="text-7xl font-bold text-[#6C47FF]">₹3360</div>
                 <p className="text-xs text-gray-400 leading-relaxed max-w-[280px] mt-4">
                   Derived from your Income DNA earning pattern across 40 projected working hours.
@@ -339,28 +337,28 @@ export default function WorkerDashboard() {
               
               <div className="mt-12 pt-8 border-t border-gray-100 flex items-center justify-between">
                 <div>
-                  <p className="text-[9px] font-bold text-gray-300 uppercase tracking-tighter mb-1">RECOMMENDED PLAN</p>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-1">RECOMMENDED PLAN</p>
                   <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
                 </div>
-                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#EDE9FF] rounded-xl px-8 h-12 transition-all text-sm">
+                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#F1F0FF] rounded-xl px-8 h-12 transition-all text-sm">
                   Upgrade Plan
                 </Button>
               </div>
             </Card>
 
             {/* Right: Chart */}
-            <Card className="bg-white border-none rounded-[24px] shadow-sm p-8 h-[400px]">
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 h-[400px] lg:col-span-2">
               <h3 className="text-sm font-bold text-[#1A1A2E] mb-10">Peak Earning Hours (24-Hour Profile)</h3>
               <div className="h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.2}/>
+                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.3}/>
                         <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
                       </linearGradient>
                       <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2}/>
+                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/>
                         <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
@@ -404,19 +402,18 @@ export default function WorkerDashboard() {
                 </ResponsiveContainer>
               </div>
               
-              {/* LEGEND MATCHING REFERENCE */}
               <div className="mt-8 flex justify-center gap-8">
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#6C47FF]" />
-                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">Evening peak</span>
+                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">EVENING PEAK</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#F59E0B]" />
-                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">Lunch peak</span>
+                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">LUNCH PEAK</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 w-3 rounded-full border-t border-dashed border-[#94A3B8]" />
-                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">Active hours</span>
+                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">ACTIVE HOURS</span>
                 </div>
               </div>
             </Card>
@@ -425,7 +422,6 @@ export default function WorkerDashboard() {
 
       </main>
 
-      {/* 6. FLOATING AI ASSISTANT */}
       <Button 
         className="fixed bottom-10 right-10 h-16 w-16 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white"
       >
