@@ -7,7 +7,6 @@ import {
   Sun, 
   Sunset, 
   Moon, 
-  ChevronRight,
   Activity
 } from "lucide-react";
 import { 
@@ -15,7 +14,6 @@ import {
   Area, 
   XAxis, 
   YAxis, 
-  CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
   BarChart,
@@ -24,12 +22,8 @@ import {
 } from "recharts";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
-import { format } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 
 export default function IncomeDNAProfile() {
   const { user, isUserLoading } = useUser();
@@ -46,10 +40,10 @@ export default function IncomeDNAProfile() {
   const baseRate = profile?.avg_hourly_earnings || 60;
   
   const slots = useMemo(() => [
-    { id: "morning", title: "MORNING", range: "6-10 AM", rate: dna?.morning_rate || Math.round(baseRate * 0.75), icon: Sunrise, progress: 45 },
-    { id: "afternoon", title: "AFTERNOON", range: "12-4 PM", rate: dna?.afternoon_rate || Math.round(baseRate * 0.95), icon: Sun, progress: 57 },
-    { id: "evening", title: "EVENING", range: "5-9 PM", rate: dna?.evening_rate || Math.round(baseRate * 1.30), icon: Sunset, progress: 78 },
-    { id: "night", title: "NIGHT", range: "9 PM-12 AM", rate: dna?.night_rate || Math.round(baseRate * 0.85), icon: Moon, progress: 51 },
+    { id: "morning", title: "MORNING", range: "6-10 AM", rate: dna?.morning_rate || Math.round(baseRate * 0.75), icon: Sunrise },
+    { id: "afternoon", title: "AFTERNOON", range: "12-4 PM", rate: dna?.afternoon_rate || Math.round(baseRate * 0.95), icon: Sun },
+    { id: "evening", title: "EVENING", range: "5-9 PM", rate: dna?.evening_rate || Math.round(baseRate * 1.30), icon: Sunset },
+    { id: "night", title: "NIGHT", range: "9 PM-12 AM", rate: dna?.night_rate || Math.round(baseRate * 0.85), icon: Moon },
   ], [dna, baseRate]);
 
   const hourlyChartData = [
@@ -67,32 +61,32 @@ export default function IncomeDNAProfile() {
 
   if (isUserLoading) {
     return (
-      <div className="min-h-screen bg-[#eef0f7] p-10 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f5f7fb] p-10 flex items-center justify-center">
         <Activity className="animate-spin text-[#6d28d9] h-10 w-10" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#eef0f7] p-6 lg:p-10 font-body">
+    <div className="min-h-screen bg-[#f5f7fb] p-6 lg:p-10">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* TOP ROW: HERO + 2x2 GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           {/* Hero Card */}
-          <Card className="bg-white rounded-[20px] shadow-[0_8px_25px_rgba(0,0,0,0.05)] border-none p-8 flex flex-col justify-between h-full">
+          <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col justify-between h-full">
             <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">EXPECTED WEEKLY EARNINGS</p>
-              <div className="text-6xl font-black text-[#6d28d9]">₹4725</div>
-              <p className="text-sm text-slate-400 mt-4 leading-relaxed">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">EXPECTED WEEKLY EARNINGS</p>
+              <div className="text-5xl font-bold text-[#6d28d9]">₹4725</div>
+              <p className="text-sm text-gray-400 mt-4 leading-relaxed">
                 Derived from your unique Income DNA earning patterns across all active delivery shifts.
               </p>
             </div>
             
-            <div className="mt-10 pt-8 border-t border-slate-50 flex items-center justify-between">
+            <div className="mt-10 pt-8 border-t border-gray-50 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">STATUS</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">STATUS</p>
                 <p className="text-lg font-bold text-[#22C55E]">High Consistency</p>
               </div>
               <Button variant="outline" className="border-[#6d28d9] text-[#6d28d9] font-bold hover:bg-[#6d28d9]/5 rounded-xl px-6 h-12 transition-all">
@@ -104,24 +98,16 @@ export default function IncomeDNAProfile() {
           {/* 2x2 Grid of Time Cards */}
           <div className="grid grid-cols-2 gap-6">
             {slots.map((slot) => (
-              <Card key={slot.id} className="bg-white rounded-[20px] shadow-[0_8px_25px_rgba(0,0,0,0.05)] border-none p-6 flex flex-col justify-between overflow-hidden relative">
+              <Card key={slot.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between overflow-hidden relative">
                 <div className="space-y-4">
-                  <div className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
+                  <div className="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500">
                     <slot.icon size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{slot.title}</p>
-                    <p className="text-[11px] text-slate-400 mb-2">{slot.range}</p>
-                    <p className="text-2xl font-bold text-slate-800">₹{slot.rate}/hr</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{slot.title}</p>
+                    <p className="text-[11px] text-gray-400 mb-2">{slot.range}</p>
+                    <p className="text-2xl font-bold text-gray-800">₹{slot.rate}/hr</p>
                   </div>
-                </div>
-                
-                {/* Thin Purple Progress Bar at bottom */}
-                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-slate-50">
-                  <div 
-                    className="h-full bg-[#6d28d9]" 
-                    style={{ width: `${slot.progress}%` }}
-                  />
                 </div>
               </Card>
             ))}
@@ -132,8 +118,8 @@ export default function IncomeDNAProfile() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           {/* Line Chart Card */}
-          <Card className="bg-white rounded-[20px] shadow-[0_8px_25px_rgba(0,0,0,0.05)] border-none p-8">
-            <CardTitle className="text-sm font-bold text-slate-800 uppercase tracking-widest mb-8">PEAK EARNING HOURS</CardTitle>
+          <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <CardTitle className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-8">PEAK EARNING HOURS</CardTitle>
             <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={hourlyChartData}>
@@ -167,8 +153,8 @@ export default function IncomeDNAProfile() {
           </Card>
 
           {/* Bar Chart Card */}
-          <Card className="bg-white rounded-[20px] shadow-[0_8px_25px_rgba(0,0,0,0.05)] border-none p-8">
-            <CardTitle className="text-sm font-bold text-slate-800 uppercase tracking-widest mb-8">BEST WORKING DAYS</CardTitle>
+          <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <CardTitle className="text-sm font-bold text-gray-800 uppercase tracking-widest mb-8">BEST WORKING DAYS</CardTitle>
             <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weeklyChartData}>
