@@ -14,48 +14,39 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // User profiles: Workers manage their own, admins manage all
+    // User profiles: Public read for the "No-Auth" admin prototype
     match /users/{uid} {
-      // Relaxed for the "No-Auth" Admin Dashboard prototype
       allow read: if true; 
-      allow write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if true; // Relaxed for prototype simulation
     }
     
-    // Claims: Parametric payout logs
+    // Claims: Public access for the "No-Auth" admin prototype
     match /claims/{id} {
-      // Relaxed for the "No-Auth" Admin Dashboard prototype
-      allow read, update: if true;
-      allow create: if isSignedIn() || true; // Allowed for simulation
-      allow delete: if isAdmin();
+      allow read, create, update, delete: if true;
     }
 
-    // Support Messages: Hybrid bot/human chat logs
+    // Support Messages: Public access for the "No-Auth" admin prototype
     match /support_messages/{id} {
-      // Relaxed for the "No-Auth" Admin Dashboard prototype
-      allow read, create, update: if true;
-      allow delete: if isAdmin();
+      allow read, create, update, delete: if true;
     }
     
-    // Income DNA: AI-generated earning patterns
+    // Income DNA: Public read/write for dashboard overview
     match /income_dna/{uid} {
-      allow read, write: if true; // Relaxed for dashboard overview
+      allow read, write: if true;
     }
     
-    // Weather Events & Disruption Zones: Public read, admin write
+    // Weather Events & Disruption Zones: Public access for live map updates
     match /weather_events/{id} {
-      allow read: if true;
-      allow write: if isAdmin() || true;
+      allow read, write: if true;
     }
     
     match /disruption_zones/{id} {
-      allow read: if true;
-      allow write: if isAdmin() || true;
+      allow read, write: if true;
     }
     
     // Insurance Plans: Configuration data
     match /insurance_plans/{id} {
-      allow read: if true;
-      allow write: if isAdmin() || true;
+      allow read, write: if true;
     }
   }
 }

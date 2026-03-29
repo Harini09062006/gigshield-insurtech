@@ -29,9 +29,7 @@ import {
   updateDoc, 
   doc, 
   serverTimestamp, 
-  limit,
-  getDocs,
-  where
+  limit
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -57,10 +55,9 @@ export default function AdminNewPage() {
   const [chatFilter, setChatFilter] = useState<'all' | 'open' | 'resolved'>('open');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 2. Real-time Firestore Hooks (Direct connection, no component-level auth required)
+  // 2. Real-time Firestore Hooks (Direct connection, no auth required by rules)
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
-    // Note: Ensure createdAt vs created_at matches your written data
     return query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));
   }, [db]);
 
@@ -134,7 +131,7 @@ export default function AdminNewPage() {
         timestamp: serverTimestamp()
       });
 
-      // Update current thread to in-progress in Firestore for any "open" messages
+      // Update current thread status in Firestore
       const threadMsgs = rawMessages?.filter(m => m.userId === activeChatUserId && m.status === 'open') || [];
       for (const m of threadMsgs) {
         await updateDoc(doc(db, "support_messages", m.id), { status: "in-progress" });
