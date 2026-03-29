@@ -36,6 +36,7 @@ import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import { AIAssistant } from "@/components/chatbot/AIAssistant";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -45,7 +46,8 @@ export default function WorkerDashboard() {
   const db = useFirestore();
   const auth = useAuth();
 
-  // DATA STATE
+  // STATE
+  const [chatOpen, setChatOpen] = useState(false);
   const [weather, setWeather] = useState({
     rainMM: 12,
     condition: "Light Rain",
@@ -242,29 +244,29 @@ export default function WorkerDashboard() {
         </div>
 
         {/* 4. POLICY STATUS SECTION - CONSOLIDATED NEAT BOX */}
-        <section className="space-y-3">
-          <h3 className="text-base font-bold text-[#1A1A2E] px-1">Policy Status</h3>
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#E8E6FF]">
-              {[
-                { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
-                { label: "Next Renewal", value: "25 Mar", icon: RefreshCcw },
-                { label: "Renewal Amount", value: "₹25", icon: IndianRupee },
-                { label: "Commitment", value: "Week 1/4", icon: Info },
-              ].map((stat, i) => (
-                <div key={i} className="p-5 flex items-center gap-3">
-                  <div className="h-10 w-10 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0">
-                    <stat.icon className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p>
-                    <p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p>
-                  </div>
+        <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden">
+          <div className="px-6 pt-5">
+            <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#1A1A2E]">Policy Status</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#E8E6FF]">
+            {[
+              { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
+              { label: "Next Renewal", value: "25 Mar", icon: RefreshCcw },
+              { label: "Renewal Amount", value: "₹25", icon: IndianRupee },
+              { label: "Commitment", value: "Week 1/4", icon: Info },
+            ].map((stat, i) => (
+              <div key={i} className="p-5 flex items-center gap-3">
+                <div className="h-10 w-10 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0">
+                  <stat.icon className="h-4.5 w-4.5" />
                 </div>
-              ))}
-            </div>
-          </Card>
-        </section>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p>
+                  <p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
 
         {/* 5. EARNINGS PROTECTION SUMMARY */}
         <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 shadow-sm relative overflow-hidden">
@@ -290,7 +292,7 @@ export default function WorkerDashboard() {
           </div>
         </Card>
 
-        {/* 6. INCOME DNA PROFILE (Pixel-Perfect Structure) */}
+        {/* 6. INCOME DNA PROFILE */}
         <section className="space-y-4 pt-2">
           <div className="flex justify-between items-center px-1">
             <h2 className="text-xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
@@ -305,7 +307,7 @@ export default function WorkerDashboard() {
               { title: "EVENING", range: "5-9 PM", rate: 78, mult: "1.30x multiplier", color: "#6C47FF", icon: Sunset, peak: true },
               { title: "NIGHT", range: "9 PM-12 AM", rate: 51, mult: "0.85x multiplier", color: "#3B82F6", icon: Moon },
             ].map((slot, i) => (
-              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-5 relative overflow-hidden flex flex-col gap-1.5 h-auto">
+              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-5 relative overflow-hidden flex flex-col gap-1.5 h-[130px]">
                 <div className="flex items-center gap-2">
                   <div className="p-1 bg-gray-50 rounded-lg">
                     <slot.icon size={12} className="text-gray-400" />
@@ -320,13 +322,12 @@ export default function WorkerDashboard() {
                   </div>
                 </div>
                 <p className="text-[9px] font-bold text-[#6C47FF]">{slot.mult} {slot.peak && "← PEAK"}</p>
-                {/* Visual indicator line at bottom */}
                 <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: slot.color }} />
               </Card>
             ))}
           </div>
 
-          {/* Hero Section - Swapped: Chart Left, Earnings Right */}
+          {/* Hero Section - Chart LEFT, Earnings RIGHT */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* LEFT: Peak Earning Hours Graph (2 Columns) */}
@@ -357,48 +358,16 @@ export default function WorkerDashboard() {
                     <Tooltip 
                       contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '9px' }} 
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="evening" 
-                      stroke="#6C47FF" 
-                      strokeWidth={2} 
-                      fillOpacity={1} 
-                      fill="url(#colorEvening)" 
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="lunch" 
-                      stroke="#F59E0B" 
-                      strokeWidth={2} 
-                      fillOpacity={1} 
-                      fill="url(#colorLunch)" 
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="active" 
-                      stroke="#E8E6FF" 
-                      strokeWidth={1} 
-                      fill="none"
-                      strokeDasharray="5 5"
-                    />
+                    <Area type="monotone" dataKey="evening" stroke="#6C47FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvening)" />
+                    <Area type="monotone" dataKey="lunch" stroke="#F59E0B" strokeWidth={2} fillOpacity={1} fill="url(#colorLunch)" />
+                    <Area type="monotone" dataKey="active" stroke="#E8E6FF" strokeWidth={1} fill="none" strokeDasharray="5 5" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-              
-              {/* Chart Legend */}
               <div className="mt-4 flex justify-center gap-6">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-1 w-1 rounded-full bg-[#6C47FF]" />
-                  <span className="text-[8px] font-bold text-[#94A3B8] uppercase">EVENING PEAK</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-1 w-1 rounded-full bg-[#F59E0B]" />
-                  <span className="text-[8px] font-bold text-[#94A3B8] uppercase">LUNCH PEAK</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-0.5 w-2 rounded-full border-t border-dashed border-[#94A3B8]" />
-                  <span className="text-[8px] font-bold text-[#94A3B8] uppercase">ACTIVE HOURS</span>
-                </div>
+                <div className="flex items-center gap-1.5"><div className="h-1 w-1 rounded-full bg-[#6C47FF]" /><span className="text-[8px] font-bold text-[#94A3B8] uppercase">EVENING PEAK</span></div>
+                <div className="flex items-center gap-1.5"><div className="h-1 w-1 rounded-full bg-[#F59E0B]" /><span className="text-[8px] font-bold text-[#94A3B8] uppercase">LUNCH PEAK</span></div>
+                <div className="flex items-center gap-1.5"><div className="h-0.5 w-2 rounded-full border-t border-dashed border-[#94A3B8]" /><span className="text-[8px] font-bold text-[#94A3B8] uppercase">ACTIVE HOURS</span></div>
               </div>
             </Card>
 
@@ -407,19 +376,14 @@ export default function WorkerDashboard() {
               <div className="space-y-1.5">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
                 <div className="text-4xl font-bold text-[#6C47FF]">₹3360</div>
-                <p className="text-[11px] text-gray-400 leading-relaxed mt-2">
-                  Derived from your Income DNA earning pattern across 40 projected working hours.
-                </p>
+                <p className="text-[11px] text-gray-400 leading-relaxed mt-2">Derived from your Income DNA earning pattern across 40 projected working hours.</p>
               </div>
-              
               <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
                 <div>
                   <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mb-0.5">RECOMMENDED PLAN</p>
                   <p className="text-lg font-bold text-[#F59E0B]">Pro Shield</p>
                 </div>
-                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#F1F0FF] rounded-xl px-4 h-9 transition-all text-xs">
-                  Upgrade Plan
-                </Button>
+                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#F1F0FF] rounded-xl px-4 h-9 transition-all text-xs">Upgrade Plan</Button>
               </div>
             </Card>
 
@@ -429,13 +393,15 @@ export default function WorkerDashboard() {
       </main>
 
       {/* Floating Action Button */}
-      <Link href="/support">
-        <Button 
-          className="fixed bottom-8 right-8 h-14 w-14 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"
-        >
-          <Brain className="h-7 w-7" />
-        </Button>
-      </Link>
+      <Button 
+        onClick={() => setChatOpen(true)}
+        className="fixed bottom-8 right-8 h-14 w-14 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"
+      >
+        <Brain className="h-7 w-7" />
+      </Button>
+
+      {/* Controlled Chatbot Component */}
+      <AIAssistant open={chatOpen} onOpenChange={setChatOpen} />
 
     </div>
   );
