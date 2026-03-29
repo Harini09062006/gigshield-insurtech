@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -70,7 +71,7 @@ export default function WorkerDashboard() {
   const { data: profile } = useDoc(profileRef);
   const { data: dna } = useDoc(dnaRef);
 
-  // Chart Data for Income DNA
+  // Chart Data for Income DNA Profile
   const chartData = [
     { time: '6 AM', evening: 10, lunch: 5, active: 20 },
     { time: '8 AM', evening: 15, lunch: 10, active: 35 },
@@ -302,7 +303,7 @@ export default function WorkerDashboard() {
               { title: "EVENING", range: "5-9 PM", rate: 78, mult: "1.30x multiplier", color: "#6C47FF", icon: Sunset, peak: true },
               { title: "NIGHT", range: "9 PM-12 AM", rate: 51, mult: "0.85x multiplier", color: "#3B82F6", icon: Moon },
             ].map((slot, i) => (
-              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[20px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-2 h-[140px]">
+              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[20px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-2 h-[130px]">
                 <div className="flex items-center gap-2">
                   <div className="p-1 bg-gray-50 rounded-lg">
                     <slot.icon size={14} className="text-gray-400" />
@@ -324,16 +325,16 @@ export default function WorkerDashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: Expected Earnings */}
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 flex flex-col justify-between h-[400px]">
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 flex flex-col justify-between h-[360px]">
               <div className="space-y-2">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
-                <div className="text-7xl font-bold text-[#6C47FF]">₹3360</div>
+                <div className="text-6xl font-bold text-[#6C47FF]">₹3360</div>
                 <p className="text-xs text-gray-400 leading-relaxed max-w-[280px] mt-4">
                   Derived from your Income DNA earning pattern across 40 projected working hours.
                 </p>
               </div>
               
-              <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
+              <div className="mt-6 pt-6 border-t border-gray-100 flex items-center justify-between">
                 <div>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-1">RECOMMENDED PLAN</p>
                   <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
@@ -345,9 +346,9 @@ export default function WorkerDashboard() {
             </Card>
 
             {/* Right: Chart */}
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 h-[400px] lg:col-span-2">
-              <h3 className="text-sm font-bold text-[#1A1A2E] mb-8">Peak Earning Hours (24-Hour Profile)</h3>
-              <div className="h-[240px] w-full">
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-8 h-[360px] lg:col-span-2">
+              <h3 className="text-sm font-bold text-[#1A1A2E] mb-6">Peak Earning Hours (24-Hour Profile)</h3>
+              <div className="h-[200px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
