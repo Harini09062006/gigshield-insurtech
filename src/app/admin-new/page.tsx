@@ -147,7 +147,7 @@ export default function AdminNewPage() {
             <div className="p-6 border-b border-gray-50 flex justify-between items-center">
               <h3 className="font-bold text-gray-900">High Risk Claims Queue</h3>
               <div className="flex gap-2">
-                {['all', 'failed', 'review'].map(f => (
+                {['all', 'failed', 'review', 'approved'].map(f => (
                   <button key={f} onClick={() => setStatusFilter(f as any)} className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${claimStatusFilter === f ? 'bg-[#6C47FF] text-white' : 'bg-gray-100 text-gray-400'}`}>{f}</button>
                 ))}
               </div>
@@ -157,17 +157,21 @@ export default function AdminNewPage() {
                 filteredClaims.slice(0, 10).map(claim => (
                 <div key={claim.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
                   <div className="flex items-center gap-4">
-                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${claim.status === 'failed' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-500'}`}>
-                      {claim.status === 'failed' ? <ShieldAlert size={20} /> : <Clock size={20} />}
+                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${claim.status === 'failed' ? 'bg-red-50 text-red-500' : claim.status === 'approved' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>
+                      {claim.status === 'failed' ? <ShieldAlert size={20} /> : claim.status === 'approved' ? <CheckCircle size={20} /> : <Clock size={20} />}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-gray-900">{userMap.get(claim.worker_id)?.name || "Unknown Worker"}</p>
-                      <p className="text-[10px] text-gray-400">Score: {claim.trustScore}/100 • {claim.gps_verification} GPS</p>
+                      <p className="text-[10px] text-gray-400">Score: {claim.trustScore}/100 • {claim.gps_verification} GPS • ₹{claim.compensation}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => updateClaim(claim.id, 'approved', 'APPROVED', 'Admin Override')} className="text-emerald-600 hover:bg-emerald-50 h-8 font-bold text-[10px]">APPROVE</Button>
-                    <Button size="sm" variant="ghost" onClick={() => updateClaim(claim.id, 'failed', 'BLOCKED', 'Admin Rejection')} className="text-red-600 hover:bg-red-50 h-8 font-bold text-[10px]">REJECT</Button>
+                    {claim.status !== 'approved' && (
+                      <Button size="sm" variant="ghost" onClick={() => updateClaim(claim.id, 'approved', 'APPROVED', 'Admin Override')} className="text-emerald-600 hover:bg-emerald-50 h-8 font-bold text-[10px]">APPROVE</Button>
+                    )}
+                    {claim.status !== 'failed' && (
+                      <Button size="sm" variant="ghost" onClick={() => updateClaim(claim.id, 'failed', 'BLOCKED', 'Admin Rejection')} className="text-red-600 hover:bg-red-50 h-8 font-bold text-[10px]">REJECT</Button>
+                    )}
                   </div>
                 </div>
               ))}

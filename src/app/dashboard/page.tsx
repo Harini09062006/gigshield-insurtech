@@ -65,24 +65,29 @@ export default function WorkerDashboard() {
     
     setIsSimulating(true);
     try {
+      // 1. Get real user location
       let currentLoc = null;
       try {
         currentLoc = await getUserLocation();
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Location permission denied or unavailable.");
+      }
 
+      // 2. Perform GPS check against profile anchor
+      const workerAnchor = profile.location || { lat: profile.lat, lng: profile.lng };
       const verification = gpsCheck(
-        profile.lat && profile.lng ? { lat: profile.lat, lng: profile.lng } : undefined,
+        workerAnchor.lat && workerAnchor.lng ? { lat: workerAnchor.lat, lng: workerAnchor.lng } : undefined,
         currentLoc || undefined
       );
 
-      // Generate random trust score for simulation
-      const randomTrust = Math.floor(Math.random() * 60) + 30; // 30-90
+      // 3. Generate trust score and evaluate decision
+      const randomTrust = Math.floor(Math.random() * 60) + 30; // Random 30-90 for simulation
       const processing = evaluateClaim(verification, randomTrust);
 
-      const hour = new Date().getHours();
       const baseRate = profile.avg_hourly_earnings || 60;
       const compensation = Math.round(baseRate * 3.5);
 
+      // 4. Store in Firestore with correct structure
       await addDoc(collection(db, "claims"), {
         userId: user.uid,
         worker_id: user.uid,
@@ -93,8 +98,7 @@ export default function WorkerDashboard() {
         decision: processing.decision,
         reason: processing.reason,
         trustScore: randomTrust,
-        lat: currentLoc?.lat || 0,
-        lng: currentLoc?.lng || 0,
+        location: currentLoc ? { lat: currentLoc.lat, lng: currentLoc.lng } : null,
         gps_verification: verification,
         created_at: serverTimestamp()
       });
@@ -148,7 +152,7 @@ export default function WorkerDashboard() {
             <h3 className="text-2xl font-bold mb-4">GPS PROTECTED</h3>
             <div className="bg-white/10 p-3 rounded-xl">
               <p className="text-[9px] uppercase opacity-60">Base Coordinates</p>
-              <p className="text-xs font-bold">{profile?.lat ? `${profile.lat.toFixed(3)}, ${profile.lng.toFixed(3)}` : "Not set"}</p>
+              <p className="text-xs font-bold">{profile?.lat || profile?.location?.lat ? `${(profile.lat || profile.location.lat).toFixed(3)}, ${(profile.lng || profile.location.lng).toFixed(3)}` : "Not set"}</p>
             </div>
           </Card>
           

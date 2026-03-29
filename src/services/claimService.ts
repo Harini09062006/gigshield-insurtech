@@ -36,6 +36,7 @@ export function evaluateClaim(gpsStatus: "PASSED" | "FAILED" | "NOT_AVAILABLE", 
   }
 
   // Rule 3: Automated Approval
+  // Only approved if GPS PASSED (or not available but trust is high)
   return {
     decision: "APPROVED",
     status: "approved",
