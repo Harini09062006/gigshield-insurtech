@@ -13,7 +13,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { getUserLocation, saveUserLocation } from "@/services/locationService";
+import { getUserLocation } from "@/services/locationService";
 import { CITIES_LIST } from "@/services/weatherService";
 
 const PLATFORMS = ["Swiggy", "Zomato", "Uber Eats", "Ola", "Dunzo", "Blinkit", "Other"];
@@ -44,19 +44,6 @@ export default function RegisterPage() {
   const db = useFirestore();
   const auth = useAuth();
 
-  // Capture base location ONLY during registration phase
-  useEffect(() => {
-    async function initLoc() {
-      try {
-        const loc = await getUserLocation();
-        setLocation(loc);
-      } catch (e) {
-        console.warn("Initial GPS capture skipped or denied.");
-      }
-    }
-    initLoc();
-  }, []);
-
   const handleNext = async () => {
     const cleanPhone = formData.phone.replace(/\s/g, '').replace('+91', '').trim();
     if (!formData.name || cleanPhone.length !== 10) {
@@ -67,9 +54,39 @@ export default function RegisterPage() {
     setStep(2);
   };
 
+  /**
+   * CORE REGISTRATION HANDLER
+   * Triggers GPS permission immediately upon user action.
+   */
   const handleRegister = async () => {
     setLoading(true);
+    setErrorMessage("");
+
     try {
+      // 1. TRIGGER GPS CAPTURE IMMEDIATELY
+      // This ensures the browser identifies the request as part of a user gesture
+      let finalLat = 0;
+      let finalLng = 0;
+      
+      try {
+        if (typeof window !== "undefined") {
+          console.log("[Registration] Requesting GPS access...");
+          const loc = await getUserLocation();
+          finalLat = loc.lat;
+          finalLng = loc.lng;
+          console.log("[Registration] GPS coordinates captured.");
+        }
+      } catch (e) {
+        console.warn("[Registration] GPS capture skipped or denied. Using city fallback.");
+        // Fallback to city centroid if GPS fails
+        if (formData.city) {
+          const cityData = CITIES_LIST.find(c => c.name.toLowerCase() === formData.city.toLowerCase());
+          finalLat = cityData?.lat || 0;
+          finalLng = cityData?.lng || 0;
+        }
+      }
+
+      // 2. CONTINUE WITH AUTH & PROFILE CREATION
       const cleanPhone = formData.phone.replace(/\s/g, '').replace('+91', '').trim();
       const email = cleanPhone + '@gigshield.app';
       const password = cleanPhone.slice(-6) + 'GIG#' + cleanPhone.slice(0, 4);
@@ -77,17 +94,7 @@ export default function RegisterPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
-      // Fallback location logic: Priority given to captured GPS, then city centroid
-      let finalLat = location?.lat || 0;
-      let finalLng = location?.lng || 0;
-
-      if (!finalLat && formData.city) {
-        const cityData = CITIES_LIST.find(c => c.name.toLowerCase() === formData.city.toLowerCase());
-        finalLat = cityData?.lat || 0;
-        finalLng = cityData?.lng || 0;
-      }
-
-      // CRITICAL: Location is locked here and never updated again
+      // 3. STORE PROFILE WITH LOCKED COORDINATES
       await setDoc(doc(db, "users", uid), {
         name: formData.name,
         phone: cleanPhone,
@@ -101,13 +108,10 @@ export default function RegisterPage() {
         avg_hourly_earnings: Number(hourlyEarnings),
         lat: finalLat,
         lng: finalLng,
+        location: finalLat ? { lat: finalLat, lng: finalLng } : null,
         plan_activated_at: serverTimestamp(),
         createdAt: serverTimestamp()
       });
-
-      // Capture and save precise location object if available
-      // Call saveUserLocation(userId) ONLY after successful registration
-      await saveUserLocation(db, uid);
 
       const rate = Number(hourlyEarnings);
       await setDoc(doc(db, "income_dna", uid), {
@@ -122,9 +126,10 @@ export default function RegisterPage() {
         updated_at: serverTimestamp()
       });
       
-      // SUCCESS: Navigate to dashboard
+      console.log("[Registration] Success. Navigating to dashboard.");
       router.push("/dashboard");
     } catch (error: any) {
+      console.error("[Registration] Failed:", error);
       setErrorMessage(error.message || 'Registration failed.');
     } finally {
       setLoading(false);
@@ -208,12 +213,10 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 
-                {location && (
-                  <div className="bg-[#DCFCE7] border border-[#BBF7D0] p-3 rounded-xl flex items-center gap-3">
-                    <Check className="h-4 w-4 text-[#22C55E]" />
-                    <p className="text-[10px] font-bold text-[#16A34A] uppercase">GPS Coordinates Locked: {location.lat.toFixed(2)}, {location.lng.toFixed(2)}</p>
-                  </div>
-                )}
+                <div className="bg-[#EDE9FF] border border-[#D4CCFF] p-3 rounded-xl flex items-center gap-3">
+                  <MapPin className="h-4 w-4 text-[#6C47FF]" />
+                  <p className="text-[10px] font-bold text-[#6C47FF] uppercase">GPS coordinates will be captured on next step.</p>
+                </div>
 
                 <Button className="w-full h-14 font-bold bg-[#6C47FF] hover:bg-[#5535E8] rounded-xl text-white mt-4 shadow-btn" onClick={handleNext}>Next → Choose Plan</Button>
               </Card>
@@ -235,7 +238,19 @@ export default function RegisterPage() {
                   <Label className="text-lg font-bold text-[#1A1A2E]">Avg. Hourly Earnings (₹)</Label>
                   <Input type="number" value={hourlyEarnings} onChange={e => setHourlyEarnings(e.target.value)} className="h-16 text-3xl font-bold text-center rounded-xl bg-[#F8F9FF] border-[#E8E6FF]" />
                 </div>
-                <Button className="w-full h-16 text-lg font-bold bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn rounded-xl text-white" onClick={handleRegister} disabled={loading}>{loading ? <Loader2 className="animate-spin mr-2" /> : "Verify & Get Protected"}</Button>
+
+                {errorMessage && (
+                  <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex items-center gap-2 text-red-500 text-xs font-bold">
+                    <AlertCircle className="h-4 w-4" /> {errorMessage}
+                  </div>
+                )}
+
+                <Button className="w-full h-16 text-lg font-bold bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn rounded-xl text-white" onClick={handleRegister} disabled={loading}>
+                  {loading ? <Loader2 className="animate-spin mr-2" /> : "Verify & Get Protected"}
+                </Button>
+                <p className="text-[10px] text-center text-[#94A3B8] font-bold uppercase tracking-widest">
+                  By clicking, you agree to share your location for verification.
+                </p>
               </Card>
             </motion.div>
           )}
