@@ -19,10 +19,14 @@ const RESPONSES = {
     "The weather forecast is updated every few minutes. You can check the 'Heatmap' for live disruption zones.",
     "If heavy rain or extreme pollution affects your earnings, our parametric system will process your claim instantly."
   ],
+  DNA: [
+    "Your Income DNA is used to calculate your payouts accurately based on when you earn most. Your current peak is Evening (5-9 PM).",
+    "Income DNA ensures you get paid more during your busiest hours. It currently shows a 1.3x multiplier for your evening shifts."
+  ],
   PAYMENT_CLAIM: [
-    "I understand you're having an issue with a payment or claim. I'm escalating this to a human agent right now.",
-    "Parametric claims are usually instant, but I've flagged this for an administrator to review immediately.",
-    "I've detected a priority issue regarding your payout. I'm connecting you to our support queue for manual review."
+    "I understand you're having an issue with a payment or claim. I'm connecting you to our priority support team right now for manual review.",
+    "I've detected a concern regarding your funds. I am escalating this to a human administrator immediately. Please stay online.",
+    "I've flagged this payment query for immediate admin attention. A support member will be with you shortly."
   ],
   HELP: [
     "You can ask me about 'weather risk', 'claim status', or 'how to upgrade your plan'. What do you need?",
@@ -35,13 +39,6 @@ const RESPONSES = {
     "I specialize in GigShield protection. Can we talk about your weather coverage or recent claims?"
   ]
 };
-
-/**
- * Picks a random response from a given array.
- */
-function getRandom(arr: string[]): string {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
 
 /**
  * Analyzes user input and returns a structured bot response.
@@ -57,21 +54,26 @@ export function getBotResponse(input: string, userName?: string): BotResult {
   if (text.match(/\b(hi|hello|hey|greetings|good morning|good afternoon|good evening)\b/)) {
     category = 'GREETING';
   } 
-  // 2. Check for Weather Queries
+  // 2. Check for DNA/Earnings
+  else if (text.match(/\b(dna|earnings|peak|multiplier|income|working hours)\b/)) {
+    category = 'DNA';
+  }
+  // 3. Check for Weather Queries
   else if (text.match(/\b(rain|weather|forecast|storm|flood|pollution|aqi|risk|heat)\b/)) {
     category = 'WEATHER';
   } 
-  // 3. Check for Payment/Claim Issues (Triggers Escalation)
-  else if (text.match(/\b(payment|claim|money|payout|not received|issue|error|failed|rejected|delayed)\b/)) {
+  // 4. Check for Payment/Claim Issues (Triggers Escalation)
+  else if (text.match(/\b(payment|claim|money|payout|not received|issue|error|failed|rejected|delayed|refund)\b/)) {
     category = 'PAYMENT_CLAIM';
     needsEscalation = true;
   } 
-  // 4. Check for General Help
+  // 5. Check for General Help
   else if (text.match(/\b(help|support|assist|info|how to|manual|guide)\b/)) {
     category = 'HELP';
   }
 
-  let response = getRandom(RESPONSES[category]);
+  const responses = RESPONSES[category];
+  let response = responses[Math.floor(Math.random() * responses.length)];
   
   // Replace placeholders
   if (category === 'FALLBACK') {

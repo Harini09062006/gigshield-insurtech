@@ -327,11 +327,11 @@ export default function WorkerDashboard() {
             ))}
           </div>
 
-          {/* Hero Section - Chart LEFT, Earnings RIGHT */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Side-by-Side Hero Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* LEFT: Peak Earning Hours Graph */}
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 h-[300px]">
+            {/* LEFT: Peak Earning Hours Graph (Takes up 2 columns) */}
+            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 md:col-span-2 h-[300px]">
               <h3 className="text-xs font-bold text-[#1A1A2E] mb-4">Peak Earning Hours (24-Hour Profile)</h3>
               <div className="h-[180px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -371,7 +371,7 @@ export default function WorkerDashboard() {
               </div>
             </Card>
 
-            {/* RIGHT: Expected Weekly Earnings */}
+            {/* RIGHT: Expected Weekly Earnings (Takes up 1 column) */}
             <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 flex flex-col justify-between h-[300px]">
               <div className="space-y-1.5">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
