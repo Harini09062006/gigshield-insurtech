@@ -129,28 +129,6 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-[#EEEEFF] flex flex-col items-center py-10 px-4 font-body">
       <div className="w-full max-w-4xl space-y-8">
         
-        {/* Refined Progress Bar */}
-        <div className="w-full max-w-3xl mx-auto mb-12 px-6">
-          <div className="flex items-center justify-between mb-3 px-1">
-            {['Basic Info', 'Choose Plan', 'Done'].map((label, i) => (
-              <span 
-                key={label} 
-                className={`text-[10px] font-black uppercase tracking-[0.2em] ${
-                  (step === 1 && i === 0) || (step === 2 && i <= 1) ? 'text-[#6C47FF]' : 'text-[#94A3B8] opacity-40'
-                }`}
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-          <div className="h-[3px] w-full bg-[#E8E6FF] rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-[#6C47FF] to-[#3B82F6] transition-all duration-700 ease-in-out" 
-              style={{ width: step === 1 ? '33.33%' : '66.66%' }}
-            />
-          </div>
-        </div>
-
         <div className="w-full flex justify-start">
           <Link href="/" className="flex items-center gap-2 text-[#6C47FF] hover:text-[#5535E8] font-bold text-sm group">
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Back to Home
@@ -159,6 +137,29 @@ export default function RegisterPage() {
 
         <div className="flex flex-col items-center gap-4">
           <div className="h-12 w-12 bg-[#6C47FF] rounded-2xl flex items-center justify-center shadow-btn"><Shield className="h-7 w-7 text-white" /></div>
+          
+          {/* Refined Progress Bar - Repositioned Below Shield */}
+          <div className="w-full max-w-3xl mx-auto mt-4 mb-4 px-6">
+            <div className="flex items-center justify-between mb-3 px-1">
+              {['Basic Info', 'Choose Plan', 'Done'].map((label, i) => (
+                <span 
+                  key={label} 
+                  className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                    (step === 1 && i === 0) || (step === 2 && i <= 1) ? 'text-[#6C47FF]' : 'text-[#94A3B8] opacity-40'
+                  }`}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div className="h-[3px] w-full bg-[#E8E6FF] rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-[#6C47FF] to-[#3B82F6] transition-all duration-700 ease-in-out" 
+                style={{ width: step === 1 ? '33.33%' : '66.66%' }}
+              />
+            </div>
+          </div>
+
           <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-[#64748B]">
             <span className={step >= 1 ? "text-[#6C47FF]" : ""}>① Profile</span>
             <div className="h-px w-8 bg-[#E8E6FF]" />

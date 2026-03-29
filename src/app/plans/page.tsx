@@ -210,31 +210,32 @@ export default function PlansPage() {
     <div className="min-h-screen bg-bg-page flex flex-col items-center py-10 px-4">
       <div className="w-full max-w-6xl space-y-10">
         
-        {/* Refined Horizontal Step Progress Bar */}
-        <div className="w-full max-w-3xl mx-auto mb-12 px-6">
-          <div className="flex items-center justify-between mb-3 px-1">
-            {['Basic Info', 'Choose Plan', 'Done'].map((step, i) => (
-              <span 
-                key={i} 
-                className={`text-[10px] font-black uppercase tracking-[0.2em] ${
-                  i <= 1 ? 'text-primary' : 'text-muted-foreground opacity-40'
-                }`}
-              >
-                {step}
-              </span>
-            ))}
-          </div>
-          <div className="h-[3px] w-full bg-[#E8E6FF] rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-[#6C47FF] to-[#3B82F6] w-2/3 transition-all duration-1000 ease-in-out" 
-            />
-          </div>
-        </div>
-
         <div className="flex flex-col items-center gap-4">
           <div className="h-12 w-12 bg-primary rounded-2xl flex items-center justify-center shadow-btn">
             <Shield className="h-7 w-7 text-white" />
           </div>
+
+          {/* Refined Horizontal Step Progress Bar - Repositioned Below Shield */}
+          <div className="w-full max-w-3xl mx-auto mt-4 mb-4 px-6">
+            <div className="flex items-center justify-between mb-3 px-1">
+              {['Basic Info', 'Choose Plan', 'Done'].map((step, i) => (
+                <span 
+                  key={i} 
+                  className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                    i <= 1 ? 'text-primary' : 'text-muted-foreground opacity-40'
+                  }`}
+                >
+                  {step}
+                </span>
+              ))}
+            </div>
+            <div className="h-[3px] w-full bg-[#E8E6FF] rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-[#6C47FF] to-[#3B82F6] w-2/3 transition-all duration-1000 ease-in-out" 
+              />
+            </div>
+          </div>
+
           <StepIndicator currentStep={2} />
         </div>
 
