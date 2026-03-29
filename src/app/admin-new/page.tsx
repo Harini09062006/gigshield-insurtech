@@ -22,9 +22,10 @@ import {
   CheckCircle,
   Filter,
   Loader2,
+  Lock,
   User as UserIcon
 } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser, useDoc } from "@/firebase";
 import { 
   collection, 
   query, 
@@ -46,15 +47,40 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * PRODUCTION-READY CONNECTED ADMIN DASHBOARD
- * Features: Firestore Real-time Sync, Threaded Chat Grouping, RBAC simulation
+ * Features: Firestore Real-time Sync, Threaded Chat Grouping, RBAC Verification
  */
 
 export default function AdminNewPage() {
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
+  const { user, isUserLoading } = useUser();
   
-  // 1. Navigation & Search State
+  // RBAC State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
+
+  // 1. Verify Administrative Privileges
+  const profileRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
+  const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
+
+  useEffect(() => {
+    if (isUserLoading || isProfileLoading) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (profile?.role === "admin") {
+      setIsAdmin(true);
+    } else if (profile) {
+      router.replace("/");
+    }
+    setCheckingAdmin(false);
+  }, [user, isUserLoading, profile, isProfileLoading, router]);
+
+  // 2. Navigation & Search State
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [chatInput, setChatInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -62,16 +88,27 @@ export default function AdminNewPage() {
   const [chatFilter, setChatFilter] = useState<'all' | 'open' | 'resolved'>('open');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 2. Real-time Firestore Hooks
-  const usersQuery = useMemoFirebase(() => query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100)), [db]);
-  const claimsQuery = useMemoFirebase(() => query(collection(db, "claims"), orderBy("created_at", "desc"), limit(100)), [db]);
-  const messagesQuery = useMemoFirebase(() => query(collection(db, "support_messages"), orderBy("timestamp", "desc"), limit(300)), [db]);
+  // 3. Real-time Firestore Hooks (only active if verified admin)
+  const usersQuery = useMemoFirebase(() => {
+    if (!db || !isAdmin) return null;
+    return query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));
+  }, [db, isAdmin]);
+
+  const claimsQuery = useMemoFirebase(() => {
+    if (!db || !isAdmin) return null;
+    return query(collection(db, "claims"), orderBy("created_at", "desc"), limit(100));
+  }, [db, isAdmin]);
+
+  const messagesQuery = useMemoFirebase(() => {
+    if (!db || !isAdmin) return null;
+    return query(collection(db, "support_messages"), orderBy("timestamp", "desc"), limit(300));
+  }, [db, isAdmin]);
 
   const { data: realUsers, isLoading: loadingUsers } = useCollection(usersQuery);
   const { data: realClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
   const { data: rawMessages, isLoading: loadingMessages } = useCollection(messagesQuery);
 
-  // 3. Derived Chat Logic: Group flat messages into "Threads"
+  // 4. Derived Chat Logic: Group flat messages into "Threads"
   const threads = useMemo(() => {
     if (!rawMessages) return [];
     
@@ -111,7 +148,7 @@ export default function AdminNewPage() {
     }
   }, [activeChatMessages]);
 
-  // 4. Actions
+  // 5. Actions
   const handleSendChat = async () => {
     if (!chatInput.trim() || !activeChatUserId || !db) return;
     
@@ -159,7 +196,25 @@ export default function AdminNewPage() {
     }
   };
 
-  // 5. Render Components
+  // 🔄 Loading screen
+  if (isUserLoading || checkingAdmin) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-[#EEEEFF] space-y-4">
+        <div className="relative">
+          <Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" />
+          <Lock className="absolute inset-0 m-auto h-4 w-4 text-[#6C47FF]" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-bold text-[#1A1A2E] animate-pulse">Establishing Secure Connection...</p>
+          <p className="text-[10px] text-[#64748B] uppercase tracking-widest mt-1">Authorized Admin Access Only</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) return null;
+
+  // 6. Render Components
   const renderDashboard = () => (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
