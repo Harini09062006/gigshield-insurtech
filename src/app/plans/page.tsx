@@ -210,8 +210,8 @@ export default function PlansPage() {
     <div className="min-h-screen bg-bg-page flex flex-col items-center py-10 px-4">
       <div className="w-full max-w-6xl space-y-10">
         
-        {/* Minimal Horizontal Step Progress Bar */}
-        <div className="w-full max-w-md mx-auto mb-12">
+        {/* Refined Horizontal Step Progress Bar */}
+        <div className="w-full max-w-3xl mx-auto mb-12 px-6">
           <div className="flex items-center justify-between mb-3 px-1">
             {['Basic Info', 'Choose Plan', 'Done'].map((step, i) => (
               <span 
@@ -224,10 +224,9 @@ export default function PlansPage() {
               </span>
             ))}
           </div>
-          <div className="h-1.5 w-full bg-[#E8E6FF] rounded-full overflow-hidden shadow-inner">
+          <div className="h-[3px] w-full bg-[#E8E6FF] rounded-full overflow-hidden">
             <div 
-              className="h-full bg-primary w-2/3 transition-all duration-1000 ease-in-out" 
-              style={{ boxShadow: '0 0 10px rgba(108, 71, 255, 0.3)' }}
+              className="h-full bg-gradient-to-r from-[#6C47FF] to-[#3B82F6] w-2/3 transition-all duration-1000 ease-in-out" 
             />
           </div>
         </div>
