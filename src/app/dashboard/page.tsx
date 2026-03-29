@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { 
   Shield, 
   Home, 
@@ -14,7 +14,8 @@ import {
   ChevronRight, 
   Calendar,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,88 @@ import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, useAuth } from "@/firebase";
+import { doc, updateDoc, addDoc, collection, query, where, limit, serverTimestamp, orderBy } from "firebase/firestore";
+import { getUserLocation, gpsCheck } from "@/lib/gps";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+
 export default function WorkerDashboard() {
+  const { user, isUserLoading } = useUser();
+  const db = useFirestore();
+  const auth = useAuth();
+  const router = useRouter();
+
+  // 1. DATA FETCHING (REAL-TIME)
+  const profileRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user?.uid]);
+  const dnaRef = useMemoFirebase(() => user ? doc(db, "income_dna", user.uid) : null, [db, user?.uid]);
+  const claimsQuery = useMemoFirebase(() => user ? query(
+    collection(db, "claims"), 
+    where("worker_id", "==", user.uid), 
+    orderBy("created_at", "desc"),
+    limit(5)
+  ) : null, [db, user?.uid]);
+
+  const { data: profile } = useDoc(profileRef);
+  const { data: dna } = useDoc(dnaRef);
+  const { data: claims } = useCollection(claimsQuery);
+
+  const [simulating, setSimulating] = useState(false);
+
+  // 3. SAVE USER LOCATION (ON MOUNT)
+  useEffect(() => {
+    async function autoAnchorLocation() {
+      if (user && db && !profile?.location) {
+        try {
+          const loc = await getUserLocation();
+          await updateDoc(doc(db, "users", user.uid), {
+            location: loc,
+            lat: loc.lat,
+            lng: loc.lng,
+            updatedAt: serverTimestamp()
+          });
+        } catch (e) {
+          console.warn("GPS Access Denied - Automatic anchoring skipped.");
+        }
+      }
+    }
+    if (!isUserLoading && user) autoAnchorLocation();
+  }, [user, isUserLoading, db, profile?.location]);
+
+  // 4. CLAIM CREATION & 7. DECISION LOGIC
+  const handleSimulateWeather = async () => {
+    if (!user || !db || !profile) return;
+    setSimulating(true);
+    try {
+      const currentLoc = await getUserLocation();
+      const workerLoc = profile.location || { lat: profile.lat || 0, lng: profile.lng || 0 };
+      const gpsResult = gpsCheck(workerLoc, currentLoc);
+      
+      const trustScore = Math.floor(Math.random() * 60) + 40; // Prototype range 40-100
+      
+      let status: "approved" | "review" | "failed" = "approved";
+      if (gpsResult === "FAILED" || trustScore < 40) status = "failed";
+      else if (trustScore <= 70) status = "review";
+
+      await addDoc(collection(db, "claims"), {
+        worker_id: user.uid,
+        amount: profile.plan_id === 'elite' ? 600 : (profile.plan_id === 'pro' ? 240 : 60),
+        compensation: profile.plan_id === 'elite' ? 600 : (profile.plan_id === 'pro' ? 240 : 60),
+        location: currentLoc,
+        gps_verification: gpsResult,
+        trust_score: trustScore,
+        status: status,
+        created_at: serverTimestamp(),
+        trigger_description: "Simulated Heavy Monsoon"
+      });
+    } catch (e) {
+      console.error("Simulation Error:", e);
+    } finally {
+      setSimulating(false);
+    }
+  };
+
+  // UI Chart Data (Derived)
   const hourlyChartData = [
     { hour: '6am', earning: 40 }, { hour: '8am', earning: 45 }, { hour: '10am', earning: 55 },
     { hour: '12pm', earning: 50 }, { hour: '2pm', earning: 52 }, { hour: '4pm', earning: 60 },
@@ -36,6 +118,20 @@ export default function WorkerDashboard() {
     { day: 'Thu', earning: 620 }, { day: 'Fri', earning: 800 }, { day: 'Sat', earning: 1100 },
     { day: 'Sun', earning: 950 }
   ];
+
+  if (isUserLoading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-[#EEEEFF]">
+        <Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" />
+        <p className="mt-4 text-sm font-bold text-[#6C47FF] animate-pulse uppercase tracking-widest">Loading Protection Intel...</p>
+      </div>
+    );
+  }
+
+  // Derived Calculations
+  const currentDnaRate = dna?.evening_rate || 78;
+  const planMaxPayout = profile?.plan_id === 'elite' ? 600 : (profile?.plan_id === 'pro' ? 240 : 60);
+  const potentialLoss = Math.round(currentDnaRate * 6);
 
   return (
     <div className="min-h-screen bg-[#EEEEFF] flex flex-col font-body">
@@ -53,13 +149,13 @@ export default function WorkerDashboard() {
           <Button variant="ghost" size="icon" className="text-[#6C47FF] bg-[#EDE9FF]">
             <Home className="h-6 w-6" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-[#64748B]">
+          <Button variant="ghost" size="icon" className="text-[#64748B]" onClick={() => router.push("/claims")}>
             <FileText className="h-6 w-6" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-[#64748B]">
+          <Button variant="ghost" size="icon" className="text-[#64748B]" onClick={() => router.push("/heatmap")}>
             <MapIcon className="h-6 w-6" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-[#EF4444]">
+          <Button variant="ghost" size="icon" className="text-[#EF4444]" onClick={handleLogout}>
             <LogOut className="h-6 w-6" />
           </Button>
         </div>
@@ -72,15 +168,15 @@ export default function WorkerDashboard() {
           <Card className="bg-gradient-to-br from-[#6C47FF] to-[#8B66FF] text-white border-none shadow-btn rounded-[20px] p-6 overflow-hidden relative">
             <div className="relative z-10">
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-80">Active Protection</p>
-              <h3 className="text-2xl font-bold mb-4">PRO SHIELD</h3>
+              <h3 className="text-2xl font-bold mb-4">{profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "PRO SHIELD"}</h3>
               <div className="grid grid-cols-2 gap-4 mt-6">
                 <div className="bg-white/10 p-3 rounded-xl backdrop-blur-sm border border-white/10">
                   <p className="text-[9px] uppercase opacity-60 font-bold mb-1">Max Payout</p>
-                  <p className="text-lg font-bold">₹240</p>
+                  <p className="text-lg font-bold">₹{planMaxPayout}</p>
                 </div>
                 <div className="bg-white/10 p-3 rounded-xl backdrop-blur-sm border border-white/10">
                   <p className="text-[9px] uppercase opacity-60 font-bold mb-1">Premium</p>
-                  <p className="text-lg font-bold">₹25</p>
+                  <p className="text-lg font-bold">₹{profile?.plan_id === 'elite' ? 50 : (profile?.plan_id === 'pro' ? 25 : 10)}</p>
                 </div>
               </div>
             </div>
@@ -129,9 +225,9 @@ export default function WorkerDashboard() {
         {/* 3. POLICY MANAGEMENT ROW */}
         <section className="grid gap-4 grid-cols-2 md:grid-cols-4">
           {[
-            { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
+            { label: "Activation Date", value: profile?.plan_activated_at?.seconds ? format(new Date(profile.plan_activated_at.seconds * 1000), "MMM dd, yyyy") : "Mar 18, 2026", icon: Calendar },
             { label: "Next Renewal", value: "25 Mar", icon: Clock },
-            { label: "Renewal Amount", value: "₹25", icon: TrendingUp },
+            { label: "Renewal Amount", value: `₹${profile?.plan_id === 'elite' ? 50 : (profile?.plan_id === 'pro' ? 25 : 10)}`, icon: TrendingUp },
             { label: "Commitment", value: "Week 1/4", icon: Shield }
           ].map((stat, i) => (
             <Card key={i} className="bg-white border-[#E8E6FF] shadow-sm p-4 rounded-2xl flex flex-col gap-1">
@@ -146,24 +242,32 @@ export default function WorkerDashboard() {
 
         {/* 4. EARNINGS PROTECTION SUMMARY */}
         <Card className="bg-[#F8F9FF] border border-[#E8E6FF] shadow-card rounded-[24px] overflow-hidden">
-          <CardHeader className="bg-white border-b border-[#E8E6FF] px-8 py-5">
+          <CardHeader className="bg-white border-b border-[#E8E6FF] px-8 py-5 flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-headline font-bold text-[#1A1A2E]">Earnings Protection Summary</CardTitle>
+            <Button 
+              className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold h-10 px-6 rounded-xl"
+              onClick={handleSimulateWeather}
+              disabled={simulating}
+            >
+              {simulating ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Zap className="mr-2 h-4 w-4 fill-current" />}
+              Simulate Severe Weather
+            </Button>
           </CardHeader>
           <CardContent className="p-8 space-y-8">
             <div className="grid gap-8 md:grid-cols-3">
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
-                <p className="text-3xl font-bold text-[#EF4444]">₹468</p>
+                <p className="text-3xl font-bold text-[#EF4444]">₹{potentialLoss}</p>
                 <p className="text-[10px] text-[#94A3B8]">Based on Evening DNA rate (6 hrs)</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
-                <p className="text-3xl font-bold text-[#22C55E]">₹240</p>
-                <p className="text-[10px] text-[#94A3B8]">Capped by PRO Shield plan limit</p>
+                <p className="text-3xl font-bold text-[#22C55E]">₹{planMaxPayout}</p>
+                <p className="text-[10px] text-[#94A3B8]">Capped by plan limit</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
-                <p className="text-3xl font-bold text-[#EF4444]">₹228</p>
+                <p className="text-3xl font-bold text-[#EF4444]">₹{Math.max(0, potentialLoss - planMaxPayout)}</p>
                 <p className="text-[10px] text-[#94A3B8]">Uncovered amount during event</p>
               </div>
             </div>
@@ -173,7 +277,7 @@ export default function WorkerDashboard() {
                 <AlertCircle className="text-[#F59E0B] h-5 w-5" />
               </div>
               <p className="text-xs font-medium text-[#D97706] leading-relaxed">
-                <span className="font-bold">Pro Tip:</span> Consider upgrading to <span className="font-bold">Elite Shield</span> to cover your evening peak income completely during heavy monsoons.
+                <span className="font-bold">Pro Tip:</span> {potentialLoss > planMaxPayout ? "Consider upgrading to Elite Shield to cover your evening peak income completely during heavy monsoons." : "Your current plan provides full coverage for your average earning patterns."}
               </p>
             </div>
           </CardContent>
@@ -186,15 +290,17 @@ export default function WorkerDashboard() {
               <h2 className="text-xl font-headline font-bold text-[#1A1A2E]">Income DNA Profile</h2>
               <Badge className="bg-[#6C47FF] text-white border-none text-[10px] font-bold uppercase py-0.5 px-3">Live Analysis</Badge>
             </div>
-            <p className="text-[10px] text-[#94A3B8] font-mono font-bold uppercase tracking-widest">Refreshed 2m ago</p>
+            <p className="text-[10px] text-[#94A3B8] font-mono font-bold uppercase tracking-widest">
+              Updated {dna?.updated_at?.seconds ? format(new Date(dna.updated_at.seconds * 1000), "HH:mm") : "Just now"}
+            </p>
           </div>
 
           <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             {[
-              { label: "Morning (6-10 AM)", rate: "₹45/hr", icon: "🌅", progress: 45 },
-              { label: "Afternoon (12-4 PM)", rate: "₹57/hr", icon: "☀", progress: 57 },
-              { label: "Evening (5-9 PM)", rate: "₹78/hr", icon: "🌆", progress: 78 },
-              { label: "Night (9 PM-12 AM)", rate: "₹51/hr", icon: "🌙", progress: 51 }
+              { label: "Morning (6-10 AM)", rate: `₹${dna?.morning_rate || 45}/hr`, icon: "🌅", progress: 45 },
+              { label: "Afternoon (12-4 PM)", rate: `₹${dna?.afternoon_rate || 57}/hr`, icon: "☀", progress: 57 },
+              { label: "Evening (5-9 PM)", rate: `₹${dna?.evening_rate || 78}/hr`, icon: "🌆", progress: 78 },
+              { label: "Night (9 PM-12 AM)", rate: `₹${dna?.night_rate || 51}/hr`, icon: "🌙", progress: 51 }
             ].map((slot, i) => (
               <Card key={i} className="bg-white border-[#E8E6FF] shadow-sm p-5 rounded-2xl">
                 <div className="text-2xl mb-3">{slot.icon}</div>

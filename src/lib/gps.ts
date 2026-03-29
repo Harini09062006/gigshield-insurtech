@@ -52,9 +52,9 @@ export function calculateDistance(lat1: number, lng1: number, lat2: number, lng2
 /**
  * Validates if user is within 1km of their base location.
  */
-export function gpsCheck(workerLoc?: GeoLocation, claimLoc?: GeoLocation): "PASSED" | "FAILED" | "NOT_AVAILABLE" {
-  if (!workerLoc?.lat || !workerLoc?.lng || !claimLoc?.lat || !claimLoc?.lng) {
-    return "NOT_AVAILABLE";
+export function gpsCheck(workerLoc: GeoLocation, claimLoc: GeoLocation): "PASSED" | "FAILED" {
+  if (!workerLoc.lat || !workerLoc.lng || !claimLoc.lat || !claimLoc.lng) {
+    return "FAILED";
   }
 
   const distance = calculateDistance(workerLoc.lat, workerLoc.lng, claimLoc.lat, claimLoc.lng);
