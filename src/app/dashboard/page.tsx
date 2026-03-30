@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -190,7 +191,8 @@ export default function WorkerDashboard() {
         lat: currentLoc?.lat || workerLoc?.lat || 19.0760,
         lng: currentLoc?.lng || workerLoc?.lng || 72.8777,
         gps_status: gps_status,
-        created_at: serverTimestamp()
+        createdAt: serverTimestamp(),
+        created_at: serverTimestamp() // Keeping legacy field for compatibility
       });
     } catch (err) {
       console.error("Simulation claim write failed:", err);

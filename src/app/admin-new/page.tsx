@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -72,7 +73,7 @@ export default function AdminNewPage() {
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    return query(collection(db, "claims"), orderBy("created_at", "desc"), limit(100));
+    return query(collection(db, "claims"), orderBy("createdAt", "desc"), limit(100));
   }, [db, isAuthReady]);
 
   const messagesQuery = useMemoFirebase(() => {
@@ -81,8 +82,17 @@ export default function AdminNewPage() {
   }, [db, isAuthReady]);
 
   const { data: realUsers, isLoading: loadingUsers, error: usersError } = useCollection(usersQuery);
-  const { data: realClaims, isLoading: loadingClaims, error: claimsError } = useCollection(claimsQuery);
+  const { data: rawClaims, isLoading: loadingClaims, error: claimsError } = useCollection(claimsQuery);
   const { data: rawMessages, isLoading: loadingMessages, error: messagesError } = useCollection(messagesQuery);
+
+  const realClaims = useMemo(() => {
+    if (!rawClaims) return [];
+    return [...rawClaims].sort((a, b) => {
+      const timeA = a.createdAt?.seconds || a.created_at?.seconds || 0;
+      const timeB = b.createdAt?.seconds || b.created_at?.seconds || 0;
+      return timeB - timeA;
+    });
+  }, [rawClaims]);
 
   useEffect(() => {
     if (usersError || claimsError || messagesError) {

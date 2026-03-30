@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
@@ -52,10 +53,16 @@ export default function AdminClaims() {
   
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !isAdmin || checkingAdmin) return null;
-    return query(collection(db, "claims"), orderBy("created_at", "desc"));
+    return query(collection(db, "claims"), orderBy("createdAt", "desc"));
   }, [db, isAdmin, checkingAdmin]);
 
-  const { data: claims, isLoading, error } = useCollection(claimsQuery);
+  const { data: rawClaims, isLoading, error } = useCollection(claimsQuery);
+
+  const claims = (rawClaims || []).sort((a, b) => {
+    const timeA = a.createdAt?.seconds || a.created_at?.seconds || 0;
+    const timeB = b.createdAt?.seconds || b.created_at?.seconds || 0;
+    return timeB - timeA;
+  });
 
   const updateStatus = async (claimId: string, status: 'approved' | 'rejected') => {
     try {
@@ -198,7 +205,7 @@ export default function AdminClaims() {
                           </Badge>
                         </td>
                         <td className="p-4 text-[#64748B] text-xs">
-                          {claim.created_at?.seconds ? format(new Date(claim.created_at.seconds * 1000), "MMM dd, HH:mm") : "Just now"}
+                          {claim.createdAt?.seconds ? format(new Date(claim.createdAt.seconds * 1000), "MMM dd, HH:mm") : claim.created_at?.seconds ? format(new Date(claim.created_at.seconds * 1000), "MMM dd, HH:mm") : "Just now"}
                         </td>
                         <td className="p-4 text-right flex items-center justify-end gap-2">
                           {(claim.status === 'pending' || !claim.status || claim.gps_status === 'mismatch') && (

@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, query, limit, where } from "firebase/firestore";
+import { doc, collection, query, limit, where, orderBy } from "firebase/firestore";
 import { Shield, Zap, AlertCircle, ChevronRight, Map as MapIcon, Brain } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ export default function WorkerOverview() {
     return query(
       collection(db, "claims"), 
       where("worker_id", "==", user.uid),
+      orderBy("createdAt", "desc"),
       limit(5)
     );
   }, [db, user?.uid]);
@@ -44,7 +46,11 @@ export default function WorkerOverview() {
 
   const claims = useMemo(() => {
     if (!rawClaims) return null;
-    return [...rawClaims].sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
+    return [...rawClaims].sort((a, b) => {
+      const timeA = a.createdAt?.seconds || a.created_at?.seconds || 0;
+      const timeB = b.createdAt?.seconds || b.created_at?.seconds || 0;
+      return timeB - timeA;
+    });
   }, [rawClaims]);
 
   const hourlyChartData = useMemo(() => [

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -29,11 +30,22 @@ export default function WorkerClaims() {
     return query(
       collection(db, "claims"), 
       where("worker_id", "==", user.uid), 
+      orderBy("createdAt", "desc"),
       limit(20)
     );
   }, [db, user?.uid]);
 
-  const { data: claims, isLoading, error } = useCollection(claimsQuery);
+  const { data: rawClaims, isLoading, error } = useCollection(claimsQuery);
+
+  // Fallback sorting for records without createdAt or legacy field
+  const claims = React.useMemo(() => {
+    if (!rawClaims) return [];
+    return [...rawClaims].sort((a, b) => {
+      const timeA = a.createdAt?.seconds || a.created_at?.seconds || 0;
+      const timeB = b.createdAt?.seconds || b.created_at?.seconds || 0;
+      return timeB - timeA;
+    });
+  }, [rawClaims]);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -99,7 +111,7 @@ export default function WorkerClaims() {
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-[#64748B] font-bold">
                       <Calendar className="h-4 w-4" />
-                      {claim.created_at?.seconds ? format(new Date(claim.created_at.seconds * 1000), "dd MMM, HH:mm") : "Just now"}
+                      {claim.createdAt?.seconds ? format(new Date(claim.createdAt.seconds * 1000), "dd MMM, HH:mm") : claim.created_at?.seconds ? format(new Date(claim.created_at.seconds * 1000), "dd MMM, HH:mm") : "Just now"}
                     </div>
                   </CardHeader>
                   <CardContent className="p-0 grid md:grid-cols-[1fr,240px]">
