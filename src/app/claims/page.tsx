@@ -140,14 +140,8 @@ export default function WorkerClaims() {
                       </div>
 
                       <div className="pt-4 mt-4 border-t border-[#E8E6FF]">
-                        <div className={`flex items-center gap-2 mb-2 font-bold text-[11px] uppercase ${claim.gps_status === 'matched' ? 'text-emerald-600' : 'text-red-500'}`}>
+                        <div className={`flex items-center gap-2 font-bold text-[11px] uppercase ${claim.gps_status === 'matched' ? 'text-emerald-600' : 'text-red-500'}`}>
                           {claim.gps_status === 'matched' ? '✓ Location Match Verified' : '⚠ Location Mismatch Flagged'}
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${claim.gps_status === 'matched' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-500 border-red-100'}`}>
-                            GPS: {claim.gps_status?.toUpperCase()}
-                          </span>
-                          <span className="px-3 py-1 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-600 border-emerald-100">Weather: Confirmed</span>
                         </div>
                       </div>
                     </div>
@@ -180,7 +174,7 @@ export default function WorkerClaims() {
                       </div>
                     </div>
 
-                    {/* Fraud Analysis Section - Now renders for every claim with safe fallbacks */}
+                    {/* Fraud Analysis Section - Single Source of Truth */}
                     <div className="col-span-full p-6 border-t border-[#E8E6FF] bg-white space-y-4">
                       <div className="flex items-center justify-between">
                         <h4 className="text-[10px] font-black uppercase tracking-widest text-[#1A1A2E]">Automated Fraud Analysis</h4>
@@ -199,8 +193,8 @@ export default function WorkerClaims() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
                         {Object.entries(fraudLabels).map(([key, label]) => {
                           const status = (claim.fraudChecks?.[key]) || 'N/A';
-                          const color = status === 'PASSED' ? '#22C55E' : status === 'FAILED' ? '#EF4444' : '#F59E0B';
-                          const icon = status === 'PASSED' ? '✅' : status === 'FAILED' ? '❌' : '⚠️';
+                          const color = status === 'PASSED' ? '#22C55E' : status === 'FAILED' ? '#EF4444' : status === 'SUSPICIOUS' ? '#F59E0B' : '#94A3B8';
+                          const icon = status === 'PASSED' ? '✅' : status === 'FAILED' ? '❌' : status === 'SUSPICIOUS' ? '⚠️' : '⚪';
                           
                           return (
                             <div key={key} className="flex items-center justify-between text-[10px] font-medium border-b border-[#F5F3FF] pb-1">
@@ -216,7 +210,11 @@ export default function WorkerClaims() {
                       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-dashed border-[#E8E6FF]">
                         <div className="flex gap-4">
                           <div className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter">
-                            Processing Time: <span className="text-[#1A1A2E]">{claim.processingTime || '0.8s'}</span>
+                            Processing Time: <span className="text-[#1A1A2E]">
+                              {claim.processingTime 
+                                ? `${(parseFloat(claim.processingTime) / (claim.processingTime.toLowerCase().includes('ms') || parseFloat(claim.processingTime) > 100 ? 1000 : 1)).toFixed(1)}s` 
+                                : '0.8s'}
+                            </span>
                           </div>
                           <div className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter">
                             Status: <span className="text-[#6C47FF]">LIVE_VERIFIED</span>
