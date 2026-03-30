@@ -39,8 +39,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AIAssistant } from "@/components/chatbot/AIAssistant";
 import { ClaimNotification } from "@/components/ClaimNotification";
 import { useRouter } from "next/navigation";
-import { getUserLocation, calculateDistance, gpsCheck } from "@/services/locationService";
-import { runFraudChecks } from "@/services/fraudDetection";
+import { getUserLocation } from "@/services/locationService";
+import { runFraudChecks } from "@/lib/fraudDetection";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -57,8 +57,8 @@ export const updateIncomeDNA = async (
       collection(db, "activity"),
       where("userId", "==", workerId),
       limit(100)
-    ))
-    const acts = snap.docs.map(d => d.data())
+    ));
+    const acts = snap.docs.map(d => d.data());
     
     const calc = (min: number, max: number) => {
       const slot = acts.filter(
@@ -67,12 +67,12 @@ export const updateIncomeDNA = async (
           const hour = timestamp.getHours();
           return hour >= min && hour < max;
         }
-      )
+      );
       return slot.length > 0
         ? Math.min(1.5, 
             Math.max(0.5, slot.length / 10))
-        : 1.0
-    }
+        : 1.0;
+    };
     
     await updateDoc(
       doc(db, "income_dna", workerId), {
@@ -83,11 +83,11 @@ export const updateIncomeDNA = async (
         night: calc(21, 24)
       },
       lastUpdated: serverTimestamp()
-    })
+    });
   } catch(e) {
-    console.error("DNA update error:", e)
+    console.error("DNA update error:", e);
   }
-}
+};
 
 const calculateRiskScore = (
   rainfall: number,
@@ -138,7 +138,7 @@ export default function WorkerDashboard() {
     remaining: 228
   });
 
-  // 🛡️ AUTH PROTECTION: Redirect if not logged in
+  // Redirect if not logged in
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.replace("/");
@@ -181,7 +181,6 @@ export default function WorkerDashboard() {
   const fetchWeather = async () => {
     try {
       const position = await getUserLocation().catch(() => null);
-
       const lat = position?.lat || 19.0760;
       const lon = position?.lng || 72.8777;
 
@@ -216,18 +215,10 @@ export default function WorkerDashboard() {
     });
   };
 
-  // 🌧️ SIMULATE WEATHER & WRITE TO CLAIM HISTORY WITH ENHANCED GPS VERIFICATION
+  // 🌧️ SIMULATE WEATHER & WRITE TO CLAIM HISTORY WITH FRAUD DETECTION
   const simulateWeather = async () => {
-    if (!user || !db) return;
+    if (!user || !db || !profile) return;
 
-    // 1. Capture real location at the time of claim (CLAIM LOCATION)
-    const currentLoc = await getUserLocation().catch(() => null);
-    
-    // 2. Fetch Stored Worker Location (BASE LOCATION)
-    const workerLoc = profile?.location 
-      ? { lat: Number(profile.location.lat), lng: Number(profile.location.lng) }
-      : (profile?.lat && profile?.lng ? { lat: Number(profile.lat), lng: Number(profile.lng) } : null);
-    
     const rain = 50 + Math.random() * 50;
     const roundedRain = Math.round(rain);
     
@@ -240,37 +231,21 @@ export default function WorkerDashboard() {
     calculateLoss(rain);
 
     try {
-      // 3. RUN FRAUD DETECTION ENGINE
-      const workerForFraud = {
-        id: user.uid,
-        city: profile?.city || 'Mumbai',
-        claimCity: profile?.city || 'Mumbai'
-      };
-      
-      const fraudResult = await runFraudChecks(workerForFraud, db).catch(() => ({
-        checks: {},
-        trustScore: 0,
-        decision: "BLOCKED",
-        processingTime: "0ms"
-      }));
-
       const baseRate = profile?.avg_hourly_earnings || 60;
       const eveningRate = dna?.evening_rate || Math.round(baseRate * 1.3);
-      const compensation = 240; 
+      const compensation = 240;
 
-      // 4. Legacy Check Integration
-      const validationStatus = gpsCheck(profile, currentLoc);
-      const gps_status = validationStatus === 'PASSED' ? 'matched' : (validationStatus === 'FAILED' ? 'mismatch' : 'unknown');
-      
-      // Map fraud decision to legacy status for UI compatibility (paid/review)
-      const claim_status = fraudResult.decision === 'APPROVED' ? 'paid' : 'review';
+      // Prepare simulation claim data for fraud engine
+      const claimPrep = {
+        city: profile.city || "Mumbai",
+        rainfall: roundedRain,
+        compensation
+      };
 
-      console.log("[Simulation Result]", {
-        gps: gps_status,
-        trust: fraudResult.trustScore,
-        outcome: fraudResult.decision
-      });
+      // 🔍 RUN REAL FRAUD DETECTION ENGINE
+      const result = await runFraudChecks(profile, claimPrep, db);
 
+      // Save claim with fraud audit trail
       const docRef = await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
         claim_number: "SIM-" + Math.floor(100000 + Math.random() * 900000),
@@ -281,30 +256,25 @@ export default function WorkerDashboard() {
         hours_lost: 4,
         compensation: compensation,
         
-        status: claim_status,
-        
-        // NEW FRAUD DATA FIELDS
-        fraudChecks: fraudResult.checks,
-        trustScore: fraudResult.trustScore,
-        decision: fraudResult.decision,
-        processingTime: fraudResult.processingTime,
+        // FRAUD DATA FIELDS
+        status: result.decision === "APPROVED" ? "paid" : "review",
+        fraudChecks: result.fraudChecks,
+        trustScore: result.trustScore,
+        decision: result.decision,
+        processingTime: result.processingTime,
 
-        lat: currentLoc?.lat || workerLoc?.lat || 19.0760,
-        lng: currentLoc?.lng || workerLoc?.lng || 72.8777,
-        gps_status: gps_status,
         createdAt: serverTimestamp(),
         created_at: serverTimestamp() 
       });
 
       // Show instant notification if approved
-      if (fraudResult.decision === 'APPROVED') {
-        const procSecs = (parseFloat(fraudResult.processingTime) / (fraudResult.processingTime.toLowerCase().includes('ms') || parseFloat(fraudResult.processingTime) > 100 ? 1000 : 1)).toFixed(1) + "s";
+      if (result.decision === 'APPROVED') {
         setNotif({
           id: docRef.id.slice(0, 6),
           amount: compensation,
           trigger: "Simulated " + roundedRain + "mm Rainfall",
           timeSlot: "Evening 5-9 PM",
-          processingTime: procSecs,
+          processingTime: result.processingTime,
           workerName: profile?.name?.split(' ')[0] || "Worker"
         });
       }
@@ -405,7 +375,6 @@ export default function WorkerDashboard() {
               </div>
               <Progress value={weather.risk} className="h-2 bg-[#f0f2f9]" />
               
-              {/* NEW LIVE RISK SCORE SECTION */}
               <div className="mt-4 pt-4 border-t border-[#f0f2f9] space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-bold">
                   <span className="text-[#64748B]">Live Risk Score</span>
