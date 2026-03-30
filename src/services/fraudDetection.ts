@@ -39,7 +39,8 @@ export const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   Howrah: { lat: 22.5958, lng: 88.2636 },
   Pune: { lat: 18.5204, lng: 73.8567 },
   Kochi: { lat: 9.9312, lng: 76.2673 },
-  Jaipur: { lat: 26.9124, lng: 75.7873 }
+  Jaipur: { lat: 26.9124, lng: 75.7873 },
+  Srivilliputtur: { lat: 9.5094, lng: 77.6323 }
 };
 
 /**
@@ -52,7 +53,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -96,14 +97,29 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
 
   // Layer 1: GPS Validation
   try {
-    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-      if (!navigator.geolocation) reject(new Error("No Geolocation Support"));
-      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-    });
+    const isDev = typeof window !== "undefined" && window.location.hostname === "localhost";
+    let lat: number;
+    let lng: number;
+
+    // Optional DEV override for laptop testing
+    if (isDev && (window as any).__DEV_GPS__) {
+      lat = (window as any).__DEV_GPS__.lat;
+      lng = (window as any).__DEV_GPS__.lng;
+      console.log("Using DEV GPS override:", lat, lng);
+    } else {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!navigator.geolocation) reject(new Error("No Geolocation Support"));
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+      });
+      lat = pos.coords.latitude;
+      lng = pos.coords.longitude;
+    }
+    
+    console.log("GPS SOURCE:", isDev && (window as any).__DEV_GPS__ ? "DEV OVERRIDE" : "REAL");
     
     const cityBase = CITY_COORDS[claimCity];
     if (cityBase) {
-      const dist = calculateDistance(pos.coords.latitude, pos.coords.longitude, cityBase.lat, cityBase.lng);
+      const dist = calculateDistance(lat, lng, cityBase.lat, cityBase.lng);
       if (dist < 50) {
         checks.gpsValidation = "PASSED";
       } else {
