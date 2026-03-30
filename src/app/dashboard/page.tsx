@@ -41,7 +41,6 @@ import { AIAssistant } from "@/components/chatbot/AIAssistant";
 import { ClaimNotification } from "@/components/ClaimNotification";
 import { useRouter } from "next/navigation";
 import { getUserLocation } from "@/services/locationService";
-import { runFraudChecks } from "@/lib/fraudDetection";
 import { useToast } from "@/hooks/use-toast";
 
 // API Configuration
@@ -57,6 +56,7 @@ interface WeatherData {
   timestamp: string;
   source: "REAL" | "SIMULATED";
   city: string;
+  simulationCount?: number;
 }
 
 interface DisruptionTrigger {
@@ -177,6 +177,7 @@ export default function WorkerDashboard() {
   // STATE
   const [chatOpen, setChatOpen] = useState(false);
   const [notif, setNotif] = useState<any>(null);
+  const [simCount, setSimCount] = useState(0);
   const [weather, setWeather] = useState({
     rainMM: 12,
     condition: "Light Rain",
@@ -374,7 +375,7 @@ export default function WorkerDashboard() {
       ));
       fraudChecks.duplicateCheck = dupSnap.empty ? "PASSED" : "FAILED";
       if (!dupSnap.empty) { 
-        trustScore -= 20; // Softened from 40 for demo
+        trustScore -= 40; // Full penalty for duplicate detection in demo realism
         riskFactors.push("Duplicate claim"); 
       }
     } catch { fraudChecks.duplicateCheck = "PASSED"; }
@@ -397,10 +398,9 @@ export default function WorkerDashboard() {
     // Layer 4: Orders (DEMO SAFE)
     try {
       const orders = profile?.totalOrders || 0;
-      // Pass if orders > 0 for demo accounts
       fraudChecks.orderHistory = orders >= 0 ? "PASSED" : "FAILED";
       if (orders < 0) { 
-        trustScore -= 10; // Softened from 20
+        trustScore -= 10;
         riskFactors.push(`Low orders: ${orders}`); 
       }
     } catch { fraudChecks.orderHistory = "PASSED"; }
@@ -500,11 +500,13 @@ export default function WorkerDashboard() {
     const rawAmount = Math.round(baseRate * multiplier * hoursLost);
     const compensation = Math.min(rawAmount, profile?.max_payout || 240);
 
-    // FIX 1: ENSURE UNIQUE EVENT ID FOR DEMO SIMULATIONS
+    // Realistic Demo Logic: First claim is unique, second is a duplicate
     const claim: ClaimObject = {
       worker_id: user?.uid || "",
       userId: user?.uid || "",
-      eventId: `${weather.city}_${Date.now()}_${trigger.type}`,
+      eventId: weather.simulationCount === 1 
+        ? `${weather.city}_${Date.now()}_${trigger.type}`
+        : `${weather.city}_DUPLICATE_${trigger.type}`,
       trigger_type: trigger.type,
       trigger_description: trigger.description,
       trigger_severity: trigger.severity,
@@ -596,6 +598,9 @@ export default function WorkerDashboard() {
   const simulateWeather = async () => {
     if (!user || !profile) return;
     
+    const newCount = simCount + 1;
+    setSimCount(newCount);
+    
     const weatherPayload: WeatherData = {
       rainfall: 80,
       temperature: 35,
@@ -605,7 +610,8 @@ export default function WorkerDashboard() {
       visibility: 200,
       timestamp: new Date().toISOString(),
       source: "SIMULATED",
-      city: profile.city || "Mumbai"
+      city: profile.city || "Mumbai",
+      simulationCount: newCount
     };
     
     await handleWeatherData(weatherPayload);
