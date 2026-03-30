@@ -45,6 +45,34 @@ import { runFraudChecks } from "@/services/fraudDetection";
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
 
+const calculateRiskScore = (
+  rainfall: number,
+  city: string,
+  hour: number
+): number => {
+  let score = 0;
+  
+  // Weather points (max 40)
+  if (rainfall > 50) score += 40;
+  else if (rainfall > 30) score += 30;
+  else if (rainfall > 10) score += 20;
+  else score += 5;
+  
+  // City risk (max 30)
+  const HIGH = [
+    'Chennai','Mumbai','Kolkata',
+    'Kochi','Howrah'
+  ];
+  score += HIGH.includes(city) ? 30 : 15;
+  
+  // Time risk (max 30)
+  if (hour >= 17 && hour <= 21) score += 30;
+  else if (hour >= 12 && hour <= 16) score += 20;
+  else score += 10;
+  
+  return Math.min(score, 100);
+};
+
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -83,6 +111,12 @@ export default function WorkerDashboard() {
 
   const { data: profile } = useDoc(profileRef);
   const { data: dna } = useDoc(dnaRef);
+
+  const riskScore = calculateRiskScore(
+    weather.rainMM,
+    profile?.city || "",
+    new Date().getHours()
+  );
 
   // Chart Data for Income DNA Profile
   const chartData = [
@@ -312,6 +346,34 @@ export default function WorkerDashboard() {
                 <span className="text-[#1A1A2E]">{weather.risk}%</span>
               </div>
               <Progress value={weather.risk} className="h-2 bg-[#f0f2f9]" />
+              
+              {/* NEW LIVE RISK SCORE SECTION */}
+              <div className="mt-4 pt-4 border-t border-[#f0f2f9] space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <span className="text-[#64748B]">Live Risk Score</span>
+                  <span className="text-[#1A1A2E]">{riskScore}/100</span>
+                </div>
+                <div className="h-2 w-full bg-[#f0f2f9] rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${riskScore}%` }}
+                    transition={{ duration: 1 }}
+                    className="h-full"
+                    style={{
+                      backgroundColor: riskScore <= 30 ? "#22C55E" : riskScore <= 60 ? "#F59E0B" : "#EF4444"
+                    }}
+                  />
+                </div>
+                {riskScore > 90 && (
+                  <motion.p
+                    animate={{ opacity: [1, 0.5, 1] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                    className="text-[9px] font-black text-[#EF4444] text-center mt-1"
+                  >
+                    ⚡ CLAIM MAY AUTO-FIRE!
+                  </motion.p>
+                )}
+              </div>
             </div>
           </Card>
 
