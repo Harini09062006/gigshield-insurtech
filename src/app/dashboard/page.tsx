@@ -178,6 +178,7 @@ export default function WorkerDashboard() {
   const [chatOpen, setChatOpen] = useState(false);
   const [notif, setNotif] = useState<any>(null);
   const [simCount, setSimCount] = useState(0);
+  const [lastEventId, setLastEventId] = useState<string | null>(null);
   const [weather, setWeather] = useState({
     rainMM: 12,
     condition: "Light Rain",
@@ -501,12 +502,18 @@ export default function WorkerDashboard() {
     const compensation = Math.min(rawAmount, profile?.max_payout || 240);
 
     // Realistic Demo Logic: First claim is unique, second is a duplicate
+    let eventId;
+    if (weather.simulationCount === 1) {
+      eventId = `${weather.city}_${Date.now()}_${trigger.type}`;
+      setLastEventId(eventId); 
+    } else {
+      eventId = lastEventId || `${weather.city}_DUPLICATE_${trigger.type}`;
+    }
+
     const claim: ClaimObject = {
       worker_id: user?.uid || "",
       userId: user?.uid || "",
-      eventId: weather.simulationCount === 1 
-        ? `${weather.city}_${Date.now()}_${trigger.type}`
-        : `${weather.city}_DUPLICATE_${trigger.type}`,
+      eventId,
       trigger_type: trigger.type,
       trigger_description: trigger.description,
       trigger_severity: trigger.severity,
