@@ -23,6 +23,9 @@ import {
 import { 
   AreaChart, 
   Area, 
+  LineChart,
+  Line,
+  Legend,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -32,7 +35,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp, getDocs, query, where, limit, updateDoc, type Firestore } from "firebase/firestore";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +47,50 @@ import { runFraudChecks } from "@/services/fraudDetection";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
+
+/**
+ * Updates worker's Income DNA profile based on recent activity frequency.
+ */
+export const updateIncomeDNA = async (
+  workerId: string,
+  db: Firestore
+) => {
+  try {
+    const snap = await getDocs(query(
+      collection(db, "activity"),
+      where("userId", "==", workerId),
+      limit(100)
+    ))
+    const acts = snap.docs.map(d => d.data())
+    
+    const calc = (min: number, max: number) => {
+      const slot = acts.filter(
+        a => {
+          const timestamp = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+          const hour = timestamp.getHours();
+          return hour >= min && hour < max;
+        }
+      )
+      return slot.length > 0
+        ? Math.min(1.5, 
+            Math.max(0.5, slot.length / 10))
+        : 1.0
+    }
+    
+    await updateDoc(
+      doc(db, "income_dna", workerId), {
+      multipliers: {
+        morning: calc(6, 10),
+        afternoon: calc(12, 16),
+        evening: calc(17, 21),
+        night: calc(21, 24)
+      },
+      lastUpdated: serverTimestamp()
+    })
+  } catch(e) {
+    console.error("DNA update error:", e)
+  }
+}
 
 const calculateRiskScore = (
   rainfall: number,
@@ -72,6 +119,13 @@ const calculateRiskScore = (
   
   return Math.min(score, 100);
 };
+
+const weeklyData = [
+  { week: "Week 1", earned: 6200, protected: 0 },
+  { week: "Week 2", earned: 5800, protected: 240 },
+  { week: "Week 3", earned: 6400, protected: 0 },
+  { week: "Week 4", earned: 4200, protected: 480 }
+]
 
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
@@ -527,6 +581,58 @@ export default function WorkerDashboard() {
             </Card>
 
           </div>
+        </section>
+
+        {/* WEEKLY EARNINGS HISTORY GRAPH */}
+        <section className="space-y-4 pt-6">
+          <h2 className="text-xl font-bold text-[#1A1A2E]">📈 Weekly Earnings History</h2>
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 h-[350px]">
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={weeklyData}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="week" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 600 }}
+                  />
+                  <YAxis 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: '#94A3B8' }}
+                    tickFormatter={(val) => `₹${val}`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="earned" 
+                    stroke="#6C47FF" 
+                    strokeWidth={3} 
+                    dot={{ r: 4, fill: "#6C47FF", strokeWidth: 2, stroke: "#fff" }}
+                    activeDot={{ r: 6 }}
+                    name="Earnings (₹)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="protected" 
+                    stroke="#22C55E" 
+                    strokeWidth={3} 
+                    dot={{ r: 4, fill: "#22C55E", strokeWidth: 2, stroke: "#fff" }}
+                    activeDot={{ r: 6 }}
+                    name="Protection Payouts (₹)"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
         </section>
 
       </main>
