@@ -46,6 +46,9 @@ import { useToast } from "@/hooks/use-toast";
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
 
+// STEP 1: GLOBAL TRACKER FOR DEMO PERSISTENCE
+let lastProcessedEventId: string | null = null;
+
 interface WeatherData {
   rainfall: number;
   temperature: number;
@@ -178,10 +181,6 @@ export default function WorkerDashboard() {
   const [chatOpen, setChatOpen] = useState(false);
   const [notif, setNotif] = useState<any>(null);
   
-  // DEMO SIMULATION TRACKING
-  const [simCount, setSimCount] = useState(0);
-  const [savedEventId, setSavedEventId] = useState<string | null>(null);
-
   const [weather, setWeather] = useState({
     rainMM: 12,
     condition: "Light Rain",
@@ -357,6 +356,12 @@ export default function WorkerDashboard() {
     const fraudChecks: Record<string, string> = {};
     const riskFactors: string[] = [];
 
+    // STEP 3: FORCE DUPLICATE DETECTION FOR DEMO
+    let isDuplicate = false;
+    if (lastProcessedEventId === claim.eventId) {
+      isDuplicate = true;
+    }
+
     // Layer 1: GPS
     try {
       const gps = await new Promise<{lat:number,lng:number}|null>(resolve => {
@@ -370,19 +375,26 @@ export default function WorkerDashboard() {
       if (!gps) { trustScore -= 15; riskFactors.push("GPS unavailable"); }
     } catch { fraudChecks.gpsValidation = "SUSPICIOUS"; trustScore -= 15; }
 
-    // Layer 2: Duplicate check - Uses unique eventId
+    // Layer 2: Duplicate check - Uses UNIQUE eventId in Firestore
     try {
       const dupSnap = await getDocs(query(
         collection(db, "claims"),
         where("worker_id", "==", claim.worker_id),
         where("eventId", "==", claim.eventId)
       ));
-      fraudChecks.duplicateCheck = dupSnap.empty ? "PASSED" : "FAILED";
+      fraudChecks.duplicateCheck = (dupSnap.empty && !isDuplicate) ? "PASSED" : "FAILED";
       if (!dupSnap.empty) { 
-        trustScore -= 40; // High penalty for exact duplicate event ID
-        riskFactors.push("Duplicate claim"); 
+        trustScore -= 40; 
+        riskFactors.push("Duplicate claim detected in database"); 
       }
     } catch { fraudChecks.duplicateCheck = "PASSED"; }
+
+    // STEP 4: APPLY DUPLICATE PENALTY (GUARANTEED DEMO REJECTION)
+    if (isDuplicate) {
+      trustScore -= 50;
+      fraudChecks.duplicateCheck = "FAILED";
+      riskFactors.push("Duplicate claim (same event ID detected)");
+    }
 
     // Layer 3: Weather Cross-Check
     try {
@@ -465,6 +477,9 @@ export default function WorkerDashboard() {
       created_at: serverTimestamp()
     });
 
+    // STEP 5: UPDATE TRACKER FOR NEXT INTERACTION
+    lastProcessedEventId = claim.eventId;
+
     updateClaimStatus(
       decision === "APPROVED" ? "APPROVED" : "REJECTED",
       decision === "APPROVED" ? `₹${claim.compensation} PAID!` : `Claim ${decision}: ` + riskFactors.join(", ")
@@ -480,6 +495,14 @@ export default function WorkerDashboard() {
         workerName: profile.name?.split(' ')[0] || "Worker"
       });
     }
+
+    console.log("--- FRAUD ENGINE AUDIT ---", {
+      eventId: claim.eventId,
+      isDuplicate,
+      trustScore: finalScore,
+      decision,
+      checks: fraudChecks
+    });
   };
 
   /**
@@ -508,16 +531,9 @@ export default function WorkerDashboard() {
     const rawAmount = Math.round(baseRate * multiplier * hoursLost);
     const compensation = Math.min(rawAmount, profile?.max_payout || 240);
 
-    // CRITICAL: Force duplicate detection logic
-    // First click generates a unique ID, second click reuses it
-    let eventId;
-    if (weather.simulationCount === 1) {
-      eventId = `${weather.city}_${Date.now()}_${trigger.type}`;
-      setSavedEventId(eventId); // Capture for next attempt
-    } else {
-      // If we don't have a saved ID (e.g. refresh), fallback to a static duplicate tag
-      eventId = savedEventId || `${weather.city}_PERSISTENT_EVENT_${trigger.type}`;
-    }
+    // STEP 2: FIX EVENT ID (SIMPLE & STABLE FOR DEMO)
+    // This generates the SAME ID for the same city/trigger, forcing duplication on second click
+    const eventId = `${weather.city}_${trigger.type}`;
 
     const claim: ClaimObject = {
       worker_id: user?.uid || "",
@@ -614,10 +630,6 @@ export default function WorkerDashboard() {
   const simulateWeather = async () => {
     if (!user || !profile) return;
     
-    // Update simulation count to toggle between unique and duplicate claims
-    const newCount = simCount + 1;
-    setSimCount(newCount);
-    
     const weatherPayload: WeatherData = {
       rainfall: 80,
       temperature: 35,
@@ -627,8 +639,7 @@ export default function WorkerDashboard() {
       visibility: 200,
       timestamp: new Date().toISOString(),
       source: "SIMULATED",
-      city: profile.city || "Mumbai",
-      simulationCount: newCount
+      city: profile.city || "Mumbai"
     };
     
     await handleWeatherData(weatherPayload);
