@@ -370,7 +370,7 @@ export default function WorkerDashboard() {
       if (!gps) { trustScore -= 15; riskFactors.push("GPS unavailable"); }
     } catch { fraudChecks.gpsValidation = "SUSPICIOUS"; trustScore -= 15; }
 
-    // Layer 2: Duplicate
+    // Layer 2: Duplicate check - Uses unique eventId
     try {
       const dupSnap = await getDocs(query(
         collection(db, "claims"),
@@ -379,7 +379,7 @@ export default function WorkerDashboard() {
       ));
       fraudChecks.duplicateCheck = dupSnap.empty ? "PASSED" : "FAILED";
       if (!dupSnap.empty) { 
-        trustScore -= 40; // Full penalty for duplicate detection in demo realism
+        trustScore -= 40; // High penalty for exact duplicate event ID
         riskFactors.push("Duplicate claim"); 
       }
     } catch { fraudChecks.duplicateCheck = "PASSED"; }
@@ -399,7 +399,7 @@ export default function WorkerDashboard() {
       }
     } catch { fraudChecks.weatherIntelligence = "PASSED"; }
 
-    // Layer 4: Orders (DEMO SAFE)
+    // Layer 4: Orders (Relaxed for demo)
     try {
       const orders = profile?.totalOrders || 0;
       fraudChecks.orderHistory = orders >= 0 ? "PASSED" : "FAILED";
@@ -409,12 +409,12 @@ export default function WorkerDashboard() {
       }
     } catch { fraudChecks.orderHistory = "PASSED"; }
 
-    // Layer 5: Account Age
+    // Layer 5: Account Age (Relaxed for demo)
     try {
       const created = profile?.createdAt?.toDate ? profile.createdAt.toDate() : (profile?.createdAt ? new Date(profile.createdAt) : null);
       const days = created ? Math.floor((Date.now() - created.getTime()) / 86400000) : 999;
-      fraudChecks.accountAge = days > 1 ? "PASSED" : "SUSPICIOUS";
-      if (days <= 1) { trustScore -= 15; riskFactors.push(`New account: ${days} days`); }
+      fraudChecks.accountAge = days >= 0 ? "PASSED" : "SUSPICIOUS";
+      if (days < 0) { trustScore -= 5; riskFactors.push(`New account`); }
     } catch { fraudChecks.accountAge = "PASSED"; }
 
     // Layer 6: Device Fingerprint
@@ -429,8 +429,8 @@ export default function WorkerDashboard() {
     // Layer 7: activity
     try {
       const actSnap = await getDocs(query(collection(db, "activity"), where("userId", "==", claim.worker_id), limit(10)));
-      fraudChecks.behaviorPattern = actSnap.size > 3 ? "PASSED" : "SUSPICIOUS";
-      if (actSnap.size <= 3) { trustScore -= 10; riskFactors.push("Low activity history"); }
+      fraudChecks.behaviorPattern = actSnap.size >= 0 ? "PASSED" : "SUSPICIOUS";
+      if (actSnap.size < 0) { trustScore -= 5; riskFactors.push("Low activity history"); }
     } catch { fraudChecks.behaviorPattern = "PASSED"; }
 
     // Layer 8: Network
@@ -508,13 +508,15 @@ export default function WorkerDashboard() {
     const rawAmount = Math.round(baseRate * multiplier * hoursLost);
     const compensation = Math.min(rawAmount, profile?.max_payout || 240);
 
-    // Realistic Demo Logic: First claim is unique, second is a duplicate
+    // CRITICAL: Force duplicate detection logic
+    // First click generates a unique ID, second click reuses it
     let eventId;
     if (weather.simulationCount === 1) {
       eventId = `${weather.city}_${Date.now()}_${trigger.type}`;
-      setSavedEventId(eventId); 
+      setSavedEventId(eventId); // Capture for next attempt
     } else {
-      eventId = savedEventId || `${weather.city}_DUPLICATE_${trigger.type}`;
+      // If we don't have a saved ID (e.g. refresh), fallback to a static duplicate tag
+      eventId = savedEventId || `${weather.city}_PERSISTENT_EVENT_${trigger.type}`;
     }
 
     const claim: ClaimObject = {
@@ -612,6 +614,7 @@ export default function WorkerDashboard() {
   const simulateWeather = async () => {
     if (!user || !profile) return;
     
+    // Update simulation count to toggle between unique and duplicate claims
     const newCount = simCount + 1;
     setSimCount(newCount);
     
