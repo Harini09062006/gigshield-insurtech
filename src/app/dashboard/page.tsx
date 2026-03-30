@@ -22,9 +22,6 @@ import {
 import { 
   AreaChart, 
   Area, 
-  LineChart,
-  Line,
-  Legend,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -119,13 +116,6 @@ const calculateRiskScore = (
   
   return Math.min(score, 100);
 };
-
-const weeklyData = [
-  { week: "Week 1", earned: 6200, protected: 0 },
-  { week: "Week 2", earned: 5800, protected: 240 },
-  { week: "Week 3", earned: 6400, protected: 0 },
-  { week: "Week 4", earned: 4200, protected: 480 }
-]
 
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
@@ -595,58 +585,6 @@ export default function WorkerDashboard() {
             </Card>
 
           </div>
-        </section>
-
-        {/* WEEKLY EARNINGS HISTORY GRAPH */}
-        <section className="space-y-4 pt-6">
-          <h2 className="text-xl font-bold text-[#1A1A2E]">📈 Weekly Earnings History</h2>
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 h-[350px]">
-            <div className="h-[280px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weeklyData}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis 
-                    dataKey="week" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 600 }}
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 10, fill: '#94A3B8' }}
-                    tickFormatter={(val) => `₹${val}`}
-                  />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                  />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={36}
-                    wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase' }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="earned" 
-                    stroke="#6C47FF" 
-                    strokeWidth={3} 
-                    dot={{ r: 4, fill: "#6C47FF", strokeWidth: 2, stroke: "#fff" }}
-                    activeDot={{ r: 6 }}
-                    name="Earnings (₹)"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="protected" 
-                    stroke="#22C55E" 
-                    strokeWidth={3} 
-                    dot={{ r: 4, fill: "#22C55E", strokeWidth: 2, stroke: "#fff" }}
-                    activeDot={{ r: 6 }}
-                    name="Protection Payouts (₹)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
         </section>
 
       </main>
