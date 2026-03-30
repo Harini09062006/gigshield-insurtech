@@ -15,18 +15,19 @@ import {
   getDocs,
   addDoc,
   serverTimestamp,
-  limit
+  limit,
+  Timestamp
 } from "firebase/firestore";
 
 export interface FraudChecks {
   gpsValidation: "PASSED" | "FAILED" | "SUSPICIOUS";
-  orderHistory: "PASSED" | "FAILED";
+  orderHistory: "PASSED" | "FAILED" | "SUSPICIOUS";
   deviceCheck: "PASSED" | "FAILED";
   duplicateCheck: "PASSED" | "FAILED";
-  accountAge: "PASSED" | "SUSPICIOUS";
+  accountAge: "PASSED" | "FAILED" | "SUSPICIOUS";
   weatherIntelligence: "PASSED" | "FAILED" | "SUSPICIOUS";
   behaviorPattern: "PASSED" | "SUSPICIOUS";
-  networkAnalysis: "PASSED" | "FAILED";
+  networkAnalysis: "PASSED" | "FAILED" | "SUSPICIOUS";
 }
 
 export const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
@@ -59,8 +60,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 /**
- * Generates a deterministic 32-character SHA-256 device fingerprint.
- * Stable across browser sessions.
+ * Generates a deterministic device fingerprint.
  */
 async function generateDeviceFingerprint(): Promise<string> {
   try {
@@ -68,17 +68,15 @@ async function generateDeviceFingerprint(): Promise<string> {
       navigator.userAgent,
       navigator.language,
       screen.width,
-      screen.height,
-      new Date().getTimezoneOffset()
+      screen.height
     ].join("|");
-    
     const encoder = new TextEncoder();
     const dataUint8 = encoder.encode(data);
     const hashBuffer = await crypto.subtle.digest('SHA-256', dataUint8);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
   } catch (e) {
-    return "stable-fingerprint-" + btoa(navigator.userAgent).slice(0, 16);
+    return "browser-stable-" + btoa(navigator.userAgent).slice(0, 12);
   }
 }
 
@@ -89,216 +87,185 @@ async function generateDeviceFingerprint(): Promise<string> {
 export const runFraudChecks = async (worker: any, db: Firestore) => {
   let trustScore = 100;
   const checks = {} as FraudChecks;
-  const riskFactors: string[] = [];
   const startTime = Date.now();
   
-  const claimCity = worker.claimCity || worker.city;
-  const eventId = `${claimCity}_${new Date().toISOString().split("T")[0]}_rain`;
+  const claimCity = worker.claimCity || worker.city || "Mumbai";
+  const userDocRef = doc(db, "users", worker.id);
+  const userSnap = await getDoc(userDocRef);
+  const userData = userSnap.data() || {};
 
-  // Layer 1: GPS Validation (Increased tolerance to 100km)
+  // --- LAYER 1: GPS VALIDATION (-30) ---
   try {
-    const isDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    let lat: number;
-    let lng: number;
-
-    if (isDev && (window as any).__DEV_GPS__) {
-      lat = (window as any).__DEV_GPS__.lat;
-      lng = (window as any).__DEV_GPS__.lng;
-    } else {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        if (!navigator.geolocation) reject(new Error("No Geolocation Support"));
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-      });
-      lat = pos.coords.latitude;
-      lng = pos.coords.longitude;
-    }
-    
+    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+    });
+    const { latitude: lat, longitude: lng } = pos.coords;
     const cityBase = CITY_COORDS[claimCity];
+    
     if (cityBase) {
       const dist = calculateDistance(lat, lng, cityBase.lat, cityBase.lng);
-      checks.gpsValidation = dist < 100 ? "PASSED" : "FAILED";
-      if (checks.gpsValidation === "FAILED") {
+      if (dist < 50) {
+        checks.gpsValidation = "PASSED";
+      } else if (dist < 100) {
+        checks.gpsValidation = "SUSPICIOUS";
+        trustScore -= 15;
+      } else {
+        checks.gpsValidation = "FAILED";
         trustScore -= 30;
-        riskFactors.push(`GPS mismatch: Worker is ${dist.toFixed(1)}km from claim city center`);
       }
     } else {
       checks.gpsValidation = "SUSPICIOUS";
-      trustScore -= 15;
-      riskFactors.push(`City bounds for ${claimCity} not verified`);
+      trustScore -= 10;
     }
-  } catch (err: any) {
+  } catch (err) {
     checks.gpsValidation = "SUSPICIOUS";
     trustScore -= 15;
-    riskFactors.push(`Location access denied or unavailable`);
   }
 
-  // Layer 2: Order History (Reduced to 5 orders)
+  // --- LAYER 2: ORDER HISTORY (-20) ---
   try {
-    const ordersQuery = query(collection(db, "orders"), where("userId", "==", worker.id));
-    const ordersSnap = await getDocs(ordersQuery);
-    const totalOrders = ordersSnap.size;
-
-    checks.orderHistory = totalOrders >= 5 ? "PASSED" : "FAILED";
-    if (checks.orderHistory === "FAILED") {
-      trustScore -= 20;
-      riskFactors.push(`Low established order history: ${totalOrders} orders found`);
+    // Priority: Field in user doc, Fallback: Count orders collection
+    let totalOrders = userData.totalOrders || 0;
+    if (totalOrders === 0) {
+      const ordersSnap = await getDocs(query(collection(db, "orders"), where("userId", "==", worker.id)));
+      totalOrders = ordersSnap.size;
     }
-  } catch (error) {
+
+    if (totalOrders > 10) {
+      checks.orderHistory = "PASSED";
+    } else if (totalOrders >= 5) {
+      checks.orderHistory = "SUSPICIOUS";
+      trustScore -= 10;
+    } else {
+      checks.orderHistory = "FAILED";
+      trustScore -= 20;
+    }
+  } catch (e) {
     checks.orderHistory = "FAILED";
     trustScore -= 20;
-    riskFactors.push("Failed to audit order history");
   }
 
-  // Layer 3: Device Fingerprint
+  // --- LAYER 3: DEVICE FINGERPRINT (-10) ---
   try {
-    const fingerprint = await generateDeviceFingerprint();
-    const q = query(collection(db, "users"), where("deviceId", "==", fingerprint));
-    const snap = await getDocs(q);
-    
-    const isSharedDevice = snap.docs.some(doc => doc.id !== worker.id);
-    checks.deviceCheck = !isSharedDevice ? "PASSED" : "FAILED";
-    
-    if (checks.deviceCheck === "FAILED") {
-      trustScore -= 25;
-      riskFactors.push("Device fingerprint associated with multiple worker accounts");
+    const currentFingerprint = await generateDeviceFingerprint();
+    const storedFingerprint = userData.deviceId;
+
+    if (!storedFingerprint) {
+      // First time recording device
+      await updateDoc(userDocRef, { deviceId: currentFingerprint });
+      checks.deviceCheck = "PASSED";
+    } else if (storedFingerprint === currentFingerprint) {
+      checks.deviceCheck = "PASSED";
+    } else {
+      checks.deviceCheck = "FAILED";
+      trustScore -= 10;
     }
-    await updateDoc(doc(db, "users", worker.id), { deviceId: fingerprint });
   } catch (e) {
     checks.deviceCheck = "FAILED";
-    trustScore -= 25;
-    riskFactors.push("Hardware signature audit failed");
+    trustScore -= 10;
   }
 
-  // Layer 4: Duplicate Claim Prevention
+  // --- LAYER 4: DUPLICATE CLAIM (-15) ---
   try {
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const q = query(
       collection(db, "claims"),
       where("worker_id", "==", worker.id),
-      where("eventId", "==", eventId)
+      where("createdAt", ">", Timestamp.fromDate(yesterday)),
+      limit(1)
     );
     const snap = await getDocs(q);
     checks.duplicateCheck = snap.empty ? "PASSED" : "FAILED";
-    
-    if (checks.duplicateCheck === "FAILED") {
-      trustScore -= 40;
-      riskFactors.push("Claim already submitted for this specific weather event");
-    }
+    if (!snap.empty) trustScore -= 15;
   } catch (e) {
     checks.duplicateCheck = "FAILED";
-    trustScore -= 40;
-    riskFactors.push("Integrity check for duplicate events failed");
+    trustScore -= 15;
   }
 
-  // Layer 5: Account Age Verification (Reduced to 1 day)
+  // --- LAYER 5: ACCOUNT AGE (-10) ---
   try {
-    const userDoc = await getDoc(doc(db, "users", worker.id));
-    const data = userDoc.data();
-    if (data && data.createdAt) {
-      const createdAt = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
-      const diffDays = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
-      checks.accountAge = diffDays > 1 ? "PASSED" : "SUSPICIOUS";
-      if (checks.accountAge === "SUSPICIOUS") {
-        trustScore -= 15;
-        riskFactors.push("Claim submitted on account less than 24 hours old");
-      }
-    } else {
+    const createdAt = userData.createdAt instanceof Timestamp ? userData.createdAt.toDate() : new Date(userData.createdAt || Date.now());
+    const diffDays = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+    
+    if (diffDays > 7) {
+      checks.accountAge = "PASSED";
+    } else if (diffDays >= 2) {
       checks.accountAge = "SUSPICIOUS";
-      trustScore -= 15;
+      trustScore -= 5;
+    } else {
+      checks.accountAge = "FAILED";
+      trustScore -= 10;
     }
   } catch (e) {
-    checks.accountAge = "SUSPICIOUS";
-    trustScore -= 15;
-    riskFactors.push("Account timeline verification unavailable");
+    checks.accountAge = "FAILED";
+    trustScore -= 10;
   }
 
-  // Layer 6: Weather Intelligence (Fail to SUSPICIOUS on API Error)
+  // --- LAYER 6: WEATHER INTELLIGENCE (-25) ---
   try {
-    const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_KEY;
-    if (!API_KEY) throw new Error("Missing Meteorological API Key");
-    
+    const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_KEY || "be5f61ff6b261dedfa89e321d466a063";
     const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(claimCity)},IN&units=metric&appid=${API_KEY}`);
-    if (!res.ok) throw new Error("Meteorological Provider Offline");
-    
     const data = await res.json();
     const isRaining = data.rain || (data.weather && data.weather.some((w: any) => w.main.toLowerCase().includes("rain")));
     
-    checks.weatherIntelligence = isRaining ? "PASSED" : "FAILED";
-    if (checks.weatherIntelligence === "FAILED") {
-      trustScore -= 35;
-      riskFactors.push(`Inconsistent weather context: No rain reported in ${claimCity} by official stations`);
+    if (isRaining) {
+      checks.weatherIntelligence = "PASSED";
+    } else {
+      checks.weatherIntelligence = "FAILED";
+      trustScore -= 25;
     }
-  } catch (e: any) {
+  } catch (e) {
     checks.weatherIntelligence = "SUSPICIOUS";
     trustScore -= 10;
-    riskFactors.push(`Weather validation inconclusive: ${e.message}`);
   }
 
-  // Layer 7: Behavior Pattern Analysis
+  // --- LAYER 7: BEHAVIOR PATTERN (-10) ---
   try {
-    await addDoc(collection(db, "activity"), {
-      userId: worker.id,
-      action: "CLAIM_ASSESSMENT_START",
-      timestamp: serverTimestamp()
-    });
-
-    const q = query(collection(db, "activity"), where("userId", "==", worker.id), limit(20));
-    const snap = await getDocs(q);
-    
-    checks.behaviorPattern = snap.size > 5 ? "PASSED" : "SUSPICIOUS";
-    if (checks.behaviorPattern === "SUSPICIOUS") {
+    const now = new Date();
+    const currentHour = now.getHours();
+    // Simplified behavior check: Claims between 11PM and 5AM are suspicious
+    if (currentHour >= 5 && currentHour <= 23) {
+      checks.behaviorPattern = "PASSED";
+    } else {
+      checks.behaviorPattern = "SUSPICIOUS";
       trustScore -= 10;
-      riskFactors.push("Unusual activity profile: Minimal app interaction history");
     }
   } catch (e) {
     checks.behaviorPattern = "SUSPICIOUS";
     trustScore -= 10;
-    riskFactors.push("Interaction pattern audit failed");
   }
 
-  // Layer 8: Network Analysis (Increased threshold to 10 users)
+  // --- LAYER 8: NETWORK ANALYSIS (-10) ---
   try {
     const ipRes = await fetch("https://api.ipify.org?format=json");
     const { ip } = await ipRes.json();
-    
-    const q = query(collection(db, "users"), where("lastIP", "==", ip));
-    const snap = await getDocs(q);
-    const uniqueUsersOnIP = new Set(snap.docs.map(d => d.id)).size;
-    
-    checks.networkAnalysis = uniqueUsersOnIP <= 10 ? "PASSED" : "FAILED";
-    if (checks.networkAnalysis === "FAILED") {
-      trustScore -= 50;
-      riskFactors.push("High-density network cluster: Multiple accounts originating from same IP");
+    const storedIP = userData.lastIP;
+
+    if (!storedIP || storedIP === ip) {
+      checks.networkAnalysis = "PASSED";
+      if (!storedIP) await updateDoc(userDocRef, { lastIP: ip });
+    } else {
+      checks.networkAnalysis = "SUSPICIOUS";
+      trustScore -= 10;
     }
-    await updateDoc(doc(db, "users", worker.id), { lastIP: ip });
   } catch (e) {
-    checks.networkAnalysis = "FAILED";
-    trustScore -= 50;
-    riskFactors.push("Network origin verification failed");
+    checks.networkAnalysis = "SUSPICIOUS";
+    trustScore -= 10;
   }
 
-  // Clamping final score
-  trustScore = Math.max(0, Math.min(100, trustScore));
+  // --- FINAL DECISION LOGIC ---
+  trustScore = Math.max(0, trustScore);
+  let decision: "APPROVED" | "REVIEW" | "BLOCKED" = "BLOCKED";
+  
+  if (trustScore >= 70) decision = "APPROVED";
+  else if (trustScore >= 40) decision = "REVIEW";
 
-  console.log("Checks:", checks);
-  console.log("Score:", trustScore);
-
-  // Final Decision Logic
-  let decision = "APPROVED";
-  if (trustScore <= 70 && trustScore >= 40) decision = "REVIEW";
-  if (trustScore < 40) decision = "BLOCKED";
-
-  // Mixed Result Logic: If at least 4 layers PASS, grant approval status
-  const passedCount = Object.values(checks).filter(v => v === "PASSED").length;
-  if (passedCount >= 4) {
-    decision = "APPROVED";
-  }
+  console.log(`[Fraud Engine] Final Trust Score: ${trustScore} | Decision: ${decision}`);
 
   return {
     checks,
     trustScore,
     decision,
-    eventId,
-    processingTime: `${Date.now() - startTime}ms`,
-    riskFactors
+    processingTime: `${Date.now() - startTime}ms`
   };
 };
