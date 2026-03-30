@@ -58,6 +58,25 @@ export default function WorkerClaims() {
     workerName: string,
     claimId: string
   ) => {
+    // 1. SAFETY CHECK: Ensure Razorpay SDK is loaded
+    if (!(window as any).Razorpay) {
+      console.error("Razorpay SDK not loaded. Check script tag in layout.");
+      toast({
+        variant: "destructive",
+        title: "Payment Error",
+        description: "Payment service is currently unavailable. Please refresh."
+      });
+      return;
+    }
+
+    // 2. DEBUG LOGGING
+    console.log("Opening Razorpay with:", {
+      amount,
+      workerName,
+      claimId,
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY ? "EXISTS" : "MISSING (Using fallback)"
+    });
+
     const options = {
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY || "rzp_test_payout_key",
       amount: amount * 100,
@@ -81,6 +100,7 @@ export default function WorkerClaims() {
       prefill: { name: workerName },
       theme: { color: "#6C47FF" }
     };
+
     const rzp = new (window as any).Razorpay(options);
     rzp.open();
   };
