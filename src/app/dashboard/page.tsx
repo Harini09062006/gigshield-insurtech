@@ -177,8 +177,11 @@ export default function WorkerDashboard() {
   // STATE
   const [chatOpen, setChatOpen] = useState(false);
   const [notif, setNotif] = useState<any>(null);
+  
+  // DEMO SIMULATION TRACKING
   const [simCount, setSimCount] = useState(0);
-  const [lastEventId, setLastEventId] = useState<string | null>(null);
+  const [savedEventId, setSavedEventId] = useState<string | null>(null);
+
   const [weather, setWeather] = useState({
     rainMM: 12,
     condition: "Light Rain",
@@ -410,8 +413,8 @@ export default function WorkerDashboard() {
     try {
       const created = profile?.createdAt?.toDate ? profile.createdAt.toDate() : (profile?.createdAt ? new Date(profile.createdAt) : null);
       const days = created ? Math.floor((Date.now() - created.getTime()) / 86400000) : 999;
-      fraudChecks.accountAge = days > 3 ? "PASSED" : "SUSPICIOUS";
-      if (days <= 3) { trustScore -= 15; riskFactors.push(`New account: ${days} days`); }
+      fraudChecks.accountAge = days > 1 ? "PASSED" : "SUSPICIOUS";
+      if (days <= 1) { trustScore -= 15; riskFactors.push(`New account: ${days} days`); }
     } catch { fraudChecks.accountAge = "PASSED"; }
 
     // Layer 6: Device Fingerprint
@@ -435,11 +438,15 @@ export default function WorkerDashboard() {
       const ipResp = await fetch('https://api.ipify.org?format=json');
       const { ip } = await ipResp.json();
       const ipSnap = await getDocs(query(collection(db, "users"), where("lastIP", "==", ip)));
-      fraudChecks.networkAnalysis = ipSnap.size <= 5 ? "PASSED" : "FAILED";
-      if (ipSnap.size > 5) { trustScore -= 50; riskFactors.push(`${ipSnap.size} accounts same IP`); }
+      fraudChecks.networkAnalysis = ipSnap.size <= 10 ? "PASSED" : "FAILED";
+      if (ipSnap.size > 10) { trustScore -= 50; riskFactors.push(`${ipSnap.size} accounts same IP`); }
     } catch { fraudChecks.networkAnalysis = "PASSED"; }
 
-    const finalScore = Math.max(0, trustScore);
+    // Final AI Variation Noise
+    const noise = Math.random() * 8;
+    trustScore -= noise;
+
+    const finalScore = Math.max(0, Math.round(trustScore));
     const decision = finalScore > 70 ? "APPROVED" : finalScore >= 40 ? "REVIEW" : "BLOCKED";
 
     const finalClaim = {
@@ -505,9 +512,9 @@ export default function WorkerDashboard() {
     let eventId;
     if (weather.simulationCount === 1) {
       eventId = `${weather.city}_${Date.now()}_${trigger.type}`;
-      setLastEventId(eventId); 
+      setSavedEventId(eventId); 
     } else {
-      eventId = lastEventId || `${weather.city}_DUPLICATE_${trigger.type}`;
+      eventId = savedEventId || `${weather.city}_DUPLICATE_${trigger.type}`;
     }
 
     const claim: ClaimObject = {
@@ -881,7 +888,7 @@ export default function WorkerDashboard() {
                     />
                     <Area type="monotone" dataKey="evening" stroke="#6C47FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvening)" />
                     <Area type="monotone" dataKey="lunch" stroke="#F59E0B" strokeWidth={2} fillOpacity={1} fill="url(#colorLunch)" />
-                    <Area type="monotone" dataKey="active" stroke="#E8E6FF" strokeWidth={1} fill="none" strokeDasharray="5 5" />
+                    <Area type="monotone" dataKey="active" stroke="#E8EFF" strokeWidth={1} fill="none" strokeDasharray="5 5" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
