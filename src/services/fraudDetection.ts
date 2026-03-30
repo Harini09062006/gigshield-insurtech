@@ -140,19 +140,27 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
 
   // Layer 2: Order History
   try {
-    const userDoc = await getDoc(doc(db, "users", worker.id));
-    const userData = userDoc.data();
-    if (userData && (userData.totalOrders || 0) > 10) {
+    const userRef = doc(db, "users", worker.id);
+    const userSnap = await getDoc(userRef);
+
+    let totalOrders = 0;
+
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      totalOrders = userData?.totalOrders ?? 0;
+    }
+
+    if (totalOrders > 10) {
       checks.orderHistory = "PASSED";
     } else {
       checks.orderHistory = "FAILED";
       trustScore -= 20;
-      riskFactors.push("Low transaction volume for parametric payout eligibility");
+      riskFactors.push("Low order history");
     }
-  } catch (e) {
+  } catch (error) {
     checks.orderHistory = "FAILED";
     trustScore -= 20;
-    riskFactors.push("Could not verify order history data");
+    riskFactors.push("Order history check error");
   }
 
   // Layer 3: Device Fingerprint
