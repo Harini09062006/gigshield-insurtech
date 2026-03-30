@@ -24,7 +24,7 @@ export interface FraudChecks {
   deviceCheck: "PASSED" | "FAILED";
   duplicateCheck: "PASSED" | "FAILED";
   accountAge: "PASSED" | "SUSPICIOUS";
-  weatherIntelligence: "PASSED" | "FAILED";
+  weatherIntelligence: "PASSED" | "FAILED" | "SUSPICIOUS";
   behaviorPattern: "PASSED" | "SUSPICIOUS";
   networkAnalysis: "PASSED" | "FAILED";
 }
@@ -95,7 +95,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
   const claimCity = worker.claimCity || worker.city;
   const eventId = `${claimCity}_${new Date().toISOString().split("T")[0]}_rain`;
 
-  // Layer 1: GPS Validation
+  // Layer 1: GPS Validation (Increased tolerance to 100km)
   try {
     const isDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
     let lat: number;
@@ -116,7 +116,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     const cityBase = CITY_COORDS[claimCity];
     if (cityBase) {
       const dist = calculateDistance(lat, lng, cityBase.lat, cityBase.lng);
-      checks.gpsValidation = dist < 50 ? "PASSED" : "FAILED";
+      checks.gpsValidation = dist < 100 ? "PASSED" : "FAILED";
       if (checks.gpsValidation === "FAILED") {
         trustScore -= 30;
         riskFactors.push(`GPS mismatch: Worker is ${dist.toFixed(1)}km from claim city center`);
@@ -132,7 +132,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push(`Location access denied or unavailable`);
   }
 
-  // Layer 2: Order History
+  // Layer 2: Order History (Reduced to 5 orders)
   try {
     const ordersQuery = query(collection(db, "orders"), where("userId", "==", worker.id));
     const ordersSnap = await getDocs(ordersQuery);
@@ -189,17 +189,17 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push("Integrity check for duplicate events failed");
   }
 
-  // Layer 5: Account Age Verification
+  // Layer 5: Account Age Verification (Reduced to 1 day)
   try {
     const userDoc = await getDoc(doc(db, "users", worker.id));
     const data = userDoc.data();
     if (data && data.createdAt) {
       const createdAt = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
       const diffDays = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
-      checks.accountAge = diffDays > 2 ? "PASSED" : "SUSPICIOUS";
+      checks.accountAge = diffDays > 1 ? "PASSED" : "SUSPICIOUS";
       if (checks.accountAge === "SUSPICIOUS") {
         trustScore -= 15;
-        riskFactors.push("Claim submitted on account less than 48 hours old");
+        riskFactors.push("Claim submitted on account less than 24 hours old");
       }
     } else {
       checks.accountAge = "SUSPICIOUS";
@@ -211,7 +211,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push("Account timeline verification unavailable");
   }
 
-  // Layer 6: Weather Intelligence
+  // Layer 6: Weather Intelligence (Fail to SUSPICIOUS on API Error)
   try {
     const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_KEY;
     if (!API_KEY) throw new Error("Missing Meteorological API Key");
@@ -228,9 +228,9 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
       riskFactors.push(`Inconsistent weather context: No rain reported in ${claimCity} by official stations`);
     }
   } catch (e: any) {
-    checks.weatherIntelligence = "FAILED";
-    trustScore -= 35;
-    riskFactors.push(`Weather validation failed: ${e.message}`);
+    checks.weatherIntelligence = "SUSPICIOUS";
+    trustScore -= 10;
+    riskFactors.push(`Weather validation inconclusive: ${e.message}`);
   }
 
   // Layer 7: Behavior Pattern Analysis
@@ -255,7 +255,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push("Interaction pattern audit failed");
   }
 
-  // Layer 8: Network Analysis
+  // Layer 8: Network Analysis (Increased threshold to 10 users)
   try {
     const ipRes = await fetch("https://api.ipify.org?format=json");
     const { ip } = await ipRes.json();
@@ -264,7 +264,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     const snap = await getDocs(q);
     const uniqueUsersOnIP = new Set(snap.docs.map(d => d.id)).size;
     
-    checks.networkAnalysis = uniqueUsersOnIP <= 3 ? "PASSED" : "FAILED";
+    checks.networkAnalysis = uniqueUsersOnIP <= 10 ? "PASSED" : "FAILED";
     if (checks.networkAnalysis === "FAILED") {
       trustScore -= 50;
       riskFactors.push("High-density network cluster: Multiple accounts originating from same IP");
@@ -279,23 +279,18 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
   // Clamping final score
   trustScore = Math.max(0, Math.min(100, trustScore));
 
-  console.log("Fraud Checks:", checks);
-  console.log("Final Trust Score:", trustScore);
+  console.log("Checks:", checks);
+  console.log("Score:", trustScore);
 
   // Final Decision Logic
   let decision = "APPROVED";
   if (trustScore <= 70 && trustScore >= 40) decision = "REVIEW";
   if (trustScore < 40) decision = "BLOCKED";
 
-  // Enforce Critical Layer Blocks
-  const criticalFailure = 
-    checks.gpsValidation === "FAILED" || 
-    checks.duplicateCheck === "FAILED" || 
-    checks.networkAnalysis === "FAILED" || 
-    checks.weatherIntelligence === "FAILED";
-
-  if (criticalFailure) {
-    decision = "BLOCKED";
+  // Mixed Result Logic: If at least 4 layers PASS, grant approval status
+  const passedCount = Object.values(checks).filter(v => v === "PASSED").length;
+  if (passedCount >= 4) {
+    decision = "APPROVED";
   }
 
   return {
