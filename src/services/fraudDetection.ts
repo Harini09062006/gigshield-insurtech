@@ -52,7 +52,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
@@ -95,7 +95,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
   const claimCity = worker.claimCity || worker.city;
   const eventId = `${claimCity}_${new Date().toISOString().split("T")[0]}_rain`;
 
-  // Layer 1: GPS Validation (Real-time Browser API)
+  // Layer 1: GPS Validation
   try {
     const isDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
     let lat: number;
@@ -116,10 +116,8 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     const cityBase = CITY_COORDS[claimCity];
     if (cityBase) {
       const dist = calculateDistance(lat, lng, cityBase.lat, cityBase.lng);
-      if (dist < 50) {
-        checks.gpsValidation = "PASSED";
-      } else {
-        checks.gpsValidation = "FAILED";
+      checks.gpsValidation = dist < 50 ? "PASSED" : "FAILED";
+      if (checks.gpsValidation === "FAILED") {
         trustScore -= 30;
         riskFactors.push(`GPS mismatch: Worker is ${dist.toFixed(1)}km from claim city center`);
       }
@@ -134,16 +132,14 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push(`Location access denied or unavailable`);
   }
 
-  // Layer 2: Order History (Dynamic Firestore Query)
+  // Layer 2: Order History
   try {
     const ordersQuery = query(collection(db, "orders"), where("userId", "==", worker.id));
     const ordersSnap = await getDocs(ordersQuery);
     const totalOrders = ordersSnap.size;
 
-    if (totalOrders >= 5) { // Adjusted threshold for real usage
-      checks.orderHistory = "PASSED";
-    } else {
-      checks.orderHistory = "FAILED";
+    checks.orderHistory = totalOrders >= 5 ? "PASSED" : "FAILED";
+    if (checks.orderHistory === "FAILED") {
       trustScore -= 20;
       riskFactors.push(`Low established order history: ${totalOrders} orders found`);
     }
@@ -153,19 +149,16 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push("Failed to audit order history");
   }
 
-  // Layer 3: Device Fingerprint (Stable Identification)
+  // Layer 3: Device Fingerprint
   try {
     const fingerprint = await generateDeviceFingerprint();
     const q = query(collection(db, "users"), where("deviceId", "==", fingerprint));
     const snap = await getDocs(q);
     
-    // Check if fingerprint is shared across multiple user accounts
     const isSharedDevice = snap.docs.some(doc => doc.id !== worker.id);
+    checks.deviceCheck = !isSharedDevice ? "PASSED" : "FAILED";
     
-    if (!isSharedDevice) {
-      checks.deviceCheck = "PASSED";
-    } else {
-      checks.deviceCheck = "FAILED";
+    if (checks.deviceCheck === "FAILED") {
       trustScore -= 25;
       riskFactors.push("Device fingerprint associated with multiple worker accounts");
     }
@@ -176,7 +169,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push("Hardware signature audit failed");
   }
 
-  // Layer 4: Duplicate Claim Prevention (Dynamic Event Context)
+  // Layer 4: Duplicate Claim Prevention
   try {
     const q = query(
       collection(db, "claims"),
@@ -184,10 +177,9 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
       where("eventId", "==", eventId)
     );
     const snap = await getDocs(q);
-    if (snap.empty) {
-      checks.duplicateCheck = "PASSED";
-    } else {
-      checks.duplicateCheck = "FAILED";
+    checks.duplicateCheck = snap.empty ? "PASSED" : "FAILED";
+    
+    if (checks.duplicateCheck === "FAILED") {
       trustScore -= 40;
       riskFactors.push("Claim already submitted for this specific weather event");
     }
@@ -197,20 +189,21 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push("Integrity check for duplicate events failed");
   }
 
-  // Layer 5: Account Age Verification (Dynamic Timeline)
+  // Layer 5: Account Age Verification
   try {
     const userDoc = await getDoc(doc(db, "users", worker.id));
     const data = userDoc.data();
     if (data && data.createdAt) {
       const createdAt = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
       const diffDays = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
-      if (diffDays > 2) {
-        checks.accountAge = "PASSED";
-      } else {
-        checks.accountAge = "SUSPICIOUS";
+      checks.accountAge = diffDays > 2 ? "PASSED" : "SUSPICIOUS";
+      if (checks.accountAge === "SUSPICIOUS") {
         trustScore -= 15;
         riskFactors.push("Claim submitted on account less than 48 hours old");
       }
+    } else {
+      checks.accountAge = "SUSPICIOUS";
+      trustScore -= 15;
     }
   } catch (e) {
     checks.accountAge = "SUSPICIOUS";
@@ -218,7 +211,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push("Account timeline verification unavailable");
   }
 
-  // Layer 6: Weather Intelligence (Real API Data)
+  // Layer 6: Weather Intelligence
   try {
     const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_KEY;
     if (!API_KEY) throw new Error("Missing Meteorological API Key");
@@ -229,10 +222,8 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     const data = await res.json();
     const isRaining = data.rain || (data.weather && data.weather.some((w: any) => w.main.toLowerCase().includes("rain")));
     
-    if (isRaining) {
-      checks.weatherIntelligence = "PASSED";
-    } else {
-      checks.weatherIntelligence = "FAILED";
+    checks.weatherIntelligence = isRaining ? "PASSED" : "FAILED";
+    if (checks.weatherIntelligence === "FAILED") {
       trustScore -= 35;
       riskFactors.push(`Inconsistent weather context: No rain reported in ${claimCity} by official stations`);
     }
@@ -242,9 +233,8 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push(`Weather validation failed: ${e.message}`);
   }
 
-  // Layer 7: Behavior Pattern Analysis (Action Tracking)
+  // Layer 7: Behavior Pattern Analysis
   try {
-    // Log the current action first
     await addDoc(collection(db, "activity"), {
       userId: worker.id,
       action: "CLAIM_ASSESSMENT_START",
@@ -254,10 +244,8 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     const q = query(collection(db, "activity"), where("userId", "==", worker.id), limit(20));
     const snap = await getDocs(q);
     
-    if (snap.size > 5) {
-      checks.behaviorPattern = "PASSED";
-    } else {
-      checks.behaviorPattern = "SUSPICIOUS";
+    checks.behaviorPattern = snap.size > 5 ? "PASSED" : "SUSPICIOUS";
+    if (checks.behaviorPattern === "SUSPICIOUS") {
       trustScore -= 10;
       riskFactors.push("Unusual activity profile: Minimal app interaction history");
     }
@@ -267,21 +255,17 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     riskFactors.push("Interaction pattern audit failed");
   }
 
-  // Layer 8: Network Analysis (Real IP Context)
+  // Layer 8: Network Analysis
   try {
     const ipRes = await fetch("https://api.ipify.org?format=json");
     const { ip } = await ipRes.json();
     
     const q = query(collection(db, "users"), where("lastIP", "==", ip));
     const snap = await getDocs(q);
-    
-    // Check for IP address reuse (indicative of farm/proxy networks)
     const uniqueUsersOnIP = new Set(snap.docs.map(d => d.id)).size;
     
-    if (uniqueUsersOnIP <= 3) {
-      checks.networkAnalysis = "PASSED";
-    } else {
-      checks.networkAnalysis = "FAILED";
+    checks.networkAnalysis = uniqueUsersOnIP <= 3 ? "PASSED" : "FAILED";
+    if (checks.networkAnalysis === "FAILED") {
       trustScore -= 50;
       riskFactors.push("High-density network cluster: Multiple accounts originating from same IP");
     }
@@ -291,6 +275,12 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     trustScore -= 50;
     riskFactors.push("Network origin verification failed");
   }
+
+  // Clamping final score
+  trustScore = Math.max(0, Math.min(100, trustScore));
+
+  console.log("Fraud Checks:", checks);
+  console.log("Final Trust Score:", trustScore);
 
   // Final Decision Logic
   let decision = "APPROVED";
@@ -310,7 +300,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
 
   return {
     checks,
-    trustScore: Math.max(0, trustScore),
+    trustScore,
     decision,
     eventId,
     processingTime: `${Date.now() - startTime}ms`,
