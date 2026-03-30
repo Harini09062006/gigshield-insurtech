@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -39,8 +38,9 @@ import { doc, addDoc, collection, serverTimestamp, getDocs, query, where, limit,
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AIAssistant } from "@/components/chatbot/AIAssistant";
+import { ClaimNotification } from "@/components/ClaimNotification";
 import { useRouter } from "next/navigation";
 import { getUserLocation, calculateDistance, gpsCheck } from "@/services/locationService";
 import { runFraudChecks } from "@/services/fraudDetection";
@@ -135,6 +135,7 @@ export default function WorkerDashboard() {
 
   // STATE
   const [chatOpen, setChatOpen] = useState(false);
+  const [notif, setNotif] = useState<any>(null);
   const [weather, setWeather] = useState({
     rainMM: 12,
     condition: "Light Rain",
@@ -280,7 +281,7 @@ export default function WorkerDashboard() {
         outcome: fraudResult.decision
       });
 
-      await addDoc(collection(db, "claims"), {
+      const docRef = await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
         claim_number: "SIM-" + Math.floor(100000 + Math.random() * 900000),
         trigger_type: "Severe Rain Simulation",
@@ -304,6 +305,19 @@ export default function WorkerDashboard() {
         createdAt: serverTimestamp(),
         created_at: serverTimestamp() 
       });
+
+      // Show instant notification if approved
+      if (fraudResult.decision === 'APPROVED') {
+        const procSecs = (parseFloat(fraudResult.processingTime) / (fraudResult.processingTime.toLowerCase().includes('ms') || parseFloat(fraudResult.processingTime) > 100 ? 1000 : 1)).toFixed(1) + "s";
+        setNotif({
+          id: docRef.id.slice(0, 6),
+          amount: compensation,
+          trigger: "Simulated " + roundedRain + "mm Rainfall",
+          timeSlot: "Evening 5-9 PM",
+          processingTime: procSecs,
+          workerName: profile?.name?.split(' ')[0] || "Worker"
+        });
+      }
     } catch (err) {
       console.error("Simulation claim write failed:", err);
     }
@@ -645,6 +659,16 @@ export default function WorkerDashboard() {
       </Button>
 
       <AIAssistant open={chatOpen} onOpenChange={setChatOpen} />
+
+      <AnimatePresence>
+        {notif && (
+          <ClaimNotification 
+            claim={notif}
+            onDismiss={() => setNotif(null)}
+            onView={() => router.push('/claims')}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );
