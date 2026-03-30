@@ -40,6 +40,7 @@ import { motion } from "framer-motion";
 import { AIAssistant } from "@/components/chatbot/AIAssistant";
 import { useRouter } from "next/navigation";
 import { getUserLocation, calculateDistance, gpsCheck } from "@/services/locationService";
+import { runFraudChecks } from "@/services/fraudDetection";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -144,7 +145,6 @@ export default function WorkerDashboard() {
     const currentLoc = await getUserLocation().catch(() => null);
     
     // 2. Fetch Stored Worker Location (BASE LOCATION)
-    // Support both nested 'location' and legacy top-level fields
     const workerLoc = profile?.location 
       ? { lat: Number(profile.location.lat), lng: Number(profile.location.lng) }
       : (profile?.lat && profile?.lng ? { lat: Number(profile.lat), lng: Number(profile.lng) } : null);
@@ -161,21 +161,35 @@ export default function WorkerDashboard() {
     calculateLoss(rain);
 
     try {
+      // 3. RUN FRAUD DETECTION ENGINE
+      const workerForFraud = {
+        id: user.uid,
+        city: profile?.city || 'Mumbai',
+        claimCity: profile?.city || 'Mumbai'
+      };
+      
+      const fraudResult = await runFraudChecks(workerForFraud, db).catch(() => ({
+        checks: {},
+        trustScore: 0,
+        decision: "BLOCKED",
+        processingTime: "0ms"
+      }));
+
       const baseRate = profile?.avg_hourly_earnings || 60;
       const eveningRate = dna?.evening_rate || Math.round(baseRate * 1.3);
       const compensation = 240; 
 
-      // 3. GPS Validation Layer
-      // Use the centralized gpsCheck logic which supports nested fields
+      // 4. Legacy Check Integration
       const validationStatus = gpsCheck(profile, currentLoc);
       const gps_status = validationStatus === 'PASSED' ? 'matched' : (validationStatus === 'FAILED' ? 'mismatch' : 'unknown');
-      const claim_status = gps_status === 'matched' ? 'paid' : 'review';
+      
+      // Map fraud decision to legacy status for UI compatibility (paid/review)
+      const claim_status = fraudResult.decision === 'APPROVED' ? 'paid' : 'review';
 
-      console.log("[GPS Validation]", {
-        workerBase: workerLoc,
-        claimLive: currentLoc,
-        status: gps_status,
-        outcome: claim_status
+      console.log("[Simulation Result]", {
+        gps: gps_status,
+        trust: fraudResult.trustScore,
+        outcome: fraudResult.decision
       });
 
       await addDoc(collection(db, "claims"), {
@@ -187,12 +201,20 @@ export default function WorkerDashboard() {
         dna_hourly_rate: eveningRate,
         hours_lost: 4,
         compensation: compensation,
+        
         status: claim_status,
+        
+        // NEW FRAUD DATA FIELDS
+        fraudChecks: fraudResult.checks,
+        trustScore: fraudResult.trustScore,
+        decision: fraudResult.decision,
+        processingTime: fraudResult.processingTime,
+
         lat: currentLoc?.lat || workerLoc?.lat || 19.0760,
         lng: currentLoc?.lng || workerLoc?.lng || 72.8777,
         gps_status: gps_status,
         createdAt: serverTimestamp(),
-        created_at: serverTimestamp() // Keeping legacy field for compatibility
+        created_at: serverTimestamp() 
       });
     } catch (err) {
       console.error("Simulation claim write failed:", err);
