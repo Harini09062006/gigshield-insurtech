@@ -89,7 +89,10 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
   const checks = {} as FraudChecks;
   const riskFactors: string[] = [];
   const startTime = Date.now();
-  const eventId = `${worker.city}_${new Date().toISOString().split("T")[0]}_rain`;
+  
+  // Use claimCity if available, else fallback to worker's registered city
+  const claimCity = worker.claimCity || worker.city;
+  const eventId = `${claimCity}_${new Date().toISOString().split("T")[0]}_rain`;
 
   // Layer 1: GPS Validation
   try {
@@ -98,7 +101,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
     });
     
-    const cityBase = CITY_COORDS[worker.city];
+    const cityBase = CITY_COORDS[claimCity];
     if (cityBase) {
       const dist = calculateDistance(pos.coords.latitude, pos.coords.longitude, cityBase.lat, cityBase.lng);
       if (dist < 50) {
@@ -106,12 +109,12 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
       } else {
         checks.gpsValidation = "FAILED";
         trustScore -= 30;
-        riskFactors.push("GPS coordinate mismatch with registered city");
+        riskFactors.push(`GPS coordinate mismatch with claim city: ${claimCity}`);
       }
     } else {
       checks.gpsValidation = "SUSPICIOUS";
       trustScore -= 15;
-      riskFactors.push("City coordinates not mapped in system");
+      riskFactors.push(`City coordinates for ${claimCity} not mapped in system`);
     }
   } catch (err: any) {
     checks.gpsValidation = "SUSPICIOUS";
@@ -202,7 +205,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_KEY;
     if (!API_KEY) throw new Error("Weather Key Missing");
     
-    const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${worker.city}&units=metric&appid=${API_KEY}`);
+    const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(claimCity)}&units=metric&appid=${API_KEY}`);
     const data = await res.json();
     
     const isRaining = data.rain || (data.weather && data.weather.some((w: any) => w.main.toLowerCase().includes("rain")));
@@ -212,7 +215,7 @@ export const runFraudChecks = async (worker: any, db: Firestore) => {
     } else {
       checks.weatherIntelligence = "FAILED";
       trustScore -= 35;
-      riskFactors.push("Claim context mismatched with meteorological reality");
+      riskFactors.push(`Claim context mismatched with meteorological reality in ${claimCity}`);
     }
   } catch (e) {
     checks.weatherIntelligence = "FAILED";
