@@ -1,28 +1,36 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase";
-import { collection, query, where, orderBy, limit } from "firebase/firestore";
+import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth, useDoc } from "@/firebase";
+import { collection, query, where, orderBy, limit, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Calendar, Zap, Home, FileText, Map as MapIcon, LogOut, Shield, AlertCircle, Loader2, AlertTriangle, XCircle } from "lucide-react";
+import { CheckCircle2, Calendar, Zap, Home, FileText, Map as MapIcon, LogOut, Shield, AlertCircle, Loader2, AlertTriangle, XCircle, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 
 export default function WorkerClaims() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     if (!isUserLoading && !user) router.replace("/");
   }, [user, isUserLoading, router]);
+
+  const profileRef = useMemoFirebase(
+    () => (db && user ? doc(db, "users", user.uid) : null),
+    [db, user?.uid]
+  );
+  const { data: profile } = useDoc(profileRef);
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
@@ -36,7 +44,6 @@ export default function WorkerClaims() {
 
   const { data: rawClaims, isLoading, error } = useCollection(claimsQuery);
 
-  // Fallback sorting for records without createdAt or legacy field
   const claims = React.useMemo(() => {
     if (!rawClaims) return [];
     return [...rawClaims].sort((a, b) => {
@@ -45,6 +52,38 @@ export default function WorkerClaims() {
       return timeB - timeA;
     });
   }, [rawClaims]);
+
+  const initiateRazorpayPayout = (
+    amount: number,
+    workerName: string,
+    claimId: string
+  ) => {
+    const options = {
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY || "rzp_test_payout_key",
+      amount: amount * 100,
+      currency: "INR",
+      name: "GigShield Protection",
+      description: `Claim Payout #${claimId}`,
+      handler: async (response: any) => {
+        await updateDoc(
+          doc(db, "claims", claimId), {
+          paymentId: response.razorpay_payment_id,
+          paymentStatus: "CREDITED",
+          paidAt: serverTimestamp()
+        });
+        toast({
+          title: "✅ Payment Successful!",
+          description: 
+            `₹${amount} credited! ` +
+            `ID: ${response.razorpay_payment_id}`
+        });
+      },
+      prefill: { name: workerName },
+      theme: { color: "#6C47FF" }
+    };
+    const rzp = new (window as any).Razorpay(options);
+    rzp.open();
+  };
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -114,9 +153,9 @@ export default function WorkerClaims() {
             {claims && claims.length > 0 ? (
               claims.map((claim) => (
                 <Card key={claim.id} className="border-[#E8E6FF] shadow-card overflow-hidden bg-white rounded-2xl">
-                  <CardHeader className={`${claim.gps_status === 'mismatch' ? 'bg-red-50' : claim.status === 'paid' ? 'bg-[#DCFCE7]/30' : 'bg-amber-50'} px-6 py-4 flex flex-row items-center justify-between border-b border-[#E8E6FF]/50`}>
+                  <CardHeader className={`${claim.gps_status === 'mismatch' ? 'bg-red-50' : (claim.status === 'paid' || claim.status === 'approved') ? 'bg-[#DCFCE7]/30' : 'bg-amber-50'} px-6 py-4 flex flex-row items-center justify-between border-b border-[#E8E6FF]/50`}>
                     <div className="flex items-center gap-3">
-                      {claim.gps_status === 'mismatch' ? <XCircle className="h-5 w-5 text-red-500" /> : claim.status === 'paid' ? <CheckCircle2 className="h-5 w-5 text-[#22C55E]" /> : <AlertTriangle className="h-5 w-5 text-amber-500" />}
+                      {claim.gps_status === 'mismatch' ? <XCircle className="h-5 w-5 text-red-500" /> : (claim.status === 'paid' || claim.status === 'approved') ? <CheckCircle2 className="h-5 w-5 text-[#22C55E]" /> : <AlertTriangle className="h-5 w-5 text-amber-500" />}
                       <span className="font-bold text-[#1A1A2E] text-sm">Trigger: {claim.trigger_description || "Severe Weather"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-[#64748B] font-bold">
@@ -148,7 +187,7 @@ export default function WorkerClaims() {
                       
                       {claim.gps_status === 'mismatch' ? (
                         <Badge className="bg-red-50 text-red-500 border-none font-bold uppercase text-[10px]">⚠ Mismatch Detected</Badge>
-                      ) : claim.status === 'paid' || claim.status === 'approved' ? (
+                      ) : (claim.status === 'paid' || claim.status === 'approved') ? (
                         <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold">✓ PAID INSTANTLY</Badge>
                       ) : (
                         <Badge className="bg-amber-100 text-amber-600 border-none font-bold uppercase text-[10px]">Review Required</Badge>
@@ -165,6 +204,19 @@ export default function WorkerClaims() {
                               ? 'Funds deposited to your linked bank account.' 
                               : 'This claim requires manual review due to a location mismatch.'}
                         </div>
+                        {(claim.status === 'paid' || claim.status === 'approved') && claim.gps_status !== 'mismatch' && (
+                          <div className="mt-3 space-y-2">
+                            <Button 
+                              onClick={() => initiateRazorpayPayout(claim.compensation, profile?.name || "Worker", claim.id)}
+                              className="w-full h-8 text-[10px] font-bold bg-[#6C47FF] hover:bg-[#5535E8] text-white rounded-lg gap-1.5 shadow-sm"
+                            >
+                              <CreditCard size={12} /> View Payment Details
+                            </Button>
+                            <p className="text-[8px] text-[#94A3B8] font-medium leading-none">
+                              Test: 4111 1111 1111 1111 | CVV: 123 | 12/28
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
