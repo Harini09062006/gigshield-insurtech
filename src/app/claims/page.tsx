@@ -138,12 +138,6 @@ export default function WorkerClaims() {
                           <span>{claim.gps_status === 'mismatch' ? <span className="text-red-500">NOT APPROVED</span> : `₹${claim.compensation}`}</span>
                         </div>
                       </div>
-
-                      <div className="pt-4 mt-4 border-t border-[#E8E6FF]">
-                        <div className={`flex items-center gap-2 font-bold text-[11px] uppercase ${claim.gps_status === 'matched' ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {claim.gps_status === 'matched' ? '✓ Location Match Verified' : '⚠ Location Mismatch Flagged'}
-                        </div>
-                      </div>
                     </div>
                     <div className="p-6 border-l border-[#E8E6FF]/50 flex flex-col items-center justify-center bg-white text-center">
                       {claim.gps_status === 'mismatch' ? (
@@ -175,12 +169,12 @@ export default function WorkerClaims() {
                     </div>
 
                     {/* Fraud Analysis Section - Single Source of Truth */}
-                    <div className="col-span-full p-6 border-t border-[#E8E6FF] bg-white space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#1A1A2E]">Automated Fraud Analysis</h4>
+                    <div className="col-span-full p-5 border-t border-[#E8E6FF] bg-white space-y-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="text-[9px] font-black uppercase tracking-[0.15em] text-[#1A1A2E] opacity-70">Automated Fraud Analysis</h4>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-[#64748B]">Trust Score:</span>
-                          <Badge className={`text-[10px] font-black border-none px-2 ${
+                          <span className="text-[9px] font-bold text-[#64748B] uppercase">Trust Score:</span>
+                          <Badge className={`text-[10px] font-black border-none px-2 h-5 flex items-center ${
                             (claim.trustScore ?? 0) >= 70 ? 'bg-[#DCFCE7] text-[#22C55E]' : 
                             (claim.trustScore ?? 0) >= 40 ? 'bg-[#FEF3C7] text-[#F59E0B]' : 
                             'bg-[#FEE2E2] text-[#EF4444]'
@@ -190,16 +184,16 @@ export default function WorkerClaims() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-1.5">
                         {Object.entries(fraudLabels).map(([key, label]) => {
                           const status = (claim.fraudChecks?.[key]) || 'N/A';
                           const color = status === 'PASSED' ? '#22C55E' : status === 'FAILED' ? '#EF4444' : status === 'SUSPICIOUS' ? '#F59E0B' : '#94A3B8';
                           const icon = status === 'PASSED' ? '✅' : status === 'FAILED' ? '❌' : status === 'SUSPICIOUS' ? '⚠️' : '⚪';
                           
                           return (
-                            <div key={key} className="flex items-center justify-between text-[10px] font-medium border-b border-[#F5F3FF] pb-1">
+                            <div key={key} className="flex items-center justify-between text-[10px] font-semibold border-b border-[#F5F3FF]/50 pb-1">
                               <span className="text-[#64748B]">{label}</span>
-                              <span style={{ color }} className="font-bold uppercase tracking-tighter flex items-center gap-1">
+                              <span style={{ color }} className="font-bold uppercase tracking-tighter flex items-center gap-1.5">
                                 {status} <span className="text-[8px]">{icon}</span>
                               </span>
                             </div>
@@ -207,20 +201,20 @@ export default function WorkerClaims() {
                         })}
                       </div>
 
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-dashed border-[#E8E6FF]">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-dashed border-[#E8E6FF]">
                         <div className="flex gap-4">
                           <div className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter">
-                            Processing Time: <span className="text-[#1A1A2E]">
+                            Execution: <span className="text-[#1A1A2E]">
                               {claim.processingTime 
                                 ? `${(parseFloat(claim.processingTime) / (claim.processingTime.toLowerCase().includes('ms') || parseFloat(claim.processingTime) > 100 ? 1000 : 1)).toFixed(1)}s` 
                                 : '0.8s'}
                             </span>
                           </div>
                           <div className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter">
-                            Status: <span className="text-[#6C47FF]">LIVE_VERIFIED</span>
+                            Engine: <span className="text-[#6C47FF]">v4.2_LIVE</span>
                           </div>
                         </div>
-                        <Badge className={`text-[9px] font-black uppercase px-3 py-1 border-none rounded-lg ${
+                        <Badge className={`text-[9px] font-black uppercase px-3 h-6 border-none rounded-lg flex items-center ${
                           claim.decision === 'APPROVED' ? 'bg-[#DCFCE7] text-[#22C55E]' : 
                           claim.decision === 'REVIEW' ? 'bg-[#FEF3C7] text-[#F59E0B]' : 
                           'bg-[#FEE2E2] text-[#EF4444]'
