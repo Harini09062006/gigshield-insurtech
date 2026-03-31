@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -57,30 +56,19 @@ export default function AdminNewPage() {
 
   // 1. PROJECT & DB DIAGNOSTICS
   useEffect(() => {
-    console.log("🔥 ADMIN DASHBOARD LOADED");
-    console.log("🔥 PROJECT ID:", firebaseConfig.projectId);
+    console.log("🔥 ADMIN DASHBOARD RENDERED");
+    console.log("🔥 AUTH READY:", isAuthReady);
     
-    if (!db) {
-      console.error("❌ DB is undefined");
-      return;
-    }
+    if (!db) return;
 
+    // RAW COLLECTION LISTENER FOR DEBUGGING
     const unsubscribe = onSnapshot(collection(db, "chats"), (snapshot) => {
-      console.log("🔥 CHATS SNAPSHOT SIZE:", snapshot.size);
-      
-      if (snapshot.empty) {
-        console.warn("⚠️ 'chats' collection is empty or unreachable.");
-      }
-
-      snapshot.forEach((doc) => {
-        console.log("📄 CHAT DOC:", doc.id, doc.data());
-      });
-    }, (err) => {
-      console.error("❌ FIRESTORE ERROR (chats):", err);
+      console.log("🔥 GLOBAL CHATS COUNT:", snapshot.size);
+      snapshot.forEach(d => console.log("📄 GLOBAL CHAT DOC:", d.id, d.data()));
     });
 
     return () => unsubscribe();
-  }, [db]);
+  }, [db, isAuthReady]);
 
   // Firestore Subscriptions
   const usersQuery = useMemoFirebase(() => {
@@ -93,13 +81,9 @@ export default function AdminNewPage() {
     return query(collection(db, "claims"), limit(100));
   }, [db, isAuthReady]);
 
-  // Standardized Chat History Listener
   const chatsQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    return query(
-      collection(db, "chats"), 
-      limit(1000)
-    );
+    return query(collection(db, "chats"), limit(1000));
   }, [db, isAuthReady]);
 
   const { data: rawUsers, isLoading: loadingUsers } = useCollection(usersQuery);
@@ -136,7 +120,6 @@ export default function AdminNewPage() {
   const threads = useMemo(() => {
     if (!rawMessages) return [];
     const groups = new Map<string, any>();
-    // Group messages by user, ensuring the latest message status determines thread status
     const sortedMsgs = [...rawMessages].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     
     sortedMsgs.forEach(msg => {
@@ -150,8 +133,8 @@ export default function AdminNewPage() {
         });
       }
     });
-    return Array.from(groups.values()).filter(t => t.status !== 'resolved' || activeChatUserId === t.userId);
-  }, [rawMessages, userMap, activeChatUserId]);
+    return Array.from(groups.values());
+  }, [rawMessages, userMap]);
 
   const activeChatMessages = useMemo(() => {
     if (!rawMessages || !activeChatUserId) return [];
@@ -177,7 +160,6 @@ export default function AdminNewPage() {
     const text = replyText;
     setReplyText("");
     try {
-      // ADMIN REPLY (MANDATORY)
       await addDoc(collection(db, "chats"), {
         userId: activeChatUserId,
         userName: userMap.get(activeChatUserId)?.name || "Worker",
@@ -188,7 +170,6 @@ export default function AdminNewPage() {
         createdAt: serverTimestamp()
       });
 
-      // Update user pending messages to resolved
       const userPendingMsgs = activeChatMessages.filter(m => m.status === 'pending_admin');
       for (const m of userPendingMsgs) {
         await updateDoc(doc(db, "chats", m.id), { status: "resolved" });
@@ -373,7 +354,7 @@ export default function AdminNewPage() {
             <div className="flex gap-6 h-full pb-8">
               <div className="w-80 bg-white border border-[#E8E6FF] rounded-2xl overflow-hidden flex flex-col">
                 <div className="p-4 border-b border-[#F5F3FF] bg-[#F8F9FF]">
-                  <h3 className="text-xs font-black uppercase text-[#94A3B8] tracking-widest">Open Conversations</h3>
+                  <h3 className="text-xs font-black uppercase text-[#94A3B8] tracking-widest">Conversations</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {loadingMessages ? <div className="p-4"><Skeleton className="h-20 w-full rounded-xl"/></div> : 
@@ -385,7 +366,9 @@ export default function AdminNewPage() {
                     >
                       <div className="flex justify-between items-start mb-1">
                         <span className="font-bold text-sm text-[#1A1A2E]">{t.userName}</span>
-                        <Badge className="text-[8px] bg-[#EF4444] text-white border-none uppercase">{t.status}</Badge>
+                        <Badge className={`text-[8px] text-white border-none uppercase ${t.status === 'pending_admin' ? 'bg-[#EF4444]' : 'bg-[#22C55E]'}`}>
+                          {t.status || 'NEW'}
+                        </Badge>
                       </div>
                       <p className="text-xs text-[#64748B] line-clamp-1 truncate italic">"{t.lastMessage}"</p>
                     </button>

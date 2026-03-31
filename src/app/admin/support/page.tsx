@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -55,36 +54,7 @@ export default function AdminSupportPortal() {
   const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. PROJECT & DB VERIFICATION
-  useEffect(() => {
-    console.log("🔥 ADMIN SUPPORT LOADED");
-    console.log("🔥 PROJECT ID:", firebaseConfig.projectId);
-    console.log("🔥 DB INSTANCE:", db);
-    
-    if (!db) {
-      console.error("❌ DB is undefined - Firestore connection failed");
-      return;
-    }
-
-    // RAW DATA LISTENER (DEBUG ONLY)
-    const unsubscribe = onSnapshot(collection(db, "chats"), (snapshot) => {
-      console.log("🔥 RAW SNAPSHOT SIZE (chats):", snapshot.size);
-      
-      if (snapshot.empty) {
-        console.warn("⚠️ No documents found in 'chats' collection. Check Project ID and Collection Name.");
-      }
-
-      snapshot.forEach((doc) => {
-        console.log("📄 RAW DOCUMENT FOUND:", doc.id, doc.data());
-      });
-    }, (error) => {
-      console.error("❌ FIRESTORE RAW LISTENER ERROR:", error);
-    });
-
-    return () => unsubscribe();
-  }, [db]);
-
-  // 2. AUTH & ROLE CHECK
+  // 1. AUTH & ROLE CHECK
   useEffect(() => {
     async function checkRole() {
       if (isUserLoading) return;
@@ -95,24 +65,21 @@ export default function AdminSupportPortal() {
       }
       
       try {
-        console.log("🔍 Checking role for UID:", user.uid);
+        console.log("🔍 Checking admin role for UID:", user.uid);
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          console.log("👤 USER DATA:", data);
           if (data.role === "admin") {
             setIsAdmin(true);
             console.log("✅ Admin access granted");
           } else {
-            console.warn("🚫 Access denied: User is not an admin. Role:", data.role);
+            console.warn("🚫 Access denied: User is not an admin.");
             router.replace("/dashboard");
           }
         } else {
-          console.error("❌ User document not found in /users collection");
           router.replace("/dashboard");
         }
       } catch (error) { 
-        console.error("❌ Role check failed:", error);
         router.replace("/dashboard"); 
       } finally { 
         setCheckingAdmin(false); 
@@ -121,36 +88,44 @@ export default function AdminSupportPortal() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 3. ADMIN FILTERED LISTENER
+  // 2. ADMIN RAW DATA LISTENER (DEBUG & FIX)
   useEffect(() => {
     if (!db || !isAdmin) return;
 
-    console.log("📡 Starting priority queue listener (type: payment_issue, status: pending_admin)...");
-    const q = query(
-      collection(db, "chats"),
-      where("type", "==", "payment_issue"),
-      where("status", "==", "pending_admin")
-    );
+    console.log("📡 Starting Support Queue Listener...");
+    
+    // TEMPORARY: Remove where filters to ensure data appears in UI
+    const q = collection(db, "chats");
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log("📬 FILTERED QUEUE SIZE:", snapshot.size);
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      console.log("🔥 SUPPORT SNAPSHOT SIZE:", snapshot.size);
       
+      const data = snapshot.docs.map(doc => {
+        const d = doc.data();
+        console.log("📄 DOC IN QUEUE:", doc.id, d);
+        return { id: doc.id, ...d };
+      });
+      
+      // Filter for priority issues in-memory to verify logic
+      const priorityIssues = data.filter(item => 
+        item.type === "payment_issue" && item.status === "pending_admin"
+      );
+
+      console.log("🎯 PRIORITY ISSUES FOUND:", priorityIssues.length);
+
       // Deduplicate by userId
       const uniqueIssues = Array.from(new Map(data.map(item => [item.userId, item])).values());
       setIssues(uniqueIssues);
     }, (error) => {
-      console.error("❌ Filtered listener error:", error);
+      console.error("❌ Support listener error:", error);
     });
 
     return () => unsubscribe();
   }, [db, isAdmin]);
 
-  // 4. REAL-TIME MESSAGES FOR SELECTED WORKER
+  // 3. REAL-TIME MESSAGES FOR SELECTED WORKER
   useEffect(() => {
+    console.log("🔥 SELECTED ISSUE CHANGED:", selectedIssue?.userId);
     if (!selectedIssue?.userId || !db) return;
     
     const q = query(
@@ -159,6 +134,7 @@ export default function AdminSupportPortal() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log("💬 MESSAGES SNAPSHOT SIZE:", snapshot.size);
       const msgs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -230,7 +206,11 @@ export default function AdminSupportPortal() {
 
         <div className="flex-1 overflow-y-auto">
           {issues.length === 0 ? (
-            <div className="p-10 text-center opacity-40"><MessageSquare size={48} className="mx-auto mb-2" /><p className="text-sm font-bold">No active escalations</p></div>
+            <div className="p-10 text-center opacity-40">
+              <MessageSquare size={48} className="mx-auto mb-2" />
+              <p className="text-sm font-bold">No active escalations</p>
+              <p className="text-[10px] mt-1 italic">Check console for raw data logs</p>
+            </div>
           ) : (
             issues.map((t: any) => (
               <button 
@@ -239,17 +219,17 @@ export default function AdminSupportPortal() {
                 className={`w-full p-5 border-b border-[#E8E6FF] text-left transition-all hover:bg-[#F8F9FF] ${selectedIssue?.userId === t.userId ? 'bg-[#EDE9FF] border-l-4 border-l-[#6C47FF]' : ''}`}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <Badge className="text-[8px] font-black uppercase border-none bg-[#EF4444]">
-                    PENDING
+                  <Badge className={`text-[8px] font-black uppercase border-none ${t.status === 'pending_admin' ? 'bg-[#EF4444]' : 'bg-[#22C55E]'}`}>
+                    {t.status || 'NEW'}
                   </Badge>
                   <span className="text-[10px] font-bold text-[#94A3B8]">{t.createdAt?.seconds ? format(new Date(t.createdAt.seconds * 1000), "HH:mm") : 'Syncing...'}</span>
                 </div>
                 <div className="flex items-center gap-2 mb-1">
                   <h4 className="font-bold text-sm">{t.userName || "Worker"}</h4>
-                  <AlertTriangle size={12} className="text-amber-500" />
+                  {t.type === 'payment_issue' && <AlertTriangle size={12} className="text-amber-500" />}
                 </div>
-                <p className="text-xs font-medium text-[#64748B] truncate mb-3">{t.workerCity} • {t.workerPlan?.toUpperCase()}</p>
-                <p className="text-[11px] italic text-[#64748B] line-clamp-1">"{t.message}"</p>
+                <p className="text-xs font-medium text-[#64748B] truncate mb-3">{t.workerCity || 'Unknown City'} • {t.workerPlan?.toUpperCase() || 'PLAN'}</p>
+                <p className="text-[11px] italic text-[#64748B] line-clamp-1">"{t.message || t.text}"</p>
               </button>
             ))
           )}
@@ -273,7 +253,7 @@ export default function AdminSupportPortal() {
                 <div>
                   <h3 className="text-lg font-bold">{selectedIssue.userName || "Worker"}</h3>
                   <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-[#64748B]">
-                    <span className="flex items-center gap-1"><Clock size={12} /> Active Escalation</span>
+                    <span className="flex items-center gap-1"><Clock size={12} /> Active Conversation</span>
                     <span className="text-[#6C47FF]">•</span>
                     <span>Plan: {selectedIssue.workerPlan?.toUpperCase() || "PRO"}</span>
                   </div>
@@ -304,7 +284,7 @@ export default function AdminSupportPortal() {
                     }`}>
                       {m.sender === 'admin' && <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-1">🛡️ Support Agent (You)</p>}
                       {m.status === 'pending_admin' && <Badge className="bg-red-500 text-white border-none text-[7px] mb-2 font-black uppercase">Escalated</Badge>}
-                      <p className="leading-relaxed">{m.message}</p>
+                      <p className="leading-relaxed">{m.message || m.text}</p>
                       <div className="text-[9px] mt-2 font-black uppercase opacity-60">
                         {m.sender} • {m.createdAt?.seconds ? format(new Date(m.createdAt.seconds * 1000), "HH:mm") : 'Syncing...'}
                       </div>
@@ -332,8 +312,8 @@ export default function AdminSupportPortal() {
             <div className="h-24 w-24 bg-[#EDE9FF] rounded-[32px] flex items-center justify-center mb-6">
               <Headphones size={48} className="text-[#6C47FF]" />
             </div>
-            <h2 className="text-2xl font-black mb-2 uppercase tracking-widest">Escalation Queue</h2>
-            <p className="text-sm font-medium max-w-xs">Select a payment issue from the sidebar to provide priority assistance.</p>
+            <h2 className="text-2xl font-black mb-2 uppercase tracking-widest">Conversation Queue</h2>
+            <p className="text-sm font-medium max-w-xs">Select a worker from the sidebar to provide assistance.</p>
           </div>
         )}
       </main>
