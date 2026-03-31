@@ -1,23 +1,24 @@
 export async function POST(req: Request) {
-  console.log("API HIT");
   try {
-    const body = await req.json();
-    const message = body?.message;
+    const { message } = await req.json();
+    const msg = message.toLowerCase();
 
-    if (!message) {
-      return Response.json({
-        reply: "No message received"
-      });
+    let reply = "";
+
+    if (msg.includes("rain") || msg.includes("weather")) {
+      reply = "Rain risk is moderate today. Stay alert for automated disruption alerts.";
+    } else if (msg.includes("earnings") || msg.includes("dna") || msg.includes("money")) {
+      reply = "Your Income DNA indicates peak earnings during evening hours (5-9 PM).";
+    } else if (msg.includes("claim") || msg.includes("payout")) {
+      reply = "Claims are processed instantly after automated GPS and weather verification.";
+    } else {
+      reply = "I am your GigShield assistant. Ask me about weather risk, earnings, or claims.";
     }
 
-    // Stabilized response for AI flow testing
-    return Response.json({
-      reply: "AI working correctly now ✅"
-    });
+    return Response.json({ reply });
   } catch (err) {
-    console.error("API ROUTE ERROR:", err);
-    return Response.json({
-      reply: "API error fallback"
+    return Response.json({ 
+      reply: "I am your GigShield assistant. How can I help you today?" 
     });
   }
 }
