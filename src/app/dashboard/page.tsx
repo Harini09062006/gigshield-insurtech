@@ -466,7 +466,7 @@ export default function WorkerDashboard() {
             <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Updated {format(new Date(), "HH:mm")}</p>
           </div>
 
-          {/* Time Slot Cards */}
+          {/* Time Slot Cards - Compact Size */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: "MORNING", time: "6-10 AM", rate: morningRate, icon: "🌅", color: "#F59E0B", mult: "0.75x" },
@@ -484,7 +484,7 @@ export default function WorkerDashboard() {
                   <p className="text-xl font-bold text-[#1A1A2E]">₹{slot.rate}/hr</p>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-bold text-[#6C47FF]">{slot.mult} multiplier</p>
+                  <p className="text-xs font-bold text-[#6C47FF]">{slot.mult} multiplier</p>
                   {slot.peak && <Badge className="bg-[#6C47FF] text-white text-[7px] font-black uppercase px-1 py-0 border-none">Peak</Badge>}
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ backgroundColor: slot.color }} />
@@ -492,53 +492,60 @@ export default function WorkerDashboard() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-white border-none rounded-[24px] shadow-sm p-8 flex flex-col justify-between">
-              <div className="space-y-2">
-                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Expected Weekly Earnings</p>
-                <h3 className="text-5xl font-black text-[#6C47FF]">₹{Math.round((morningRate * 4 + afternoonRate * 4 + eveningRate * 4 + nightRate * 3) * 7)}</h3>
-                <p className="text-[11px] text-[#64748B] leading-relaxed mt-4 max-w-sm">Derived from your Income DNA earning pattern across projected working hours.</p>
-              </div>
-              <div className="mt-8 pt-8 border-t border-[#E8E6FF] flex items-center justify-between">
-                <div>
-                  <p className="text-9px] font-bold text-[#94A3B8] uppercase tracking-tighter mb-1">Recommended Plan</p>
-                  <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
+          {/* Unified Row: Graph (Left) and Earnings (Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+            {/* Peak Hours Chart (Wide - Left) */}
+            <div className="lg:col-span-2">
+              <Card className="bg-white border-none rounded-[24px] shadow-sm p-4 h-full flex flex-col justify-between">
+                <h3 className="text-sm font-bold text-[#1A1A2E] mb-6">Peak Earning Hours (24-Hour Profile)</h3>
+                <div className="h-[260px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94A3B8', fontWeight: 600 }} />
+                      <YAxis hide />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '10px' }} />
+                      <Area type="monotone" dataKey="evening" stroke="#6C47FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvening)" />
+                      <Area type="monotone" dataKey="lunch" stroke="#F59E0B" strokeWidth={2} fillOpacity={1} fill="url(#colorLunch)" />
+                      <Area type="monotone" dataKey="active" stroke="#94A3B8" strokeWidth={1} fill="none" strokeDasharray="5 5" />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
-                <Link href="/plans"><Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl h-12 px-8 transition-all text-sm">Upgrade Plan</Button></Link>
-              </div>
-            </Card>
+                <div className="mt-6 flex justify-center gap-8">
+                  <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#6C47FF]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Evening peak</span></div>
+                  <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#F59E0B]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Lunch peak</span></div>
+                  <div className="flex items-center gap-2"><div className="h-0.5 w-3 border-t border-dashed border-[#94A3B8]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Active hours</span></div>
+                </div>
+              </Card>
+            </div>
 
-            <Card className="bg-white border-none rounded-[24px] shadow-sm p-8">
-              <h3 className="text-sm font-bold text-[#1A1A2E] mb-6">Peak Earning Hours (24-Hour Profile)</h3>
-              <div className="h-[240px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94A3B8', fontWeight: 600 }} />
-                    <YAxis hide />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '10px' }} />
-                    <Area type="monotone" dataKey="evening" stroke="#6C47FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvening)" />
-                    <Area type="monotone" dataKey="lunch" stroke="#F59E0B" strokeWidth={2} fillOpacity={1} fill="url(#colorLunch)" />
-                    <Area type="monotone" dataKey="active" stroke="#94A3B8" strokeWidth={1} fill="none" strokeDasharray="5 5" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-6 flex justify-center gap-8">
-                <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#6C47FF]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Evening peak</span></div>
-                <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#F59E0B]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Lunch peak</span></div>
-                <div className="flex items-center gap-2"><div className="h-0.5 w-3 border-t border-dashed border-[#94A3B8]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Active hours</span></div>
-              </div>
-            </Card>
+            {/* Expected Weekly Earnings (Compact - Right) */}
+            <div className="lg:col-span-1">
+              <Card className="bg-white border-none rounded-[24px] shadow-sm p-4 h-full flex flex-col justify-between">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Expected Weekly Earnings</p>
+                  <h3 className="text-3xl font-black text-[#6C47FF]">₹{Math.round((morningRate * 4 + afternoonRate * 4 + eveningRate * 4 + nightRate * 3) * 7)}</h3>
+                  <p className="text-[11px] text-[#64748B] leading-relaxed mt-4">Derived from your Income DNA earning pattern across projected working hours.</p>
+                </div>
+                <div className="mt-8 pt-8 border-t border-[#E8E6FF] flex flex-col gap-4">
+                  <div>
+                    <p className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter mb-1">Recommended Plan</p>
+                    <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
+                  </div>
+                  <Link href="/plans"><Button variant="outline" className="w-full border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl h-12 transition-all text-sm">Upgrade Plan</Button></Link>
+                </div>
+              </Card>
+            </div>
           </div>
         </section>
       </main>
