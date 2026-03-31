@@ -41,6 +41,35 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
+// Helper function for Live Risk Score
+const calculateRiskScore = (
+  rainfall: number,
+  city: string,
+  hour: number
+): number => {
+  let score = 0
+  
+  // Weather points (max 40)
+  if (rainfall > 50) score += 40
+  else if (rainfall > 30) score += 30
+  else if (rainfall > 10) score += 20
+  else score += 5
+  
+  // City risk (max 30)
+  const HIGH = [
+    'Chennai','Mumbai','Kolkata',
+    'Kochi','Howrah'
+  ]
+  score += HIGH.includes(city) ? 30 : 15
+  
+  // Time risk (max 30)
+  if (hour >= 17 && hour <= 21) score += 30
+  else if (hour >= 12 && hour <= 16) score += 20
+  else score += 10
+  
+  return Math.min(score, 100)
+}
+
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -72,19 +101,25 @@ export default function WorkerDashboard() {
   );
   const { data: profile } = useDoc(profileRef);
 
+  const riskScore = calculateRiskScore(
+    weatherData?.rainfall || 0,
+    profile?.city || "",
+    new Date().getHours()
+  );
+
   const metrics = React.useMemo(() => {
     if (!profile) return { incomeLoss: 0, coverage: 0, remainingRisk: 0, premium: 0, riskScore: 35 };
 
-    const riskScore = profile.riskScore ?? 35;
+    const riskScoreValue = profile.riskScore ?? 35;
     const plan = profile.plan_id ?? "pro";
     const baseRate = profile.avg_hourly_earnings ?? 60;
     
-    const incomeLoss = Math.round((baseRate * 1.3) * 3 * (riskScore / 100));
+    const incomeLoss = Math.round((baseRate * 1.3) * 3 * (riskScoreValue / 100));
     const coverage = plan === "basic" ? 60 : plan === "pro" ? 240 : 600;
     const premium = plan === "basic" ? 10 : plan === "pro" ? 25 : 50;
     const remainingRisk = Math.max(0, incomeLoss - coverage);
 
-    return { incomeLoss, coverage, remainingRisk, premium, riskScore };
+    return { incomeLoss, coverage, remainingRisk, premium, riskScore: riskScoreValue };
   }, [profile]);
 
   const handleSimulateWeather = async () => {
@@ -291,12 +326,44 @@ export default function WorkerDashboard() {
                 <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[10px]">{weatherData.description}</Badge>
               </div>
             </div>
-            <div className="mt-4 space-y-2">
-              <div className="flex justify-between items-center text-[10px] font-bold">
-                <span className="text-[#64748B]">Disruption Risk</span>
-                <span className="text-[#1A1A2E]">{disruptionRisk}%</span>
+            <div className="mt-4 space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <span className="text-[#64748B]">Disruption Risk</span>
+                  <span className="text-[#1A1A2E]">{disruptionRisk}%</span>
+                </div>
+                <Progress value={disruptionRisk} className="h-2 bg-[#f0f2f9]" />
               </div>
-              <Progress value={disruptionRisk} className="h-2 bg-[#f0f2f9]" />
+
+              {/* NEW LIVE RISK SCORE SECTION */}
+              <div className="space-y-2 pt-2 border-t border-[#f0f2f9]">
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <span className="text-[#64748B]">Live Risk Score</span>
+                  <span className={riskScore > 60 ? "text-[#EF4444]" : riskScore > 30 ? "text-[#F59E0B]" : "text-[#22C55E]"}>
+                    {riskScore}/100
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-[#f0f2f9] rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${riskScore}%` }}
+                    transition={{ duration: 1 }}
+                    className="h-full rounded-full"
+                    style={{ 
+                      backgroundColor: riskScore > 60 ? "#EF4444" : riskScore > 30 ? "#F59E0B" : "#22C55E" 
+                    }}
+                  />
+                </div>
+                {riskScore > 90 && (
+                  <motion.p 
+                    animate={{ opacity: [1, 0.5, 1] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                    className="text-[9px] font-black text-[#EF4444] uppercase tracking-tighter text-center"
+                  >
+                    ⚡ CLAIM MAY AUTO-FIRE!
+                  </motion.p>
+                )}
+              </div>
             </div>
           </Card>
 
