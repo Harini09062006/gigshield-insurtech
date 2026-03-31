@@ -297,8 +297,8 @@ export default function WorkerDashboard() {
           </Button>
         </div>
 
-        {/* SECTION 2 — ACTIVE PROTECTION + RISK + COMMITMENT */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        {/* SECTION 2 — ACTIVE PROTECTION + RISK */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-6 flex flex-col justify-between shadow-xl relative overflow-hidden min-h-[200px]">
             <Shield className="absolute top-6 right-6 h-7 w-7 opacity-40" />
             <div>
@@ -366,18 +366,6 @@ export default function WorkerDashboard() {
               </div>
             </div>
           </Card>
-
-          <Card className="bg-[#FEFCE8] rounded-[24px] border border-[#FEF08A] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
-            <RefreshCcw className="absolute top-6 right-6 h-5 w-5 text-[#F59E0B]" />
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#F59E0B] mb-1">Commitment Status</p>
-              <div className="flex items-center gap-3 mt-1">
-                <h2 className="text-2xl font-black text-[#1A1A2E]">Week 1 of 4</h2>
-                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[9px]">Renewal ON</Badge>
-              </div>
-              <p className="text-[11px] font-bold text-[#64748B] italic mt-3">Next Renewal: 25 Mar</p>
-            </div>
-          </Card>
         </div>
 
         {/* SECTION 3 — POLICY MANAGEMENT SECTION */}
@@ -414,6 +402,21 @@ export default function WorkerDashboard() {
             </CardContent>
           </Card>
         </section>
+
+        {/* COMMITMENT STATUS CARD */}
+        <div className="grid grid-cols-1 gap-2">
+          <Card className="bg-[#FEFCE8] rounded-[24px] border border-[#FEF08A] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
+            <RefreshCcw className="absolute top-6 right-6 h-5 w-5 text-[#F59E0B]" />
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[#F59E0B] mb-1">Commitment Status</p>
+              <div className="flex items-center gap-3 mt-1">
+                <h2 className="text-2xl font-black text-[#1A1A2E]">Week 1 of 4</h2>
+                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[9px]">Renewal ON</Badge>
+              </div>
+              <p className="text-[11px] font-bold text-[#64748B] italic mt-3">Next Renewal: 25 Mar</p>
+            </div>
+          </Card>
+        </div>
 
         {/* SECTION 4 — EARNINGS PROTECTION SUMMARY */}
         <section>
