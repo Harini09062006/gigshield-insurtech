@@ -18,7 +18,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   useFirestore, 
   useUser, 
-  useDoc
+  useDoc,
+  useMemoFirebase
 } from "@/firebase";
 import { 
   collection, 
@@ -51,7 +52,11 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const [rawMessages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const profileRef = doc(db, "users", user?.uid || "anonymous");
+  // STABILIZE REFERENCE TO PREVENT INFINITE LOOP
+  const profileRef = useMemoFirebase(
+    () => (db && user?.uid ? doc(db, "users", user.uid) : null),
+    [db, user?.uid]
+  );
   const { data: profile } = useDoc(profileRef);
 
   // In-memory sort to avoid Firestore index requirement
@@ -95,6 +100,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
     const text = input.trim();
     if (!text || !user || !db) return;
 
+    console.log("Sending message");
     setInput("");
     
     try {
@@ -117,6 +123,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
 
       // 2. Handle AI if not escalated
       if (!isEscalation) {
+        console.log("Calling API");
         const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -124,6 +131,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         });
 
         if (res.ok) {
+          console.log("API responded");
           const data = await res.json();
           await addDoc(collection(db, "chats"), {
             userId: user.uid,

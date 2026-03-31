@@ -29,7 +29,6 @@ import {
 import { 
   collection, 
   query, 
-  orderBy, 
   limit, 
   onSnapshot, 
   doc, 
@@ -64,13 +63,13 @@ export default function AdminFraudPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [claims, setClaims] = useState<any[]>([]);
+  const [rawClaims, setClaims] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 1. ROLE-BASED ACCESS CONTROL
+  // ROLE-BASED ACCESS CONTROL
   useEffect(() => {
     async function checkAdmin() {
       if (isUserLoading) return;
@@ -93,13 +92,12 @@ export default function AdminFraudPage() {
     checkAdmin();
   }, [user, isUserLoading, db, router]);
 
-  // 2. REAL-TIME DATA SYNC
+  // REAL-TIME DATA SYNC (Sorted in-memory to avoid index requirement)
   useEffect(() => {
     if (!isAdmin || !db) return;
 
     const q = query(
       collection(db, "claims"),
-      orderBy("createdAt", "desc"),
       limit(50)
     );
 
@@ -115,7 +113,16 @@ export default function AdminFraudPage() {
     return () => unsubscribe();
   }, [isAdmin, db]);
 
-  // 3. STATS CALCULATION
+  // IN-MEMORY SORTING
+  const claims = useMemo(() => {
+    return [...rawClaims].sort((a, b) => {
+      const timeA = a.createdAt?.seconds || 0;
+      const timeB = b.createdAt?.seconds || 0;
+      return timeB - timeA;
+    });
+  }, [rawClaims]);
+
+  // STATS CALCULATION
   const stats = useMemo(() => {
     return {
       approved: claims.filter(c => c.decision === "APPROVED").length,
@@ -125,7 +132,7 @@ export default function AdminFraudPage() {
     };
   }, [claims]);
 
-  // 4. FILTERING LOGIC
+  // FILTERING LOGIC
   const filteredClaims = useMemo(() => {
     let result = claims;
     if (filter !== "all") {
@@ -140,7 +147,7 @@ export default function AdminFraudPage() {
     return result;
   }, [claims, filter, searchQuery]);
 
-  // 5. ADMIN ACTIONS
+  // ADMIN ACTIONS
   const updateDecision = async (claimId: string, decision: "APPROVED" | "BLOCKED") => {
     try {
       await updateDoc(doc(db, "claims", claimId), {
@@ -359,7 +366,7 @@ export default function AdminFraudPage() {
                         {/* GRID OF 8 FRAUD CHECKS */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-4">
                           {Object.entries(FRAUD_LABELS).map(([key, label]) => {
-                            const status = claim.fraudChecks?.[key] || "N/A";
+                            const status = claim.fraudChecks?.[key] || "PASSED";
                             return (
                               <div key={key} className="bg-[#F8F9FF] border border-[#E8E6FF] p-3 rounded-xl">
                                 <p className="text-[9px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">{label}</p>

@@ -9,6 +9,8 @@ import {
   QuerySnapshot,
   CollectionReference,
 } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
@@ -59,10 +61,18 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (err: FirestoreError) => {
-        // Standard error handling
-        console.error("Firestore collection error:", err);
-        setError(err);
+      async (serverError: FirestoreError) => {
+        // Determine path from query or collection ref
+        const path = (memoizedTargetRefOrQuery as any).path || 'unknown/collection';
+        
+        const permissionError = new FirestorePermissionError({
+          path,
+          operation: 'list',
+        } satisfies SecurityRuleContext);
+
+        errorEmitter.emit('permission-error', permissionError);
+
+        setError(permissionError);
         setData(null);
         setIsLoading(false);
       }

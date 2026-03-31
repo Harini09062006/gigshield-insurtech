@@ -9,7 +9,8 @@ import {
   useUser,
   useAuth,
   useFirestore,
-  useDoc
+  useDoc,
+  useMemoFirebase
 } from "@/firebase";
 import {
   doc,
@@ -36,7 +37,11 @@ export default function SupportPage() {
   const [rawMessages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const profileRef = doc(db, "users", user?.uid || "anonymous");
+  // STABILIZE REFERENCE TO PREVENT INFINITE LOOP
+  const profileRef = useMemoFirebase(
+    () => (db && user?.uid ? doc(db, "users", user.uid) : null),
+    [db, user?.uid]
+  );
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
   // In-memory sort to avoid Firestore index requirement
@@ -80,6 +85,7 @@ export default function SupportPage() {
     const text = (msgOverride || input).trim();
     if (!text || !user || !db) return;
 
+    console.log("Sending message");
     setInput("");
     
     try {
@@ -101,6 +107,7 @@ export default function SupportPage() {
 
       // 2. AI response if not escalation
       if (!isEscalation) {
+        console.log("Calling API");
         const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -108,6 +115,7 @@ export default function SupportPage() {
         });
 
         if (res.ok) {
+          console.log("API responded");
           const data = await res.json();
           await addDoc(collection(db, "chats"), {
             userId: user.uid,

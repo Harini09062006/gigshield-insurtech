@@ -1,4 +1,3 @@
-
 'use client';
     
 import { useState, useEffect } from 'react';
@@ -9,6 +8,8 @@ import {
   FirestoreError,
   DocumentSnapshot,
 } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 /** Utility type to add an 'id' field to a given type T. */
 type WithId<T> = T & { id: string };
@@ -58,10 +59,17 @@ export function useDoc<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (err: FirestoreError) => {
-        // Standard error handling as requested
-        console.error("Firestore document error:", err);
-        setError(err);
+      async (serverError: FirestoreError) => {
+        // Create contextual permission error for the LLM
+        const permissionError = new FirestorePermissionError({
+          path: memoizedDocRef.path,
+          operation: 'get',
+        } satisfies SecurityRuleContext);
+
+        // Emit the error globally for central handling
+        errorEmitter.emit('permission-error', permissionError);
+
+        setError(permissionError);
         setData(null);
         setIsLoading(false);
       }
