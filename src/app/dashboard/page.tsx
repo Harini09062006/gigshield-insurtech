@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -502,26 +501,24 @@ export default function WorkerDashboard() {
               </div>
             </div>
 
-            {/* AI Insights Section */}
-            <div className="mt-4 space-y-2 border-t border-b border-[#f0f2f9] py-3">
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest flex items-center gap-1.5">
-                  📊 Prediction:
-                </span>
-                <span className="text-[10px] font-bold text-[#1A1A2E] mt-0.5">
+            {/* AI Insights Section - Compact Refinement */}
+            <div className="mt-3 space-y-1.5 border-t border-b border-[#f0f2f9] py-2.5">
+              <div className="flex items-start gap-1.5 leading-tight">
+                <span className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest whitespace-nowrap pt-0.5">📊 Prediction:</span>
+                <span className="text-[10px] font-bold text-[#1A1A2E]">
                   {riskInfo.overall === 'HIGH' ? "Severe disruptions expected for next few hours" : riskInfo.overall === 'MEDIUM' ? "Variable conditions predicted; monitoring active" : "Stable atmospheric conditions predicted"}
                 </span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest flex items-center gap-1.5">
-                  ⚡ System Action:
-                </span>
-                <div className="flex flex-col mt-0.5">
+              <div className="flex flex-col gap-0.5 leading-tight">
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest whitespace-nowrap pt-0.5">⚡ System Action:</span>
                   <span className="text-[10px] font-bold text-[#6C47FF]">
                     {riskInfo.overall === 'HIGH' ? "Premium increased; High-alert status" : riskInfo.overall === 'MEDIUM' ? "Monitoring active; standard rates" : "Premium reduced; Safe Zone Active" }
                   </span>
-                  <span className="text-[9px] font-medium text-[#64748B]">Automated verification enabled for all factors</span>
                 </div>
+                <p className="text-[9px] font-medium text-[#64748B] opacity-70 ml-[82px] -mt-0.5">
+                  Automated verification enabled for all factors
+                </p>
               </div>
             </div>
             
