@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { generateAIPremium } from "@/services/aiPremiumService";
 
 const PLANS = [
   {
@@ -165,13 +167,19 @@ export default function PlansPage() {
       const plan = PLANS.find(p => p.id === selectedPlan);
       const avgEarnings = Number(hourlyEarnings);
       
-      // Update plan details but NOT coordinates (coords are locked during reg)
+      // Initialize AI Dynamic Premium
+      const aiResult = await generateAIPremium(db, { id: user.uid, city: 'Mumbai' });
+
+      // Update plan details
       await updateDoc(doc(db, "users", user.uid), {
         plan_id: selectedPlan,
         avg_hourly_earnings: avgEarnings,
         plan_activated_at: serverTimestamp(),
         auto_renew: true,
-        commitment_weeks: 4
+        commitment_weeks: 4,
+        premium: aiResult.premium,
+        riskScore: aiResult.riskScore,
+        lastPremiumUpdated: Date.now()
       });
 
       const dna = calculateIncomeDNA(avgEarnings);
@@ -194,9 +202,8 @@ export default function PlansPage() {
         updated_at: serverTimestamp()
       });
 
-      toast({ title: "Protection Activated", description: `You are now covered by ${plan?.name}.` });
+      toast({ title: "Protection Activated", description: `You are now covered by ${plan?.name}. AI-adjusted premium: ₹${aiResult.premium}/week.` });
       
-      // EXPLICIT NAVIGATION TO DASHBOARD
       router.push("/dashboard");
     } catch (error: any) {
       toast({ variant: "destructive", title: "Activation Failed", description: error.message });

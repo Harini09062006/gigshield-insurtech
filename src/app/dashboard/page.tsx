@@ -42,6 +42,7 @@ import { ClaimNotification } from "@/components/ClaimNotification";
 import { useRouter } from "next/navigation";
 import { getUserLocation } from "@/services/locationService";
 import { useToast } from "@/hooks/use-toast";
+import { autoUpdatePremium } from "@/services/aiAutoUpdater";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -212,6 +213,13 @@ export default function WorkerDashboard() {
   const { data: profile } = useDoc(profileRef);
   const { data: dna } = useDoc(dnaRef);
 
+  // AI Dynamic Premium Trigger
+  useEffect(() => {
+    if (user && profile && db) {
+      autoUpdatePremium(db, user.uid, profile);
+    }
+  }, [user, profile, db]);
+
   const riskScore = calculateRiskScore(
     weather.rainMM,
     profile?.city || "",
@@ -268,71 +276,6 @@ export default function WorkerDashboard() {
       coverage: 240,
       remaining: Math.max(0, (loss || 468) - 240)
     });
-  };
-
-  /**
-   * Calculates risk-adjusted premium
-   * Based on city zone + weather forecast
-   */
-  const calculateDynamicPremium = async (
-    city: string,
-    basePremium: number
-  ): Promise<PremiumResult> => {
-    try {
-      const resp = await fetch(
-        `https://api.openweathermap.org/data/2.5/forecast?q=${city}&units=metric&appid=${WEATHER_API_KEY}`
-      );
-      const forecast = await resp.json();
-      
-      const rainPeriods = (forecast.list || []).filter(
-        (i: any) => (i.rain?.['3h'] || 0) > 5
-      ).length;
-
-      const HIGH_RISK = ['Chennai','Mumbai','Kolkata','Kochi','Howrah'];
-      const LOW_RISK = ['Jaipur','Ahmedabad','Delhi'];
-
-      let premium = basePremium;
-      let riskLevel: "HIGH"|"MEDIUM"|"LOW" = "MEDIUM";
-      const reasons: string[] = [];
-
-      if (HIGH_RISK.includes(city)) {
-        premium += 3;
-        riskLevel = "HIGH";
-        reasons.push(`${city} flood zone +₹3`);
-      } else if (LOW_RISK.includes(city)) {
-        premium -= 2;
-        riskLevel = "LOW";
-        reasons.push(`${city} safe zone -₹2`);
-      }
-
-      if (rainPeriods > 4) {
-        premium += 2;
-        reasons.push("Heavy rain ahead +₹2");
-      } else if (rainPeriods < 2) {
-        premium -= 1;
-        reasons.push("Clear week -₹1");
-      }
-
-      premium = Math.max(premium, basePremium - 3);
-
-      return {
-        original: basePremium,
-        adjusted: Math.round(premium),
-        riskLevel,
-        reasons,
-        rainPeriods,
-        savings: basePremium - premium
-      };
-    } catch {
-      return {
-        original: basePremium,
-        adjusted: basePremium,
-        riskLevel: "MEDIUM",
-        reasons: ["Standard rate"],
-        rainPeriods: 0,
-        savings: 0
-      };
-    }
   };
 
   /**
@@ -653,19 +596,6 @@ export default function WorkerDashboard() {
   useEffect(() => {
     if (user) fetchWeather();
   }, [user, dna]);
-
-  useEffect(() => {
-    if (profile?.city) {
-      calculateDynamicPremium(profile.city, profile.premium || 25).then(res => {
-        if (profileRef && res.adjusted !== profile.premium) {
-          updateDoc(profileRef, { 
-            premium: res.adjusted,
-            riskLevel: res.riskLevel 
-          });
-        }
-      });
-    }
-  }, [profile?.city]);
 
   if (isUserLoading) {
     return (
