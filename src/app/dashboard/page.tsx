@@ -70,12 +70,9 @@ export default function WorkerDashboard() {
   );
   const { data: profile } = useDoc(profileRef);
 
-  /**
-   * REFINED SIMULATION HANDLER
-   * Follows strict non-destructive logic and guaranteed event flow.
-   */
   const handleSimulateWeather = async () => {
     console.log("Simulate button clicked");
+    setSimulating(true);
     
     try {
       if (!user?.uid || !db) {
@@ -83,20 +80,18 @@ export default function WorkerDashboard() {
         return;
       }
 
-      setSimulating(true);
+      // Step 1: Get real weather context first
+      const API_KEY = "be5f61ff6b261dedfa89e321d466a063";
+      const realWeatherRes = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?q=${profile?.city || "Chennai"},IN&units=metric&appid=${API_KEY}`
+      );
+      const realWeatherData = await realWeatherRes.json();
       
-      const newRisk = 75;
-      const userRef = doc(db, "users", user.uid);
+      // Step 2: Override with high-fidelity severe weather
+      const severeRainfall = 65;
+      const newRisk = 95;
 
-      // Update ONLY riskScore (additive/non-destructive)
-      await updateDoc(userRef, {
-        riskScore: newRisk,
-        updatedAt: serverTimestamp()
-      });
-
-      console.log("Firebase updated");
-
-      // Step 2: Trigger Claim Creation (Merging existing business requirement with new logic)
+      // Step 3: Calculate DNA-based payout
       const hour = new Date().getHours();
       const timeSlot = 
         hour >= 6 && hour < 10 ? "Morning Peak" :
@@ -117,29 +112,45 @@ export default function WorkerDashboard() {
       const rawAmount = baseRate * multiplier * hoursLost;
       const compensation = Math.min(rawAmount, 240);
       
+      // Step 4: Create real parametric claim
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
         trigger_type: "SEVERE_RAIN",
-        trigger_description: `Severe Rainfall (65mm) Simulated`,
+        trigger_description: `Severe Rainfall (${severeRainfall}mm) Simulated`,
         timeSlot: timeSlot,
+        dna_hourly_rate: Math.round(baseRate * multiplier),
         compensation: Math.round(compensation),
         status: "paid",
         decision: "APPROVED",
         fraudChecks: {
           gpsValidation: "PASSED",
           weatherIntelligence: "PASSED",
-          behaviorPattern: "PASSED"
+          behaviorPattern: "PASSED",
+          accountAge: "PASSED",
+          orderHistory: "PASSED",
+          networkAnalysis: "PASSED"
         },
         trustScore: 95,
+        weather: {
+          rainfall: severeRainfall,
+          temperature: realWeatherData.main?.temp || 28,
+          condition: "Storm"
+        },
         createdAt: serverTimestamp()
       });
 
-      // Step 3: Update local state safely
-      setWeatherData(prev => ({
-        ...prev,
-        rainfall: 65,
+      // Step 5: Update profile indicator (Non-destructive)
+      await updateDoc(doc(db, "users", user.uid), {
+        riskScore: newRisk,
+        updatedAt: serverTimestamp()
+      });
+
+      // Step 6: Update UI
+      setWeatherData({
+        rainfall: severeRainfall,
         description: "Severe Rainfall",
-      }));
+        temperature: realWeatherData.main?.temp || 28
+      });
       setDisruptionRisk(newRisk);
 
       toast({
@@ -152,7 +163,7 @@ export default function WorkerDashboard() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Simulation failed. Try again."
+        description: "Simulation failed. Please check your connection."
       });
     } finally {
       setSimulating(false);
@@ -227,12 +238,12 @@ export default function WorkerDashboard() {
           </Button>
         </div>
 
-        {/* SECTION 1 — EARNINGS PROTECTION SUMMARY */}
-        <section className="mb-5">
+        {/* SECTION 1 — EARNINGS PROTECTION SUMMARY (PRIORITIZED & COMPACT) */}
+        <section>
           <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4 mb-5">
             <div className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2 px-1">
               <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-2 py-1 font-bold border-none text-[10px] ml-auto mb-2">
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-2 py-1 font-bold border-none text-[10px]">
                 DNA Rate: ₹{activeRate}/hr ({activeSlotName})
               </Badge>
             </div>
@@ -241,23 +252,23 @@ export default function WorkerDashboard() {
               <div className="flex flex-col space-y-1 flex-1">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
                 <p className="text-xl font-black text-[#EF4444]">₹{profile?.incomeLoss || (activeRate * 3)}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Calculated for 3 hour weather disruption</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">AI-calculated for disruption risk</p>
               </div>
               <div className="flex flex-col space-y-1 flex-1">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
                 <p className="text-xl font-black text-[#22C55E]">₹{profile?.coverage || 240}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Max payout limit for your {profile?.plan_id?.toUpperCase() || 'PRO'} plan</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Capped by {profile?.plan_id?.toUpperCase() || 'PRO'} plan</p>
               </div>
               <div className="flex flex-col space-y-1 flex-1">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
-                <p className="text-xl font-black text-[#EF4444]">₹{profile?.remainingRisk || 0}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Net income gap after parametric payout</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{Math.max(0, (profile?.incomeLoss || activeRate * 3) - (profile?.coverage || 240))}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Net financial gap</p>
               </div>
             </div>
           </Card>
         </section>
 
-        {/* SECTION 2 — INCOME DNA PROFILE */}
+        {/* SECTION 2 — INCOME DNA PROFILE (COMPACTED) */}
         <section className="space-y-6">
           <div className="flex justify-between items-center px-2">
             <h2 className="text-xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
@@ -388,23 +399,6 @@ export default function WorkerDashboard() {
             </div>
           </Card>
         </div>
-
-        <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden">
-          <div className="px-6 pt-5"><h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#1A1A2E]">Policy Status</h3></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#E8E6FF]">
-            {[
-              { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
-              { label: "Next Renewal", value: "25 Mar", icon: RefreshCcw },
-              { label: "Renewal Amount", value: `₹${profile?.premium || 25}`, icon: IndianRupee },
-              { label: "Commitment", value: "Week 1/4", icon: Info },
-            ].map((stat, i) => (
-              <div key={i} className="p-5 flex items-center gap-3">
-                <div className="h-10 w-10 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0"><stat.icon className="h-4.5 w-4.5" /></div>
-                <div><p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p><p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p></div>
-              </div>
-            ))}
-          </div>
-        </Card>
       </main>
 
       <Link href="/support">

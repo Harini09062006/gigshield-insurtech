@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
@@ -35,14 +34,14 @@ import {
   Lock,
   Search,
   ChevronRight,
-  Clock
+  Clock,
+  Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 
 export default function AdminSupportPortal() {
@@ -58,7 +57,7 @@ export default function AdminSupportPortal() {
   const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // AUTH CHECK
+  // 1. AUTH & ROLE CHECK
   useEffect(() => {
     async function checkRole() {
       if (isUserLoading) return;
@@ -73,7 +72,7 @@ export default function AdminSupportPortal() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // REAL-TIME TICKETS
+  // 2. REAL-TIME TICKET QUEUE
   const ticketsQuery = useMemoFirebase(() => {
     if (!db || !isAdmin) return null;
     return query(
@@ -85,13 +84,13 @@ export default function AdminSupportPortal() {
 
   const { data: tickets, isLoading: isTicketsLoading } = useCollection(ticketsQuery);
 
-  // REAL-TIME MESSAGES FOR SELECTED TICKET
+  // 3. REAL-TIME MESSAGES FOR SELECTED TICKET
   useEffect(() => {
     if (!selectedTicket || !db) return;
     const q = query(
       collection(db, "support_messages"),
       where("userId", "==", selectedTicket.workerId),
-      limit(50)
+      limit(100)
     );
     const unsubscribe = onSnapshot(q, (snap) => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -119,7 +118,8 @@ export default function AdminSupportPortal() {
         timestamp: serverTimestamp()
       });
 
-      await updateDoc(doc(db, "support_tickets", selectedTicket.id), {
+      const ticketRef = doc(db, "support_tickets", selectedTicket.id);
+      await updateDoc(ticketRef, {
         status: "in_progress",
         lastMessage: text,
         unreadByWorker: true,
@@ -127,7 +127,7 @@ export default function AdminSupportPortal() {
         lastReplyAt: serverTimestamp()
       });
     } catch (e) {
-      console.error("Reply error:", e);
+      console.error("Admin reply error:", e);
     }
   };
 
@@ -148,12 +148,12 @@ export default function AdminSupportPortal() {
 
   return (
     <div className="flex h-screen w-full bg-[#EEEEFF] overflow-hidden font-body text-[#1A1A2E]">
-      {/* SIDEBAR */}
-      <aside className="w-72 bg-white border-r border-[#E8E6FF] flex flex-col shrink-0">
+      {/* SIDEBAR TICKET QUEUE */}
+      <aside className="w-80 bg-white border-r border-[#E8E6FF] flex flex-col shrink-0">
         <div className="p-6 border-b border-[#E8E6FF]">
           <div className="flex items-center gap-2 mb-6">
             <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn"><Shield className="text-white" /></div>
-            <span className="text-xl font-bold">GigShield<span className="text-[#6C47FF] text-xs ml-1 font-black">ADMIN</span></span>
+            <span className="text-xl font-bold">GigShield<span className="text-[#6C47FF] text-xs ml-1 font-black">SUPPORT</span></span>
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between text-xs font-bold text-[#64748B] uppercase tracking-widest">
@@ -194,12 +194,12 @@ export default function AdminSupportPortal() {
         </div>
 
         <div className="p-6 border-t border-[#E8E6FF] bg-[#F8F9FF]">
-          <Link href="/admin"><Button variant="ghost" className="w-full justify-start gap-3 font-bold text-[#64748B] hover:bg-white"><LayoutDashboard size={18} /> Overview</Button></Link>
-          <Button onClick={() => auth.signOut()} variant="ghost" className="w-full justify-start gap-3 font-bold text-[#EF4444] hover:bg-red-50 mt-2"><LogOut size={18} /> Exit Portal</Button>
+          <Link href="/admin"><Button variant="ghost" className="w-full justify-start gap-3 font-bold text-[#64748B] hover:bg-white"><LayoutDashboard size={18} /> Admin Dashboard</Button></Link>
+          <Button onClick={() => auth.signOut()} variant="ghost" className="w-full justify-start gap-3 font-bold text-[#EF4444] hover:bg-red-50 mt-2"><LogOut size={18} /> Exit Support</Button>
         </div>
       </aside>
 
-      {/* CHAT MAIN */}
+      {/* ACTIVE CHAT WINDOW */}
       <main className="flex-1 flex flex-col bg-white">
         {selectedTicket ? (
           <>
@@ -211,7 +211,7 @@ export default function AdminSupportPortal() {
                 <div>
                   <h3 className="text-lg font-bold">{selectedTicket.workerName}</h3>
                   <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-[#64748B]">
-                    <span className="flex items-center gap-1"><Clock size={12} /> Live Support Active</span>
+                    <span className="flex items-center gap-1"><Clock size={12} /> Active Support Session</span>
                     <span className="text-[#6C47FF]">•</span>
                     <span>Plan: {selectedTicket.workerPlan.toUpperCase()}</span>
                   </div>
@@ -229,7 +229,7 @@ export default function AdminSupportPortal() {
             <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-[#F8F9FF] custom-scrollbar" ref={scrollRef}>
               <div className="flex justify-center mb-10">
                 <div className="bg-white px-4 py-2 rounded-full border border-[#E8E6FF] shadow-sm text-[10px] font-black uppercase tracking-[0.2em] text-[#94A3B8]">
-                  Issue Started: {selectedTicket.issue}
+                  Issue Reported: {selectedTicket.issue}
                 </div>
               </div>
 
@@ -275,8 +275,8 @@ export default function AdminSupportPortal() {
             <div className="h-24 w-24 bg-[#EDE9FF] rounded-[32px] flex items-center justify-center mb-6">
               <Headphones size={48} className="text-[#6C47FF]" />
             </div>
-            <h2 className="text-2xl font-black mb-2 uppercase tracking-widest">Support Command Center</h2>
-            <p className="text-sm font-medium max-w-xs">Select a worker ticket from the queue to start real-time assistance.</p>
+            <h2 className="text-2xl font-black mb-2 uppercase tracking-widest">Support Queue Center</h2>
+            <p className="text-sm font-medium max-w-xs">Select a worker ticket from the sidebar to start live assistance.</p>
           </div>
         )}
       </main>

@@ -9,14 +9,14 @@ export async function POST(req: Request) {
       });
     }
 
-    // ALWAYS RETURN SOMETHING
+    // Stabilized response for AI flow testing
     return Response.json({
-      reply: "AI is now responding correctly."
+      reply: "AI is now responding correctly. How else can I help you with your protection plan?"
     });
   } catch (err) {
     console.error("API ROUTE ERROR:", err);
     return Response.json({
-      reply: "API error fallback"
+      reply: "I encountered a technical hiccup. Please try again in a moment."
     });
   }
 }

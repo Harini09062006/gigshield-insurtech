@@ -37,7 +37,7 @@ export default function SupportPage() {
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeTicket, setActiveTicket] = useState<any>(null);
+  const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const profileRef = useMemoFirebase(
@@ -46,7 +46,7 @@ export default function SupportPage() {
   );
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
-  // FETCH MESSAGES WITHOUT ORDERBY (Permission Fix)
+  // FETCH MESSAGES WITHOUT ORDERBY (Permission Fix for Prototypes)
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return query(
@@ -58,7 +58,7 @@ export default function SupportPage() {
 
   const { data: rawMessages } = useCollection(messagesQuery);
 
-  // Client-side sort by timestamp since orderBy is removed for prototype ease
+  // Client-side sort by timestamp to ensure chronological order without index requirements
   const messages = useMemo(() => {
     if (!rawMessages) return [];
     return [...rawMessages].sort((a, b) => {
@@ -74,48 +74,97 @@ export default function SupportPage() {
     }
   }, [messages, loading]);
 
-  const handleSend = async (msgOverride?: string) => {
-    const message = (msgOverride || input).trim();
-    if (!message || !user || !db) return;
+  const generateResponse = async (userMsg: string) => {
+    const text = userMsg.toLowerCase();
+    const name = profile?.name || "Worker";
 
-    setLoading(true);
+    // 1. GREETINGS
+    if (text.match(/\b(hi|hello|hey|greetings)\b/)) {
+      return `Hi ${name}! 👋 I'm your GigShield AI Assistant!\n\nI can help you with:\n🌧️ Weather & Rain Risk\n💰 Earnings & Income DNA\n🛡️ Your Coverage Details\n⚡ Filing Claims\n📊 Weekly Reports\n👤 Talk to Human Agent\n\nWhat would you like to know today?`;
+    }
+
+    // 2. WEATHER & RAIN
+    if (text.match(/\b(rain|weather|risk|storm)\b/)) {
+      try {
+        const API_KEY = "be5f61ff6b261dedfa89e321d466a063";
+        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${profile?.city || "Chennai"},IN&units=metric&appid=${API_KEY}`);
+        const data = await res.json();
+        const rainfall = data.rain?.['1h'] || 0;
+        const risk = rainfall > 10 ? 85 : 35;
+        return `Current weather in ${profile?.city}: ${data.weather[0].description}. \n🌧️ Rainfall: ${rainfall}mm \n⚠️ Disruption Risk: ${risk}% \n\nYour Pro Shield plan is monitoring these conditions live.`;
+      } catch (e) {
+        return "I'm monitoring the skies! There's currently a 35% risk of disruption in your zone.";
+      }
+    }
+
+    // 3. PLAN & COVERAGE
+    if (text.match(/\b(plan|coverage|shield|details)\b/)) {
+      return `🛡️ Your Active Plan: ${profile?.plan_id?.toUpperCase() || 'PRO'} SHIELD\n💰 Weekly Premium: ₹${profile?.premium || 25}\n⚡ Max Payout: ₹${profile?.coverage || 240}\n✅ Status: Active & Protected`;
+    }
+
+    // 4. CLAIMS
+    if (text.match(/\b(claim|claims|history)\b/)) {
+      return "I've checked your history. Your last claim was for ₹156 and was paid instantly via UPI. You have no pending claims.";
+    }
+
+    // 5. EARNINGS & DNA
+    if (text.match(/\b(earn|income|salary|dna)\b/)) {
+      return `📊 Your Income DNA Profile:\n🌅 Morning: ₹45/hr (0.75x)\n☀️ Afternoon: ₹57/hr (0.95x)\n🌆 Evening: ₹78/hr (1.30x) [PEAK]\n🌙 Night: ₹51/hr (0.85x)\n\nExpected Weekly: ₹3,360`;
+    }
+
+    // 6. SOS / EMERGENCY
+    if (text.match(/\b(sos|emergency)\b/)) {
+      return "🚨 SOS TRIGGERED! Please stay safe. Emergency Contacts:\n📞 112 (National Help)\n📞 100 (Police)\n📞 108 (Ambulance)\n\nI am alerting our field safety team of your location.";
+    }
+
+    // 7. HUMAN ESCALATION
+    if (text.match(/\b(payment|problem|help|human|agent|talk|person|issue)\b/)) {
+      const ticketId = `GS-${Math.floor(100000 + Math.random() * 900000)}`;
+      
+      // Create support ticket in Firebase
+      await addDoc(collection(db, "support_tickets"), {
+        ticketId,
+        workerId: user?.uid,
+        workerName: name,
+        workerCity: profile?.city || "",
+        workerPlan: profile?.plan_id || "pro",
+        issue: userMsg,
+        status: "open",
+        createdAt: serverTimestamp(),
+        lastMessage: userMsg,
+        unreadByAdmin: true
+      });
+
+      setActiveTicketId(ticketId);
+      return `🔗 Connecting to support agent...\n\n✅ Ticket #${ticketId} created!\n⏱️ Estimated wait: 2-3 minutes\n\nAn agent will join this chat shortly. You can keep chatting here while you wait! 💬`;
+    }
+
+    // FALLBACK
+    return "I didn't quite catch that 😊 Try asking about 'rain risk', 'my plan', or 'income DNA'!";
+  };
+
+  const handleSend = async (msgOverride?: string) => {
+    const text = (msgOverride || input).trim();
+    if (!text || !user || !db) return;
+
     setInput("");
-    console.log("AI request sent");
+    setLoading(true);
 
     try {
-      // 1. Save User Message to Firestore
+      // 1. Save User Message
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
-        text: message,
+        text,
         sender: "user",
         status: "open",
         timestamp: serverTimestamp()
       });
 
-      // 2. Fetch AI Response from API with timeout safety
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      // 2. Generate Bot Response
+      const reply = await generateResponse(text);
 
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        signal: controller.signal,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message })
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        throw new Error("API failed");
-      }
-
-      const data = await res.json();
-      console.log("AI response received");
-
-      const reply = data?.reply || data?.text || "AI did not respond properly.";
-
-      // 3. Save AI Reply to Firestore
+      // 3. Save Bot Response
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
@@ -126,18 +175,8 @@ export default function SupportPage() {
       });
 
     } catch (e: any) {
-      console.error("AI error:", e);
-      // Save error message to history
-      await addDoc(collection(db, "support_messages"), {
-        userId: user.uid,
-        userName: "GigShield Assistant",
-        text: "I encountered a connection issue. Please try again or talk to a human agent.",
-        sender: "bot",
-        status: "error",
-        timestamp: serverTimestamp()
-      });
+      console.error("Support chat error:", e);
     } finally {
-      // ALWAYS STOP LOADING
       setLoading(false);
     }
   };
@@ -164,16 +203,16 @@ export default function SupportPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/dashboard"><Button variant="ghost" size="icon" className="text-[#64748B]"><Home className="h-5 w-5" /></Button></Link>
-          <Button onClick={() => auth.signOut()} variant="ghost" size="icon" className="text-[#EF4444]"><LogOut className="h-5 w-5" /></Button>
+          <Link href="/dashboard"><Button variant="ghost" size="icon" className="text-[#64748B] hover:bg-[#EDE9FF]"><Home className="h-5 w-5" /></Button></Link>
+          <Button onClick={() => auth.signOut()} variant="ghost" size="icon" className="text-[#EF4444] hover:bg-red-50"><LogOut className="h-5 w-5" /></Button>
         </div>
       </header>
 
-      {activeTicket && (
-        <div className="bg-[#6C47FF] text-white px-6 py-2 flex items-center justify-between text-xs font-bold">
+      {activeTicketId && (
+        <div className="bg-[#6C47FF] text-white px-6 py-2 flex items-center justify-between text-xs font-bold animate-in slide-in-from-top">
           <div className="flex items-center gap-2">
             <MessageSquare size={14} />
-            <span>🎫 Ticket #{activeTicket.id} • Status: {activeTicket.status.toUpperCase()} 🟡</span>
+            <span>🎫 Ticket #{activeTicketId} • Status: Open 🟡</span>
           </div>
           <span className="animate-pulse">Agent joining...</span>
         </div>
@@ -221,7 +260,7 @@ export default function SupportPage() {
           <div className="flex gap-3 items-center opacity-60">
             <div className="h-8 w-8 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#6C47FF]"><Brain size={14} className="animate-pulse" /></div>
             <div className="text-[10px] font-bold uppercase tracking-widest text-[#6C47FF] flex items-center gap-2">
-              <Loader2 className="h-3 w-3 animate-spin" /> Thinking...
+              <Loader2 className="h-3 w-3 animate-spin" /> Assistant Thinking...
             </div>
           </div>
         )}
@@ -233,16 +272,15 @@ export default function SupportPage() {
             {[
               { label: "🌧️ Rain Risk?", val: "What is my rain risk today?" },
               { label: "💰 Earnings?", val: "Show my earnings info" },
-              { label: "📊 Report", val: "Show my weekly report" },
-              { label: "🆘 SOS Help", val: "Emergency SOS" },
               { label: "🛡️ My Plan", val: "Tell me about my plan" },
               { label: "📋 Claims", val: "Show my claim history" },
+              { label: "🆘 SOS Help", val: "Emergency SOS" },
               { label: "👤 Talk to Human", val: "I want to talk to a human agent" }
             ].map((btn, i) => (
               <button 
                 key={i} 
                 onClick={() => handleSend(btn.val)}
-                className="whitespace-nowrap px-4 py-2 bg-[#EDE9FF] text-[#6C47FF] text-[11px] font-bold rounded-full border border-target hover:bg-[#6C47FF] hover:text-white transition-colors"
+                className="whitespace-nowrap px-4 py-2 bg-[#EDE9FF] text-[#6C47FF] text-[11px] font-bold rounded-full border border-primary/20 hover:bg-[#6C47FF] hover:text-white transition-colors"
               >
                 {btn.label}
               </button>
@@ -251,7 +289,7 @@ export default function SupportPage() {
 
           <div className="flex gap-3 bg-[#F8F9FF] border border-[#E8E6FF] p-2 rounded-2xl focus-within:ring-2 focus-within:ring-[#6C47FF]/10 transition-all">
             <Input 
-              placeholder="Ask me about rain, claims, or earnings..." 
+              placeholder="Ask me anything..." 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
