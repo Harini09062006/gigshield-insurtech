@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -353,15 +354,27 @@ export default function WorkerDashboard() {
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
                 <p className="text-base font-black">₹{metrics.premium}</p>
+                <p className="text-[7px] font-black uppercase tracking-tighter opacity-80 mt-0.5">📊 AI Calculated Premium</p>
                 
                 {/* Premium Breakdown Section */}
                 <div className="mt-2 pt-2 border-t border-white/10 text-[8px] font-medium leading-relaxed opacity-90">
                   <div className="flex justify-between"><span>Base Premium:</span> <span>₹{breakdown.basePremium}</span></div>
-                  <div className="flex justify-between"><span>Chennai Zone:</span> <span>+₹{breakdown.locationCharge}</span></div>
-                  <div className="flex justify-between"><span>Rain Forecast:</span> <span>+₹{breakdown.weatherCharge}</span></div>
+                  {profile?.city === "Chennai" && (
+                    <div className="flex justify-between"><span>Location Risk (Chennai):</span> <span>+₹{breakdown.locationCharge}</span></div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>
+                      {breakdown.weatherCharge === 0 
+                        ? "Weather Impact: No extra cost (Low Risk Conditions)" 
+                        : `Weather Risk (Rain): +₹${breakdown.weatherCharge}`}
+                    </span>
+                  </div>
                   <div className="border-t border-white/20 mt-1 pt-1 flex justify-between font-bold">
-                    <span>Your Premium:</span>
-                    <span>₹{breakdown.finalPremium} ✅</span>
+                    <span>Final Weekly Premium: ₹{breakdown.finalPremium} ✅</span>
+                  </div>
+                  <div className="mt-2 text-[7px] font-bold uppercase opacity-70 leading-tight">
+                    <p>⚡ Updated in real-time based on current conditions</p>
+                    <p className="mt-0.5">Adjusted based on your city and live risk factors</p>
                   </div>
                 </div>
               </div>
