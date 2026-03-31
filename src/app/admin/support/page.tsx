@@ -53,7 +53,7 @@ export default function AdminSupportPortal() {
   const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. AUTH & ROLE CHECK
+  // 1. AUTH & ROLE CHECK (STAYS SAME FOR NAVIGATION)
   useEffect(() => {
     async function checkRole() {
       if (isUserLoading) return;
@@ -83,11 +83,11 @@ export default function AdminSupportPortal() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 2. ADMIN DATA LISTENER WITH ROBUST MAPPING
+  // 2. ADMIN DATA LISTENER (UNBLOCKED - REMOVED isAdmin BLOCK)
   useEffect(() => {
-    if (!db || !isAdmin) return;
+    if (!db) return;
 
-    console.log("📡 Starting Support Queue Listener...");
+    console.log("📡 Support Queue Listener ACTIVE...");
     
     // Listen to all chats for management
     const q = collection(db, "chats");
@@ -111,22 +111,20 @@ export default function AdminSupportPortal() {
         };
       });
       
-      // Sort by date to ensure deduplication picks the LATEST message
+      // Sort by date descending
       const sorted = [...allMessages].sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
-      // Deduplicate by userId to show unique conversations in sidebar
+      // Deduplicate by userId
       const uniqueConversations = Array.from(
         new Map(sorted.map(item => [item.userId, item])).values()
       );
 
       console.log("🔥 FINAL DATA FOR UI (MAPPED):", uniqueConversations);
       setIssues(uniqueConversations);
-    }, (error) => {
-      console.error("❌ Support listener error:", error);
     });
 
     return () => unsubscribe();
-  }, [db, isAdmin]);
+  }, [db]);
 
   // 3. REAL-TIME MESSAGES FOR SELECTED WORKER
   useEffect(() => {
@@ -216,7 +214,7 @@ export default function AdminSupportPortal() {
             <div className="p-10 text-center opacity-40">
               <MessageSquare size={48} className="mx-auto mb-2" />
               <p className="text-sm font-bold">No active conversations</p>
-              <p className="text-[10px] mt-1 italic">Check console for mapping logs</p>
+              <p className="text-[10px] mt-1 italic">Waiting for incoming messages...</p>
             </div>
           ) : (
             issues.map((t: any) => (

@@ -54,11 +54,11 @@ export default function AdminNewPage() {
 
   const isAuthReady = !isUserLoading && !!user;
 
-  // 1. DATA LISTENER WITH ROBUST MAPPING
+  // 1. DATA LISTENER (UNBLOCKED - REMOVED AUTH BLOCK)
   useEffect(() => {
-    if (!db || !isAuthReady) return;
+    if (!db) return;
 
-    console.log("🔥 ADMIN DASHBOARD CONNECTED TO FIRESTORE");
+    console.log("🔥 ADMIN DASHBOARD CONNECTED TO FIRESTORE (LISTENER ACTIVE)");
     
     // PRIMARY CHAT LISTENER FOR BINDING
     const unsubscribe = onSnapshot(collection(db, "chats"), (snapshot) => {
@@ -84,18 +84,18 @@ export default function AdminNewPage() {
     });
 
     return () => unsubscribe();
-  }, [db, isAuthReady]);
+  }, [db]);
 
-  // Firestore Subscriptions
+  // Firestore Subscriptions (Also unblocked for immediate data load)
   const usersQuery = useMemoFirebase(() => {
-    if (!db || !isAuthReady) return null;
+    if (!db) return null;
     return query(collection(db, "users"), limit(100));
-  }, [db, isAuthReady]);
+  }, [db]);
 
   const claimsQuery = useMemoFirebase(() => {
-    if (!db || !isAuthReady) return null;
+    if (!db) return null;
     return query(collection(db, "claims"), limit(100));
-  }, [db, isAuthReady]);
+  }, [db]);
 
   const { data: rawUsers, isLoading: loadingUsers } = useCollection(usersQuery);
   const { data: rawClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
@@ -127,7 +127,7 @@ export default function AdminNewPage() {
     totalPayouts: realClaims?.filter(c => (c.status === 'approved' || c.status === 'paid') && c.gps_status !== 'mismatch').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0
   }), [realUsers, realClaims]);
 
-  // DERIVE THREADS FROM SUPPORT MESSAGES STATE (USES MAPPED FIELDS)
+  // DERIVE THREADS FROM SUPPORT MESSAGES STATE
   const threads = useMemo(() => {
     if (!supportMessages) return [];
     const groups = new Map<string, any>();
