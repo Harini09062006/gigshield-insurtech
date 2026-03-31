@@ -159,7 +159,6 @@ export default function WorkerDashboard() {
     if (!user?.uid || !db) return;
     
     setSimulating(true);
-    console.log("Simulate clicked");
 
     try {
       const userRef = doc(db, "users", user.uid);
@@ -337,63 +336,69 @@ export default function WorkerDashboard() {
           </Button>
         </div>
 
-        {/* 2. TOP SECTION: 3 CARDS SIDE BY SIDE */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* 2. TOP SECTION: 2 CARDS SIDE BY SIDE */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Card 1: Active Protection */}
-          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-6 flex flex-col justify-between shadow-xl relative overflow-hidden min-h-[200px]">
-            <Shield className="absolute top-6 right-6 h-7 w-7 opacity-40" />
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Active Protection</p>
-              <h2 className="text-2xl font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
-                <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Max Payout</p>
-                <p className="text-sm font-bold">₹{metrics.coverage}</p>
+          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-6 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[240px]">
+            <Shield className="absolute top-6 right-6 h-10 w-10 opacity-20" />
+            <div className="relative z-10">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Active Plan</p>
+                  <h2 className="text-lg font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Max Payout</p>
+                  <p className="text-sm font-bold">₹{metrics.coverage}</p>
+                </div>
               </div>
-              <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
-                <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
-                <p className="text-base font-black">₹{metrics.premium}</p>
-                <p className="text-[7px] font-black uppercase tracking-tighter opacity-80 mt-0.5">📊 AI Calculated Premium</p>
-                
-                {/* Premium Breakdown Section */}
-                <div className="mt-2 pt-2 border-t border-white/10 text-[8px] font-medium leading-relaxed opacity-90">
-                  <div className="flex justify-between"><span>Base Premium:</span> <span>₹{breakdown.basePremium}</span></div>
-                  {profile?.city === "Chennai" && (
-                    <div className="flex justify-between"><span>Location Risk (Chennai):</span> <span>+₹{breakdown.locationCharge}</span></div>
-                  )}
-                  <div className="flex justify-between">
-                    <span>
-                      {breakdown.weatherCharge === 0 
-                        ? "Weather Impact: No extra cost (Low Risk Conditions)" 
-                        : `Weather Risk (Rain): +₹${breakdown.weatherCharge}`}
-                    </span>
-                  </div>
-                  <div className="border-t border-white/20 mt-1 pt-1 flex justify-between font-bold">
-                    <span>Final Weekly Premium: ₹{breakdown.finalPremium} ✅</span>
-                  </div>
-                  <div className="mt-2 text-[7px] font-bold uppercase opacity-70 leading-tight">
-                    <p>⚡ Updated in real-time based on current conditions</p>
-                    <p className="mt-0.5">Adjusted based on your city and live risk factors</p>
-                  </div>
+
+              <div className="text-center mb-6">
+                <p className="text-5xl font-black mb-1">₹{breakdown.finalPremium}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">AI Calculated</p>
+              </div>
+
+              <div className="space-y-2 bg-black/10 p-4 rounded-2xl border border-white/5">
+                <div className="flex justify-between text-[10px] font-medium">
+                  <span className="opacity-70">Base Premium</span>
+                  <span>₹{breakdown.basePremium}</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-medium">
+                  <span className="opacity-70">Location ({profile?.city || 'Zone'})</span>
+                  <span>+₹{breakdown.locationCharge}</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-medium">
+                  <span className="opacity-70">Weather Adjustment</span>
+                  <span>{breakdown.weatherCharge === 0 ? "Included" : `+₹${breakdown.weatherCharge}`}</span>
+                </div>
+                <div className="h-px bg-white/10 my-1" />
+                <div className="flex justify-between items-center">
+                  <span className="text-[9px] font-black uppercase tracking-widest opacity-70">Weekly Total</span>
+                  <span className="text-sm font-black text-[#DCFCE7]">₹{breakdown.finalPremium} / week ✅</span>
                 </div>
               </div>
             </div>
           </Card>
 
           {/* Card 2: AI Risk Prediction */}
-          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
-            <Brain className="absolute top-6 right-6 h-5 w-5 text-[#6C47FF]" />
+          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 flex flex-col justify-between shadow-sm relative min-h-[240px]">
+            <Brain className="absolute top-6 right-6 h-6 w-6 text-[#6C47FF] opacity-20" />
             <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8] mb-1">AI Risk Prediction</p>
-              <div className="flex items-center gap-3 mt-1">
-                <h2 className="text-3xl font-black text-[#1A1A2E]">{weatherData.rainfall}mm</h2>
-                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[10px]">{weatherData.description}</Badge>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8] mb-1">AI Risk Prediction</p>
+                  <p className="text-[8px] font-bold text-[#6C47FF] uppercase">Real-time Risk Analysis</p>
+                </div>
+                <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold py-0.5 px-2.5 rounded-lg text-[10px]">{weatherData.description}</Badge>
+              </div>
+              <div className="flex items-center gap-3">
+                <h2 className="text-4xl font-black text-[#1A1A2E]">{weatherData.rainfall}mm</h2>
               </div>
             </div>
-            <div className="mt-4 space-y-4">
+            
+            <div className="space-y-4">
               <div className="space-y-2">
-                <div className="flex justify-between items-center text-[10px] font-bold">
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                   <span className="text-[#64748B]">Disruption Risk</span>
                   <span className="text-[#1A1A2E]">{disruptionRisk}%</span>
                 </div>
@@ -401,7 +406,7 @@ export default function WorkerDashboard() {
               </div>
 
               <div className="space-y-2 pt-2 border-t border-[#f0f2f9]">
-                <div className="flex justify-between items-center text-[10px] font-bold">
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                   <span className="text-[#64748B]">Live Risk Score</span>
                   <span className={riskScore > 60 ? "text-[#EF4444]" : riskScore > 30 ? "text-[#F59E0B]" : "text-[#22C55E]"}>
                     {riskScore}/100
@@ -424,47 +429,34 @@ export default function WorkerDashboard() {
                     transition={{ duration: 1, repeat: Infinity }}
                     className="text-[9px] font-black text-[#EF4444] uppercase tracking-tighter text-center"
                   >
-                    ⚡ CLAIM MAY AUTO-FIRE!
+                    ⚡ CRITICAL: CLAIM MAY AUTO-FIRE
                   </motion.p>
                 )}
               </div>
             </div>
           </Card>
-
-          {/* Card 3: Commitment Status */}
-          <Card className="bg-[#FEFCE8] rounded-[24px] border border-[#FEF08A] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
-            <RefreshCcw className="absolute top-6 right-6 h-5 w-5 text-[#F59E0B]" />
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#F59E0B] mb-1">Commitment Status</p>
-              <div className="flex items-center gap-3 mt-1">
-                <h2 className="text-2xl font-black text-[#1A1A2E]">Week 1 of 4</h2>
-                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[9px]">Renewal ON</Badge>
-              </div>
-              <p className="text-11px font-bold text-[#64748B] italic mt-3">Next Renewal: 25 Mar</p>
-            </div>
-          </Card>
         </div>
 
-        {/* 3. POLICY MANAGEMENT: TITLE + 4 MINI CARDS INSIDE SAME BOX */}
+        {/* 3. POLICY MANAGEMENT */}
         <section>
           <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4">
             <CardHeader className="p-0 mb-4">
               <CardTitle className="text-xl font-bold text-[#1A1A2E]">Policy Management</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="grid grid-cols-4 gap-3 items-center">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-center">
                 {[
-                  { label: "ACTIVATION DATE", value: profile?.plan_activated_at?.seconds ? format(new Date(profile.plan_activated_at.seconds * 1000), "dd MMM") : "Just now", icon: <Calendar className="h-4 w-4 text-[#6C47FF]" /> },
-                  { label: "NEXT RENEWAL", value: "25 Mar", icon: <RefreshCcw className="h-4 w-4 text-[#F59E0B]" /> },
-                  { label: "RENEWAL AMOUNT", value: `₹${metrics.premium || 0}`, icon: <IndianRupee className="h-4 w-4 text-[#22C55E]" /> },
+                  { label: "ACTIVATION", value: profile?.plan_activated_at?.seconds ? format(new Date(profile.plan_activated_at.seconds * 1000), "dd MMM") : "Just now", icon: <Calendar className="h-4 w-4 text-[#6C47FF]" /> },
+                  { label: "RENEWAL", value: "25 Mar", icon: <RefreshCcw className="h-4 w-4 text-[#F59E0B]" /> },
+                  { label: "PREMIUM", value: `₹${metrics.premium}`, icon: <IndianRupee className="h-4 w-4 text-[#22C55E]" /> },
                   { label: "COMMITMENT", value: "4 Weeks", icon: <Shield className="h-4 w-4 text-[#6C47FF]" /> }
                 ].map((item) => (
-                  <Card key={item.label} className="bg-white border-none rounded-[20px] shadow-sm p-3 flex flex-col gap-2 relative overflow-hidden border border-[#F5F3FF]">
+                  <Card key={item.label} className="bg-white border border-[#F5F3FF] rounded-[20px] shadow-sm p-3 flex flex-col gap-2 relative overflow-hidden">
                     <div className="flex items-center gap-2">
                       <div className="h-7 w-7 bg-[#F8F9FF] rounded-lg flex items-center justify-center shrink-0">
                         {item.icon}
                       </div>
-                      <p className="text-[8px] font-black text-[#94A3B8] uppercase tracking-wider">{item.label}</p>
+                      <p className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest">{item.label}</p>
                     </div>
                     <div>
                       <p className="text-lg font-black text-[#1A1A2E]">{item.value}</p>
@@ -476,31 +468,28 @@ export default function WorkerDashboard() {
           </Card>
         </section>
 
-        {/* 4. EARNINGS PROTECTION SUMMARY: FULL WIDTH CARD */}
+        {/* 4. EARNINGS PROTECTION SUMMARY */}
         <section>
           <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4">
             <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-2 px-1">
               <h2 className="text-lg font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
               <Badge className="bg-[#6C47FF] text-white rounded-full px-3 py-1 font-bold border-none text-[10px] uppercase tracking-widest">
-                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
+                DNA Rate: ₹{activeRate}/hr
               </Badge>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 px-1">
               <div className="flex flex-col space-y-1 p-4 bg-[#FEE2E2]/30 rounded-2xl">
-                <p className="text-[11px] font-black text-[#EF4444] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
+                <p className="text-[9px] font-black text-[#EF4444] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
                 <p className="text-2xl font-black text-[#EF4444]">₹{metrics.incomeLoss || 0}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1 italic">AI-calculated disruption risk</p>
               </div>
               <div className="flex flex-col space-y-1 p-4 bg-[#DCFCE7]/30 rounded-2xl">
-                <p className="text-[11px] font-black text-[#22C55E] uppercase tracking-widest">INSURANCE COVERAGE</p>
+                <p className="text-[9px] font-black text-[#22C55E] uppercase tracking-widest">INSURANCE COVERAGE</p>
                 <p className="text-2xl font-black text-[#22C55E]">₹{metrics.coverage || 0}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1 italic">Capped by {profile?.plan_id?.toUpperCase() || 'PRO'} plan</p>
               </div>
               <div className="flex flex-col space-y-1 p-4 bg-[#F1F0FF] rounded-2xl">
-                <p className="text-[11px] font-black text-[#6C47FF] uppercase tracking-widest">REMAINING RISK</p>
+                <p className="text-[9px] font-black text-[#6C47FF] uppercase tracking-widest">REMAINING RISK</p>
                 <p className="text-2xl font-black text-[#6C47FF]">₹{metrics.remainingRisk || 0}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1 italic">Net financial gap</p>
               </div>
             </div>
           </Card>
@@ -513,7 +502,7 @@ export default function WorkerDashboard() {
             <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Updated {format(new Date(), "HH:mm")}</p>
           </div>
 
-          {/* Time Slot Cards - Compact Size */}
+          {/* Time Slot Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: "MORNING", time: "6-10 AM", rate: morningRate, icon: "🌅", color: "#F59E0B", mult: "0.75x" },
@@ -539,9 +528,8 @@ export default function WorkerDashboard() {
             ))}
           </div>
 
-          {/* Unified Row: Graph (Left) and Earnings (Right) */}
+          {/* Unified Row: Graph and Earnings */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-            {/* Peak Hours Chart (Wide - Left) */}
             <div className="lg:col-span-2">
               <Card className="bg-white border-none rounded-[24px] shadow-sm p-4 h-full flex flex-col justify-between">
                 <h3 className="text-sm font-bold text-[#1A1A2E] mb-6">Peak Earning Hours (24-Hour Profile)</h3>
@@ -576,7 +564,6 @@ export default function WorkerDashboard() {
               </Card>
             </div>
 
-            {/* Expected Weekly Earnings (Compact - Right) */}
             <div className="lg:col-span-1">
               <Card className="bg-white border-none rounded-[24px] shadow-sm p-4 h-full flex flex-col justify-between">
                 <div className="space-y-2">
