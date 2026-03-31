@@ -10,7 +10,7 @@ export async function POST(req: Request) {
 
     // ALWAYS RETURN SOMETHING
     return Response.json({
-      reply: "Hello! AI is working now and ready to help you with GigShield."
+      reply: "Hello! AI is working correctly now and ready to help you with GigShield."
     });
   } catch (err) {
     console.error("API ROUTE ERROR:", err);

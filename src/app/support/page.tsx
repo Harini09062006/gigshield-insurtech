@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
@@ -75,94 +74,16 @@ export default function SupportPage() {
     }
   }, [messages, loading]);
 
-  const generateResponse = async (userMessage: string) => {
-    const text = userMessage.toLowerCase();
-    const workerName = profile?.name || "Worker";
-
-    // 1. GREETINGS
-    if (text.match(/\b(hi|hello|hey)\b/)) {
-      return `Hi ${workerName}! 👋 \nI'm your GigShield AI Assistant!\n\nI can help you with:\n🌧️ Weather & Rain Risk\n💰 Earnings & Income DNA\n🛡️ Your Coverage Details\n⚡ Filing Claims\n📊 Weekly Reports\n👤 Talk to Human Agent\n\nWhat would you like to know today?`;
-    }
-
-    // 2. WEATHER
-    if (text.match(/\b(rain|weather|risk)\b/)) {
-      try {
-        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${profile?.city || 'Chennai'}&units=metric&appid=be5f61ff6b261dedfa89e321d466a063`);
-        const data = await res.json();
-        const rain = data.rain?.['1h'] || 0;
-        const risk = rain > 20 ? 85 : rain > 5 ? 45 : 15;
-        return `Current weather in ${profile?.city || 'your city'}:\n🌡️ Temp: ${data.main.temp}°C\n🌧️ Rainfall: ${rain}mm\n⚠️ Disruption Risk: ${risk}%\n\nCondition: ${data.weather[0].main}. Stay safe out there!`;
-      } catch (e) {
-        return "I couldn't fetch live weather right now, but I'm monitoring disruption zones for you!";
-      }
-    }
-
-    // 3. PLAN
-    if (text.match(/\b(plan|coverage|shield)\b/)) {
-      return `🛡️ Your Protection Details:\n\nPlan: ${profile?.plan_id?.toUpperCase() || 'PRO'} SHIELD\nPremium: ₹${profile?.premium || 25}/week\nMax Payout: ₹${profile?.coverage || 240}\nStatus: Active ✅`;
-    }
-
-    // 4. CLAIMS
-    if (text.match(/\b(claim|claims|history)\b/)) {
-      const claimsSnap = await getDocs(query(collection(db, "claims"), where("worker_id", "==", user!.uid), limit(3)));
-      if (claimsSnap.empty) return "You haven't filed any claims yet. Payouts are automatic when weather triggers occur!";
-      let history = "📋 Your Recent Claims:\n";
-      claimsSnap.forEach(doc => {
-        const c = doc.data();
-        history += `\n- ₹${c.compensation} (${c.trigger_type}) - ${c.status}`;
-      });
-      return history;
-    }
-
-    // 5. EARNINGS
-    if (text.match(/\b(earn|income|salary|dna)\b/)) {
-      return `💰 Your Income DNA Profile:\n\n🌅 Morning: ₹45/hr\n☀️ Afternoon: ₹57/hr\n🌆 Evening (Peak): ₹78/hr\n🌙 Night: ₹51/hr\n\nYour payouts are calculated using these specific rates.`;
-    }
-
-    // 6. TRUST
-    if (text.match(/\b(trust|score|fraud)\b/)) {
-      return `📈 AI Integrity Audit:\n\nYour current Trust Score is ${profile?.trustScore || 95}/100.\nHigh trust scores ensure instant payouts without manual review.`;
-    }
-
-    // 7. SOS
-    if (text.match(/\b(sos|emergency)\b/)) {
-      return `🚨 SOS EMERGENCY MODE ACTIVE\n\nPlease contact local authorities immediately:\n📞 Police: 100\n📞 Ambulance: 108\n📞 Unified Emergency: 112\n\nI have logged your location: ${profile?.city}`;
-    }
-
-    // 8. ESCALATION
-    if (text.match(/\b(payment|not received|issue|problem|help|human|agent|talk|person|connect)\b/)) {
-      const ticketId = `GS-${Math.floor(100000 + Math.random() * 900000)}`;
-      await addDoc(collection(db, "support_tickets"), {
-        ticketId,
-        workerId: user!.uid,
-        workerName: profile?.name || "Worker",
-        workerCity: profile?.city || "",
-        workerPlan: profile?.plan_id || "pro",
-        issue: userMessage,
-        status: "open",
-        priority: "normal",
-        createdAt: serverTimestamp(),
-        lastMessage: userMessage,
-        unreadByAdmin: true,
-        unreadByWorker: false
-      });
-      setActiveTicket({ id: ticketId, status: 'open' });
-      return `🔗 Connecting you to a support agent...\n\n✅ Ticket #${ticketId} created!\n⏱️ Agent will join in 2-3 minutes.\n\nAn agent will join this chat shortly. You can keep chatting here while you wait! 💬\n\nYour issue has been noted:\n'${userMessage}'`;
-    }
-
-    // FALLBACK
-    return "I didn't quite understand that 😊\nTry asking about rain, plan, earnings, or type 'talk to human'!";
-  };
-
   const handleSend = async (msgOverride?: string) => {
     const message = (msgOverride || input).trim();
     if (!message || !user || !db) return;
 
     setLoading(true);
     setInput("");
+    console.log("AI request sent");
 
     try {
-      // 1. Save User Message
+      // 1. Save User Message to Firestore
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
@@ -172,8 +93,29 @@ export default function SupportPage() {
         timestamp: serverTimestamp()
       });
 
-      // 2. Generate and Save Bot Response
-      const reply = await generateResponse(message);
+      // 2. Fetch AI Response from API with timeout safety
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message })
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        throw new Error("API failed");
+      }
+
+      const data = await res.json();
+      console.log("AI response received");
+
+      const reply = data?.reply || data?.text || "AI did not respond properly.";
+
+      // 3. Save AI Reply to Firestore
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
@@ -184,9 +126,18 @@ export default function SupportPage() {
       });
 
     } catch (e: any) {
-      console.error("SUPPORT ERROR:", e);
-      toast({ variant: "destructive", title: "Error", description: "Failed to send message." });
+      console.error("AI error:", e);
+      // Save error message to history
+      await addDoc(collection(db, "support_messages"), {
+        userId: user.uid,
+        userName: "GigShield Assistant",
+        text: "I encountered a connection issue. Please try again or talk to a human agent.",
+        sender: "bot",
+        status: "error",
+        timestamp: serverTimestamp()
+      });
     } finally {
+      // ALWAYS STOP LOADING
       setLoading(false);
     }
   };
@@ -291,7 +242,7 @@ export default function SupportPage() {
               <button 
                 key={i} 
                 onClick={() => handleSend(btn.val)}
-                className="whitespace-nowrap px-4 py-2 bg-[#EDE9FF] text-[#6C47FF] text-[11px] font-bold rounded-full border border-[#D4CCFF] hover:bg-[#6C47FF] hover:text-white transition-colors"
+                className="whitespace-nowrap px-4 py-2 bg-[#EDE9FF] text-[#6C47FF] text-[11px] font-bold rounded-full border border-target hover:bg-[#6C47FF] hover:text-white transition-colors"
               >
                 {btn.label}
               </button>

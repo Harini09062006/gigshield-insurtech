@@ -24,7 +24,6 @@ import {
   collection, 
   query, 
   where, 
-  orderBy, 
   addDoc, 
   serverTimestamp, 
   doc, 
@@ -54,18 +53,22 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const profileRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // 2. REAL-TIME LISTENER: Syncs both User, Bot, and Admin replies
+  // 2. REAL-TIME LISTENER: Syncs messages (without orderBy for prototype safety)
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return query(
       collection(db, "support_messages"),
       where("userId", "==", user.uid),
-      orderBy("timestamp", "asc"),
       limit(100)
     );
   }, [db, user?.uid]);
 
-  const { data: messages } = useCollection(messagesQuery);
+  const { data: rawMessages } = useCollection(messagesQuery);
+
+  const messages = React.useMemo(() => {
+    if (!rawMessages) return [];
+    return [...rawMessages].sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+  }, [rawMessages]);
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -83,6 +86,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
     if (!message || !user || !db) return;
 
     setInput("");
+    console.log("AI request sent");
     
     // 1. Create AbortController for timeout safety
     const controller = new AbortController();
@@ -90,19 +94,18 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
 
     try {
       setIsBotThinking(true);
-      console.log("Sending message to AI...");
 
-      // 2. Save User Message to Firestore (updates UI via listener)
+      // 2. Save User Message to Firestore
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
         text: message,
         sender: "user",
-        status: "pending",
+        status: "open",
         timestamp: serverTimestamp()
       });
 
-      // 3. Fetch AI Response from stabilized API with timeout signal
+      // 3. Fetch AI Response from API with timeout signal
       const res = await fetch("/api/ai", {
         method: "POST",
         signal: controller.signal,
@@ -119,7 +122,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
       }
 
       const data = await res.json();
-      console.log("Response received from AI:", data);
+      console.log("AI response received");
 
       const reply = data?.reply || data?.text || "I'm currently recalibrating. Please try asking again in a moment.";
 
@@ -134,14 +137,14 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
       });
       
     } catch (err: any) {
-      console.error("AI ERROR:", err);
-      let errorMsg = "I encountered a connection issue. If this persists, I'll alert a human admin to help you.";
+      console.error("AI error:", err);
+      let errorMsg = "I encountered a connection issue. Please try again.";
       
       if (err.name === 'AbortError') {
         errorMsg = "AI request timed out. Please try again.";
       }
 
-      // Save error message to chat history
+      // Save error message to history
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
@@ -151,13 +154,14 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         timestamp: serverTimestamp()
       });
     } finally {
+      // ALWAYS STOP LOADING
       setIsBotThinking(false);
       clearTimeout(timeoutId);
     }
   };
 
-  // Determine if a human admin has engaged or if issue is escalated
-  const isEscalated = messages?.some(m => m.sender === 'admin' || m.status === 'pending' || m.status === 'in-progress');
+  // Determine if a human admin has engaged
+  const isEscalated = messages?.some(m => m.sender === 'admin');
 
   if (!open) return null;
 
