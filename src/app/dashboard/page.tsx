@@ -320,6 +320,36 @@ export default function WorkerDashboard() {
           </div>
         </Card>
 
+        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
+        <section className="mb-5">
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2">
+              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-2 py-1 font-bold border-none text-[10px] ml-auto">
+                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col space-y-1">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{activeRate * 3}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4]">Calculated for 3 hour weather disruption</p>
+              </div>
+              <div className="flex flex-col space-y-1">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
+                <p className="text-xl font-black text-[#22C55E]">₹{profile?.coverage || profile?.maxPayout || 240}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
+              </div>
+              <div className="flex flex-col space-y-1">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{Math.max(0, (activeRate * 3) - (profile?.coverage || profile?.maxPayout || 240))}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4]">Net income gap after parametric payout</p>
+              </div>
+            </div>
+          </Card>
+        </section>
+
         {/* SECTION 1 — INCOME DNA PROFILE */}
         <section className="space-y-6">
           <div className="flex justify-between items-center px-2">
@@ -400,36 +430,6 @@ export default function WorkerDashboard() {
               </div>
             </Card>
           </div>
-        </section>
-
-        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
-        <section className="mb-5">
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-[18px]">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2">
-              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-[10px] py-[6px] font-bold border-none text-[10px] ml-auto">
-                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="flex flex-col space-y-2">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
-                <p className="text-xl font-black text-[#EF4444]">₹{activeRate * 3}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4]">Calculated for 3 hour weather disruption</p>
-              </div>
-              <div className="flex flex-col space-y-2">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
-                <p className="text-xl font-black text-[#22C55E]">₹{profile?.coverage || profile?.maxPayout || 240}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
-              </div>
-              <div className="flex flex-col space-y-2">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
-                <p className="text-xl font-black text-[#EF4444]">₹{Math.max(0, (activeRate * 3) - (profile?.coverage || profile?.maxPayout || 240))}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4]">Net income gap after parametric payout</p>
-              </div>
-            </div>
-          </Card>
         </section>
       </main>
 
