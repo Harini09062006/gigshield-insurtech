@@ -42,7 +42,6 @@ import { useRouter } from "next/navigation";
 import { getUserLocation } from "@/services/locationService";
 import { useToast } from "@/hooks/use-toast";
 import { autoUpdatePremium } from "@/services/aiAutoUpdater";
-import { calculateDNAPremium, calculateIncomeLoss, getCoverageAmount, calculateRemainingRisk } from "@/services/aiPremiumService";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -89,24 +88,6 @@ interface ClaimObject {
   created_at: string;
 }
 
-const calculateRiskScore = (
-  rainfall: number,
-  city: string,
-  hour: number
-): number => {
-  let score = 0;
-  if (rainfall > 50) score += 40;
-  else if (rainfall > 30) score += 30;
-  else if (rainfall > 10) score += 20;
-  else score += 5;
-  const HIGH = ['Chennai','Mumbai','Kolkata','Kochi','Howrah'];
-  score += HIGH.includes(city) ? 30 : 15;
-  if (hour >= 17 && hour <= 21) score += 30;
-  else if (hour >= 12 && hour <= 16) score += 20;
-  else score += 10;
-  return Math.min(score, 100);
-};
-
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -133,29 +114,26 @@ export default function WorkerDashboard() {
     user ? doc(db, "users", user.uid) : null,
     [db, user?.uid]
   );
-  const dnaRef = useMemoFirebase(() =>
-    user ? doc(db, "income_dna", user.uid) : null,
-    [db, user?.uid]
-  );
-
   const { data: profile } = useDoc(profileRef);
-  const { data: dna } = useDoc(dnaRef);
 
-  // NEW: Calculation logic to ensure dashboard values are always correct
-  const calculateAndUpdateInsurance = async (currentProfile: any, currentDna: any) => {
-    if (!currentProfile || !user?.uid || !db) return;
+  /**
+   * CORE INSURANCE CALCULATION ENGINE
+   * Synthesizes Income DNA and Risk Score into protection metrics.
+   */
+  const calculateAndUpdateInsurance = async (userData: any, userId: string) => {
+    if (!userData || !userId || !db) return;
 
-    const weeklyIncome = currentDna?.weekly_earnings || currentDna?.weeklyIncome || 3360;
-    const riskScore = currentProfile.riskScore || 30;
-    const plan = currentProfile.plan_id || currentProfile.plan || "pro";
+    const dna = userData.dna;
+    const riskScore = userData.riskScore || 30;
+    const plan = userData.plan_id || userData.plan || "pro";
 
-    // PREMIUM
-    let premium = (weeklyIncome * riskScore) / 1000;
+    // PREMIUM (AI logic)
+    let premium = (dna.weeklyIncome * riskScore) / 1000;
     premium = Math.max(20, Math.min(80, premium));
     premium = Math.round(premium);
 
     // INCOME LOSS
-    const incomeLoss = Math.round(weeklyIncome * (riskScore / 100));
+    const incomeLoss = Math.round(dna.weeklyIncome * (riskScore / 100));
 
     // COVERAGE
     const coverage =
@@ -173,8 +151,8 @@ export default function WorkerDashboard() {
       remainingRisk
     });
 
-    // SAFE FIRESTORE UPDATE (DO NOT OVERWRITE)
-    await updateDoc(doc(db, "users", user.uid), {
+    // SAFE UPDATE
+    await updateDoc(doc(db, "users", userId), {
       premium,
       incomeLoss,
       coverage,
@@ -183,19 +161,34 @@ export default function WorkerDashboard() {
     });
   };
 
+  /**
+   * DATA HYDRATION AND SYNC
+   * Ensures DNA exists and triggers calculations on load.
+   */
   useEffect(() => {
-    if (user && profile && dna && db) {
-      // Trigger update if fields are missing or periodically
-      if (profile.premium === undefined || profile.incomeLoss === undefined || profile.coverage === undefined) {
-        calculateAndUpdateInsurance(profile, dna);
+    async function syncData() {
+      if (user && profile && db) {
+        // STEP 1: Ensure DNA exists in Firestore
+        if (!profile.dna) {
+          console.warn("DNA missing — initializing default DNA");
+          await updateDoc(doc(db, "users", user.uid), {
+            dna: {
+              morning: 45,
+              afternoon: 57,
+              evening: 78,
+              night: 51,
+              weeklyIncome: 3360
+            }
+          });
+          return;
+        }
+
+        // STEP 2: Trigger calculation on data load
+        calculateAndUpdateInsurance(profile, user.uid);
+        autoUpdatePremium(db, user.uid, profile);
       }
     }
-  }, [user, profile, dna, db]);
-
-  useEffect(() => {
-    if (user && profile && db) {
-      autoUpdatePremium(db, user.uid, profile);
-    }
+    syncData();
   }, [user, profile, db]);
 
   const fetchWeather = async () => {
@@ -220,7 +213,6 @@ export default function WorkerDashboard() {
   const processClaim = async (claim: ClaimObject): Promise<void> => {
     let trustScore = 100;
     const fraudChecks: Record<string, string> = {};
-    const riskFactors: string[] = [];
     let isDuplicate = lastProcessedEventId === claim.eventId;
 
     try {
@@ -312,22 +304,21 @@ export default function WorkerDashboard() {
   };
 
   const simulateWeather = async () => {
-    if (!user || !profile || !db || !dna) return;
+    if (!user || !profile || !db) return;
     
-    // NEW: Align with requested newRisk = 75 for demo
-    const simulatedRain = 80;
     const newRisk = 75;
     
-    // Update risk score and trigger combined calculation logic
+    // Update risk score
     await updateDoc(doc(db, "users", user.uid), {
       riskScore: newRisk,
       lastUpdated: Date.now()
     });
 
-    await calculateAndUpdateInsurance({ ...profile, riskScore: newRisk }, dna);
+    // Recalculate metrics based on new risk
+    calculateAndUpdateInsurance({ ...profile, riskScore: newRisk }, user.uid);
 
     const weatherPayload: WeatherData = {
-      rainfall: simulatedRain,
+      rainfall: 80,
       temperature: 35,
       aqi: 120,
       windSpeed: 45,

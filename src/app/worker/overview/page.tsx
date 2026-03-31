@@ -22,41 +22,45 @@ export default function WorkerOverview() {
     return doc(db, "users", user.uid);
   }, [db, user?.uid]);
 
-  const dnaRef = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null;
-    return doc(db, "income_dna", user.uid);
-  }, [db, user?.uid]);
-
   const { data: profile } = useDoc(profileRef);
-  const { data: dna } = useDoc(dnaRef);
 
-  const claimsQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null;
-    return query(collection(db, "claims"), where("worker_id", "==", user.uid), orderBy("createdAt", "desc"), limit(5));
-  }, [db, user?.uid]);
+  /**
+   * AI INSURANCE CALCULATION
+   * Synchronizes DNA and Risk Score into the user profile.
+   */
+  const calculateAndUpdateInsurance = async (userData: any, userId: string) => {
+    if (!userData || !userId || !db) return;
 
-  const { data: rawClaims } = useCollection(claimsQuery);
+    const dna = userData.dna;
+    const riskScore = userData.riskScore || 30;
+    const plan = userData.plan_id || userData.plan || "pro";
 
-  // NEW: Intelligent calculation sync for the overview page
-  const calculateAndUpdateInsurance = async (currentProfile: any, currentDna: any) => {
-    if (!currentProfile || !user?.uid || !db) return;
-
-    const weeklyIncome = currentDna?.weekly_earnings || currentDna?.weeklyIncome || 3360;
-    const riskScore = currentProfile.riskScore || 30;
-    const plan = currentProfile.plan_id || currentProfile.plan || "pro";
-
-    // Calculation Logic as requested
-    let premium = (weeklyIncome * riskScore) / 1000;
+    // PREMIUM (AI logic)
+    let premium = (dna.weeklyIncome * riskScore) / 1000;
     premium = Math.max(20, Math.min(80, premium));
     premium = Math.round(premium);
 
-    const incomeLoss = Math.round(weeklyIncome * (riskScore / 100));
-    const coverage = plan === "basic" ? 60 : plan === "pro" ? 240 : 600;
+    // INCOME LOSS
+    const incomeLoss = Math.round(dna.weeklyIncome * (riskScore / 100));
+
+    // COVERAGE
+    const coverage =
+      plan === "basic" ? 60 :
+      plan === "pro" ? 240 :
+      600;
+
+    // REMAINING RISK
     const remainingRisk = Math.max(0, incomeLoss - coverage);
 
-    console.log("OVERVIEW CALCULATED VALUES:", { premium, incomeLoss, coverage, remainingRisk });
+    console.log("OVERVIEW CALCULATED VALUES:", {
+      premium,
+      incomeLoss,
+      coverage,
+      remainingRisk
+    });
 
-    await updateDoc(doc(db, "users", user.uid), {
+    // SAFE UPDATE
+    await updateDoc(doc(db, "users", userId), {
       premium,
       incomeLoss,
       coverage,
@@ -65,13 +69,41 @@ export default function WorkerOverview() {
     });
   };
 
+  /**
+   * LIFECYCLE SYNC
+   * Ensures data integrity and triggers calculations.
+   */
   useEffect(() => {
-    if (user && profile && dna && db) {
-      if (profile.premium === undefined || profile.incomeLoss === undefined) {
-        calculateAndUpdateInsurance(profile, dna);
+    async function syncOverview() {
+      if (user && profile && db) {
+        // STEP 1: Ensure DNA exists in Firestore
+        if (!profile.dna) {
+          console.warn("DNA missing — initializing default DNA");
+          await updateDoc(doc(db, "users", user.uid), {
+            dna: {
+              morning: 45,
+              afternoon: 57,
+              evening: 78,
+              night: 51,
+              weeklyIncome: 3360
+            }
+          });
+          return;
+        }
+
+        // STEP 2: Trigger calculation on data load
+        calculateAndUpdateInsurance(profile, user.uid);
       }
     }
-  }, [user, profile, dna, db]);
+    syncOverview();
+  }, [user, profile, db]);
+
+  const claimsQuery = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null;
+    return query(collection(db, "claims"), where("worker_id", "==", user.uid), orderBy("createdAt", "desc"), limit(5));
+  }, [db, user?.uid]);
+
+  const { data: rawClaims } = useCollection(claimsQuery);
 
   const claims = useMemo(() => {
     if (!rawClaims) return null;
@@ -82,24 +114,8 @@ export default function WorkerOverview() {
     });
   }, [rawClaims]);
 
-  const hourlyChartData = [
-    { hour: '6am', earning: 40 }, { hour: '8am', earning: 45 }, { hour: '10am', earning: 55 },
-    { hour: '12pm', earning: 50 }, { hour: '2pm', earning: 52 }, { hour: '4pm', earning: 60 },
-    { hour: '6pm', earning: 85 }, { hour: '8pm', earning: 95 }, { hour: '10pm', earning: 65 },
-    { hour: '12am', earning: 45 }
-  ];
-
-  const weeklyChartData = [
-    { day: 'Mon', earning: 600 }, { day: 'Tue', earning: 550 }, { day: 'Wed', earning: 580 },
-    { day: 'Thu', earning: 620 }, { day: 'Fri', earning: 800 }, { day: 'Sat', earning: 1100 },
-    { day: 'Sun', earning: 950 }
-  ];
-
   const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
   const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
-
-  const currentDnaRate = dna?.evening_rate || 78;
-  const baseRate = profile?.avg_hourly_earnings || 60;
 
   return (
     <div className="space-y-8 pb-20 bg-bg-page min-h-screen">
@@ -221,20 +237,20 @@ export default function WorkerOverview() {
               </div>
               <p className="text-sm text-body">Your personalized earning pattern — used to calculate accurate payouts</p>
             </div>
-            <p className="text-xs text-muted font-mono uppercase tracking-widest">Updated {dna?.updated_at?.seconds ? format(new Date(dna.updated_at.seconds * 1000), "HH:mm") : "Today"}</p>
+            <p className="text-xs text-muted font-mono uppercase tracking-widest">Updated {profile?.dna?.updated_at?.seconds ? format(new Date(profile.dna.updated_at.seconds * 1000), "HH:mm") : "Today"}</p>
           </header>
 
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="bg-white border-border shadow-card rounded-card p-6 flex flex-col justify-between">
               <div>
                 <p className="text-xs font-bold text-muted uppercase tracking-widest mb-2">Expected Weekly Earnings</p>
-                <div className="text-5xl font-bold text-primary">₹{dna?.weekly_earnings || 3360}</div>
+                <div className="text-5xl font-bold text-primary">₹{profile?.dna?.weeklyIncome || 3360}</div>
                 <p className="text-xs text-body mt-2">Derived from your Income DNA earning pattern</p>
               </div>
               <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-bold text-muted uppercase mb-1">Recommended Plan</p>
-                  <p className="text-lg font-bold text-warning">{dna?.recommended_plan || "Elite Shield"}</p>
+                  <p className="text-lg font-bold text-warning">{profile?.dna?.recommended_plan || "Elite Shield"}</p>
                 </div>
                 <Link href="/plans"><Button variant="outline" className="border-primary text-primary font-bold hover:bg-primary-light rounded-btn">Upgrade Plan</Button></Link>
               </div>
@@ -242,10 +258,10 @@ export default function WorkerOverview() {
 
             <div className="grid grid-cols-2 gap-4">
               {[
-                { label: "Morning (6-10 AM)", rate: dna?.morning_rate || 45, mult: "0.75", val: 45, icon: "🌅" },
-                { label: "Afternoon (12-4 PM)", rate: dna?.afternoon_rate || 57, mult: "0.95", val: 57, icon: "☀" },
-                { label: "Evening (5-9 PM)", rate: dna?.evening_rate || 78, mult: "1.30", val: 78, icon: "🌆" },
-                { label: "Night (9 PM-12 AM)", rate: dna?.night_rate || 51, mult: "0.85", val: 51, icon: "🌙" }
+                { label: "Morning (6-10 AM)", rate: profile?.dna?.morning || 45, mult: "0.75", val: 45, icon: "🌅" },
+                { label: "Afternoon (12-4 PM)", rate: profile?.dna?.afternoon || 57, mult: "0.95", val: 57, icon: "☀" },
+                { label: "Evening (5-9 PM)", rate: profile?.dna?.evening || 78, mult: "1.30", val: 78, icon: "🌆" },
+                { label: "Night (9 PM-12 AM)", rate: profile?.dna?.night || 51, mult: "0.85", val: 51, icon: "🌙" }
               ].map((slot, i) => (
                 <Card key={i} className="bg-white border-border shadow-sm p-4 rounded-xl flex flex-col justify-between">
                   <div className="flex items-center justify-between mb-2">
