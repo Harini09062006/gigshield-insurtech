@@ -52,6 +52,16 @@ export default function WorkerOverview() {
     // REMAINING RISK
     const remainingRisk = Math.max(0, incomeLoss - coverage);
 
+    // BREAK INFINITE LOOP: Only update if values actually changed
+    if (
+      userData.premium === premium &&
+      userData.incomeLoss === incomeLoss &&
+      userData.coverage === coverage &&
+      userData.remainingRisk === remainingRisk
+    ) {
+      return;
+    }
+
     console.log("OVERVIEW CALCULATED VALUES:", {
       premium,
       incomeLoss,
@@ -92,6 +102,7 @@ export default function WorkerOverview() {
         }
 
         // STEP 2: Trigger calculation on data load
+        // calculateAndUpdateInsurance checks for changes internally to prevent loops
         calculateAndUpdateInsurance(profile, user.uid);
       }
     }

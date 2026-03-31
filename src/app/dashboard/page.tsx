@@ -151,6 +151,16 @@ export default function WorkerDashboard() {
     // REMAINING RISK
     const remainingRisk = Math.max(0, incomeLoss - coverage);
 
+    // BREAK INFINITE LOOP: Only update if values actually changed
+    if (
+      userData.premium === premium &&
+      userData.incomeLoss === incomeLoss &&
+      userData.coverage === coverage &&
+      userData.remainingRisk === remainingRisk
+    ) {
+      return;
+    }
+
     console.log("CALCULATED VALUES:", {
       premium,
       incomeLoss,
@@ -191,6 +201,7 @@ export default function WorkerDashboard() {
         }
 
         // STEP 2: Trigger calculation on data load
+        // Note: calculateAndUpdateInsurance handles the change check internally to prevent loops
         calculateAndUpdateInsurance(profile, user.uid);
         autoUpdatePremium(db, user.uid, profile);
       }
@@ -481,7 +492,7 @@ export default function WorkerDashboard() {
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Max Payout</p>
-                <p className="text-sm font-black">₹{profile?.coverage || 0}</p>
+                <p className="text-sm font-bold">₹{profile?.coverage || 0}</p>
               </div>
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
@@ -549,28 +560,28 @@ export default function WorkerDashboard() {
 
         {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
         <section className="mb-5">
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-3">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2">
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-[18px]">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2">
               <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-2 py-1 font-bold border-none text-[10px] ml-auto mb-2">
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-[10px] py-[6px] font-bold border-none text-[10px] ml-auto">
                 DNA Rate: ₹{activeRate}/hr ({activeSlotName})
               </Badge>
             </div>
 
-            <div className="flex justify-between gap-2">
-              <div className="flex-1 flex flex-col space-y-1">
+            <div className="flex justify-between gap-6">
+              <div className="flex-1 flex flex-col space-y-[10px]">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
-                <p className="text-xl font-black text-[#EF4444] mb-[6px]">₹{profile?.incomeLoss || activeRate * 3}</p>
+                <p className="text-xl font-black text-[#EF4444] mb-1.5">₹{profile?.incomeLoss || activeRate * 3}</p>
                 <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Calculated for 3 hour weather disruption</p>
               </div>
-              <div className="flex-1 flex flex-col space-y-1">
+              <div className="flex-1 flex flex-col space-y-[10px]">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
-                <p className="text-xl font-black text-[#22C55E] mb-[6px]">₹{profile?.coverage || 240}</p>
+                <p className="text-xl font-black text-[#22C55E] mb-1.5">₹{profile?.coverage || 240}</p>
                 <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
               </div>
-              <div className="flex-1 flex flex-col space-y-1">
+              <div className="flex-1 flex flex-col space-y-[10px]">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
-                <p className="text-xl font-black text-[#EF4444] mb-[6px]">₹{profile?.remainingRisk || Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
+                <p className="text-xl font-black text-[#EF4444] mb-1.5">₹{profile?.remainingRisk || Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
                 <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Net income gap after parametric payout</p>
               </div>
             </div>
