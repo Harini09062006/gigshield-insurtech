@@ -91,14 +91,15 @@ export default function WorkerDashboard() {
   }, [profile]);
 
   const handleSimulateWeather = async () => {
-    console.log("Simulate started");
-    setSimulating(true);
+    console.log("Simulate clicked");
     
     try {
       if (!user?.uid || !db) {
         console.error("Missing userId");
         return;
       }
+
+      setSimulating(true);
 
       // Step 1: Get real weather context first
       const API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -109,7 +110,7 @@ export default function WorkerDashboard() {
       
       // Step 2: Override with high-fidelity severe weather
       const severeRainfall = 65;
-      const newRisk = 95;
+      const newRisk = 75;
 
       // Step 3: Calculate DNA-based payout
       const hour = new Date().getHours();
@@ -160,15 +161,15 @@ export default function WorkerDashboard() {
         createdAt: serverTimestamp()
       });
 
-      // Step 5: Update profile indicator (Non-destructive)
+      // Step 5: Update profile (SAFE UPDATE)
       await updateDoc(doc(db, "users", user.uid), {
         riskScore: newRisk,
         updatedAt: serverTimestamp()
       });
 
-      console.log("Firebase updated");
+      console.log("Risk updated");
 
-      // Step 6: Update UI
+      // Step 6: Update local UI state
       setWeatherData({
         rainfall: severeRainfall,
         description: "Severe Rainfall",
@@ -263,7 +264,7 @@ export default function WorkerDashboard() {
 
         {/* SECTION 1 — EARNINGS PROTECTION SUMMARY */}
         <section>
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4 mb-5">
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-3 mb-2.5">
             <div className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2 px-1">
               <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
               <Badge className="bg-[#6C47FF] text-white rounded-full px-2 py-1 font-bold border-none text-[10px]">
@@ -373,7 +374,7 @@ export default function WorkerDashboard() {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-6 flex flex-col justify-between shadow-xl relative overflow-hidden min-h-[200px]">
             <Shield className="absolute top-6 right-6 h-7 w-7 opacity-40" />
             <div>

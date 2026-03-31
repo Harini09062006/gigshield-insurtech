@@ -77,9 +77,10 @@ export default function SupportPage() {
 
     console.log("AI request started");
     setInput("");
-    setLoading(true);
-
+    
     try {
+      setLoading(true);
+
       // 1. Save User Message
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
@@ -90,25 +91,19 @@ export default function SupportPage() {
         timestamp: serverTimestamp()
       });
 
-      // Timeout Protection
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
       // 2. Fetch AI Response from API
       const res = await fetch("/api/ai", {
         method: "POST",
-        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text })
       });
-
-      clearTimeout(timeoutId);
-      console.log("API response arrived");
 
       if (!res.ok) throw new Error("API failed");
 
       const data = await res.json();
       const reply = data?.reply || "AI fallback response";
+
+      console.log("API response received");
 
       // 3. Save AI Reply
       await addDoc(collection(db, "support_messages"), {
@@ -122,18 +117,17 @@ export default function SupportPage() {
 
     } catch (e: any) {
       console.error("AI error:", e);
-      const errorMsg = e.name === 'AbortError' ? "Request timed out." : "Server error.";
       
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
-        text: errorMsg,
+        text: "Server error. Please try again.",
         sender: "bot",
         status: "error",
         timestamp: serverTimestamp()
       });
     } finally {
-      // ALWAYS STOP LOADING
+      // 🔥 ALWAYS STOP LOADING
       setLoading(false);
     }
   };

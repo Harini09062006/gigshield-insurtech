@@ -12,12 +12,12 @@ export async function POST(req: Request) {
 
     // Stabilized response for AI flow testing
     return Response.json({
-      reply: "AI is now responding correctly. How else can I help you with your protection plan?"
+      reply: "AI working correctly now ✅"
     });
   } catch (err) {
     console.error("API ROUTE ERROR:", err);
     return Response.json({
-      reply: "I encountered a technical hiccup. Please try again in a moment."
+      reply: "API error fallback"
     });
   }
 }

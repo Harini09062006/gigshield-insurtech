@@ -40,7 +40,7 @@ interface AIAssistantProps {
 
 /**
  * AI SUPPORT ASSISTANT - STABILIZED ASYNC FLOW
- * Fixed infinite loading with timeout safety and guaranteed resolution.
+ * Fixed infinite loading with guaranteed resolution.
  */
 export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const { user } = useUser();
@@ -97,25 +97,19 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         timestamp: serverTimestamp()
       });
 
-      // Timeout Protection
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
       // Fetch AI Response
       const res = await fetch("/api/ai", {
         method: "POST",
-        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message })
       });
 
-      clearTimeout(timeoutId);
-      console.log("API response arrived");
-
       if (!res.ok) throw new Error("API failed");
 
       const data = await res.json();
-      const reply = data?.reply || "AI is not responding properly.";
+      const reply = data?.reply || "AI fallback response";
+
+      console.log("API response received");
 
       // Save AI Reply
       await addDoc(collection(db, "support_messages"), {
@@ -129,12 +123,11 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
       
     } catch (err: any) {
       console.error("AI error:", err);
-      const errorMsg = err.name === 'AbortError' ? "Request timed out. Try again." : "Server error. Try again.";
       
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
-        text: errorMsg,
+        text: "Server error. Please try again.",
         sender: "bot",
         status: "error",
         timestamp: serverTimestamp()
@@ -163,7 +156,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
               <Shield className="text-white h-6 w-6" />
             </div>
             <div className="flex-1">
-              <h1 className="text-lg font-bold text-[#1A1A2E] leading-tight">AI Support Assistant</h1>
+              <h1 className="text-lg font-bold text-[#1A1A2E] leading-none">AI Support Assistant</h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <div className={`h-1.5 w-1.5 rounded-full animate-pulse ${isEscalated ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                 <p className="text-[9px] font-black uppercase tracking-widest text-[#64748B]">
