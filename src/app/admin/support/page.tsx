@@ -83,7 +83,7 @@ export default function AdminSupportPortal() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 2. ADMIN RAW DATA LISTENER (FIXED BINDING)
+  // 2. ADMIN DATA LISTENER WITH ROBUST MAPPING
   useEffect(() => {
     if (!db || !isAdmin) return;
 
@@ -95,19 +95,31 @@ export default function AdminSupportPortal() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       console.log("🔥 SUPPORT SNAPSHOT SIZE:", snapshot.size);
       
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const allMessages = snapshot.docs.map(doc => {
+        const d = doc.data();
+        // ENSURE UI COMPATIBLE MAPPING
+        return {
+          id: doc.id,
+          userId: d.userId || doc.id,
+          userName: d.userName || "Worker",
+          message: d.message || d.text || "",
+          sender: d.sender || "user",
+          status: d.status || "open",
+          type: d.type || "normal",
+          workerPlan: d.workerPlan || "PRO",
+          createdAt: d.createdAt
+        };
+      });
       
+      // Sort by date to ensure deduplication picks the LATEST message
+      const sorted = [...allMessages].sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
       // Deduplicate by userId to show unique conversations in sidebar
       const uniqueConversations = Array.from(
-        new Map(data.map(item => [item.userId, item])).values()
+        new Map(sorted.map(item => [item.userId, item])).values()
       );
 
-      console.log("🔥 FINAL DATA FOR UI:", uniqueConversations);
-      
-      // STEP 1 - FIX STATE SETTING
+      console.log("🔥 FINAL DATA FOR UI (MAPPED):", uniqueConversations);
       setIssues(uniqueConversations);
     }, (error) => {
       console.error("❌ Support listener error:", error);
@@ -126,10 +138,14 @@ export default function AdminSupportPortal() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })).sort((a: any, b: any) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      const msgs = snapshot.docs.map(doc => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          ...d,
+          message: d.message || d.text || ""
+        };
+      }).sort((a: any, b: any) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
       
       setMessages(msgs);
     });
@@ -140,9 +156,6 @@ export default function AdminSupportPortal() {
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
-
-  // STEP 3 — ADD DEBUG IN UI
-  console.log("🔥 UI RENDERING DATA (ISSUES):", issues);
 
   const handleSendReply = async () => {
     if (!replyText.trim() || !selectedIssue || !db) return;
@@ -203,7 +216,7 @@ export default function AdminSupportPortal() {
             <div className="p-10 text-center opacity-40">
               <MessageSquare size={48} className="mx-auto mb-2" />
               <p className="text-sm font-bold">No active conversations</p>
-              <p className="text-[10px] mt-1 italic">Check console for data binding logs</p>
+              <p className="text-[10px] mt-1 italic">Check console for mapping logs</p>
             </div>
           ) : (
             issues.map((t: any) => (
@@ -222,7 +235,7 @@ export default function AdminSupportPortal() {
                   <h4 className="font-bold text-sm">{t.userName || "Worker"}</h4>
                   {t.type === 'payment_issue' && <AlertTriangle size={12} className="text-amber-500" />}
                 </div>
-                <p className="text-[11px] italic text-[#64748B] line-clamp-1">"{t.message || t.text}"</p>
+                <p className="text-[11px] italic text-[#64748B] line-clamp-1">"{t.message}"</p>
               </button>
             ))
           )}
@@ -277,7 +290,7 @@ export default function AdminSupportPortal() {
                     }`}>
                       {m.sender === 'admin' && <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-1">🛡️ Support Agent (You)</p>}
                       {m.status === 'pending_admin' && <Badge className="bg-red-500 text-white border-none text-[7px] mb-2 font-black uppercase">Escalated</Badge>}
-                      <p className="leading-relaxed">{m.message || m.text}</p>
+                      <p className="leading-relaxed">{m.message}</p>
                       <div className="text-[9px] mt-2 font-black uppercase opacity-60">
                         {m.sender} • {m.createdAt?.seconds ? format(new Date(m.createdAt.seconds * 1000), "HH:mm") : 'Syncing...'}
                       </div>

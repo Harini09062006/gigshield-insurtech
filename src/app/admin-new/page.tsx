@@ -54,7 +54,7 @@ export default function AdminNewPage() {
 
   const isAuthReady = !isUserLoading && !!user;
 
-  // 1. PROJECT & DB DIAGNOSTICS (ENHANCED DATA BINDING)
+  // 1. DATA LISTENER WITH ROBUST MAPPING
   useEffect(() => {
     if (!db || !isAuthReady) return;
 
@@ -64,14 +64,22 @@ export default function AdminNewPage() {
     const unsubscribe = onSnapshot(collection(db, "chats"), (snapshot) => {
       console.log("🔥 CHATS SNAPSHOT SIZE:", snapshot.size);
       
-      const data = snapshot.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      }));
+      const data = snapshot.docs.map(doc => {
+        const d = doc.data();
+        // ROBUST DATA TRANSFORMATION
+        return {
+          id: doc.id,
+          userId: d.userId || doc.id,
+          userName: d.userName || "Worker",
+          message: d.message || d.text || "",
+          sender: d.sender || "user",
+          status: d.status || "open",
+          type: d.type || "normal",
+          createdAt: d.createdAt
+        };
+      });
 
-      console.log("🔥 FINAL CHAT DATA FOR BINDING:", data);
-      
-      // STEP 1 - FIX STATE SETTING
+      console.log("🔥 FINAL CHAT DATA FOR BINDING (MAPPED):", data);
       setSupportMessages(data);
     });
 
@@ -119,7 +127,7 @@ export default function AdminNewPage() {
     totalPayouts: realClaims?.filter(c => (c.status === 'approved' || c.status === 'paid') && c.gps_status !== 'mismatch').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0
   }), [realUsers, realClaims]);
 
-  // DERIVE THREADS FROM SUPPORT MESSAGES STATE
+  // DERIVE THREADS FROM SUPPORT MESSAGES STATE (USES MAPPED FIELDS)
   const threads = useMemo(() => {
     if (!supportMessages) return [];
     const groups = new Map<string, any>();
@@ -128,19 +136,19 @@ export default function AdminNewPage() {
     const sortedMsgs = [...supportMessages].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     
     sortedMsgs.forEach(msg => {
-      const uId = msg.userId || "anonymous";
+      const uId = msg.userId;
       if (!groups.has(uId)) {
         groups.set(uId, {
           userId: uId,
-          userName: userMap.get(uId)?.name || msg.userName || "Worker",
-          lastMessage: msg.message || msg.text,
-          status: msg.status || 'open',
+          userName: msg.userName,
+          lastMessage: msg.message,
+          status: msg.status,
           timestamp: msg.createdAt,
         });
       }
     });
     return Array.from(groups.values());
-  }, [supportMessages, userMap]);
+  }, [supportMessages]);
 
   const activeChatMessages = useMemo(() => {
     if (!supportMessages || !activeChatUserId) return [];
@@ -148,10 +156,6 @@ export default function AdminNewPage() {
       .filter(m => m.userId === activeChatUserId)
       .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
   }, [supportMessages, activeChatUserId]);
-
-  // STEP 3 — ADD DEBUG IN UI
-  console.log("🔥 UI RENDERING DATA (THREADS):", threads);
-  console.log("🔥 UI RENDERING DATA (STATS):", stats);
 
   const updateClaimStatus = async (id: string, status: string) => {
     if (!db) return;
@@ -400,7 +404,7 @@ export default function AdminNewPage() {
                       {activeChatMessages.map((m, i) => (
                         <div key={i} className={`flex ${m.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
                           <div className={`max-w-[70%] p-3 rounded-2xl text-sm ${m.sender === 'admin' ? 'bg-[#6C47FF] text-white rounded-tr-none' : 'bg-[#F1F0FF] text-[#1A1A2E] rounded-tl-none'}`}>
-                            <p>{m.message || m.text}</p>
+                            <p>{m.message}</p>
                             <span className="text-[8px] mt-1 block opacity-60 uppercase font-black">{m.sender}</span>
                           </div>
                         </div>
