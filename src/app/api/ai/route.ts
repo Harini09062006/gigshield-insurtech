@@ -1,7 +1,8 @@
 export async function POST(req: Request) {
   console.log("API HIT");
   try {
-    const { message } = await req.json();
+    const body = await req.json();
+    const message = body?.message;
 
     if (!message) {
       return Response.json({

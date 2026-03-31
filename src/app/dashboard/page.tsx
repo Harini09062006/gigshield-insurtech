@@ -70,13 +70,33 @@ export default function WorkerDashboard() {
   );
   const { data: profile } = useDoc(profileRef);
 
+  /**
+   * AI INSURANCE CALCULATION (Display Only)
+   * Computes metrics for UI without automatic writes to prevent infinite loops.
+   */
+  const metrics = React.useMemo(() => {
+    if (!profile) return { incomeLoss: 0, coverage: 0, remainingRisk: 0, premium: 0, riskScore: 35 };
+
+    const riskScore = profile.riskScore ?? 35;
+    const plan = profile.plan_id ?? "pro";
+    const baseRate = profile.avg_hourly_earnings ?? 60;
+    
+    // Logic: 3 hours potential loss during disruption
+    const incomeLoss = Math.round((baseRate * 1.3) * 3 * (riskScore / 100));
+    const coverage = plan === "basic" ? 60 : plan === "pro" ? 240 : 600;
+    const premium = plan === "basic" ? 10 : plan === "pro" ? 25 : 50;
+    const remainingRisk = Math.max(0, incomeLoss - coverage);
+
+    return { incomeLoss, coverage, remainingRisk, premium, riskScore };
+  }, [profile]);
+
   const handleSimulateWeather = async () => {
-    console.log("Simulate button clicked");
+    console.log("Simulate started");
     setSimulating(true);
     
     try {
       if (!user?.uid || !db) {
-        console.error("userId missing");
+        console.error("Missing userId");
         return;
       }
 
@@ -110,7 +130,8 @@ export default function WorkerDashboard() {
       const multiplier = multipliers[timeSlot];
       const hoursLost = 3;
       const rawAmount = baseRate * multiplier * hoursLost;
-      const compensation = Math.min(rawAmount, 240);
+      const maxPayout = profile?.plan_id === 'basic' ? 60 : profile?.plan_id === 'elite' ? 600 : 240;
+      const compensation = Math.min(rawAmount, maxPayout);
       
       // Step 4: Create real parametric claim
       await addDoc(collection(db, "claims"), {
@@ -144,6 +165,8 @@ export default function WorkerDashboard() {
         riskScore: newRisk,
         updatedAt: serverTimestamp()
       });
+
+      console.log("Firebase updated");
 
       // Step 6: Update UI
       setWeatherData({
@@ -238,7 +261,7 @@ export default function WorkerDashboard() {
           </Button>
         </div>
 
-        {/* SECTION 1 — EARNINGS PROTECTION SUMMARY (PRIORITIZED & COMPACT) */}
+        {/* SECTION 1 — EARNINGS PROTECTION SUMMARY */}
         <section>
           <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4 mb-5">
             <div className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2 px-1">
@@ -251,24 +274,24 @@ export default function WorkerDashboard() {
             <div className="flex justify-between items-start gap-2 px-1">
               <div className="flex flex-col space-y-1 flex-1">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
-                <p className="text-xl font-black text-[#EF4444]">₹{profile?.incomeLoss || (activeRate * 3)}</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{metrics.incomeLoss}</p>
                 <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">AI-calculated for disruption risk</p>
               </div>
               <div className="flex flex-col space-y-1 flex-1">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
-                <p className="text-xl font-black text-[#22C55E]">₹{profile?.coverage || 240}</p>
+                <p className="text-xl font-black text-[#22C55E]">₹{metrics.coverage}</p>
                 <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Capped by {profile?.plan_id?.toUpperCase() || 'PRO'} plan</p>
               </div>
               <div className="flex flex-col space-y-1 flex-1">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
-                <p className="text-xl font-black text-[#EF4444]">₹{Math.max(0, (profile?.incomeLoss || activeRate * 3) - (profile?.coverage || 240))}</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{metrics.remainingRisk}</p>
                 <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Net financial gap</p>
               </div>
             </div>
           </Card>
         </section>
 
-        {/* SECTION 2 — INCOME DNA PROFILE (COMPACTED) */}
+        {/* SECTION 2 — INCOME DNA PROFILE */}
         <section className="space-y-6">
           <div className="flex justify-between items-center px-2">
             <h2 className="text-xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
@@ -360,11 +383,11 @@ export default function WorkerDashboard() {
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Max Payout</p>
-                <p className="text-sm font-bold">₹{profile?.coverage || 240}</p>
+                <p className="text-sm font-bold">₹{metrics.coverage}</p>
               </div>
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
-                <p className="text-base font-black">₹{profile?.premium || 25}</p>
+                <p className="text-base font-black">₹{metrics.premium}</p>
               </div>
             </div>
           </Card>

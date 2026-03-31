@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, Home, LogOut, Shield, Brain, User as UserIcon, MessageSquare, AlertCircle } from "lucide-react";
+import { Send, Loader2, Home, LogOut, Shield, Brain, User as UserIcon, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useUser,
@@ -20,8 +20,7 @@ import {
   where,
   limit,
   addDoc,
-  serverTimestamp,
-  getDocs
+  serverTimestamp
 } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -33,8 +32,7 @@ export default function SupportPage() {
   const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
-  const { toast } = useToast();
-
+  
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
@@ -46,7 +44,7 @@ export default function SupportPage() {
   );
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
-  // FETCH MESSAGES WITHOUT ORDERBY (Permission Fix for Prototypes)
+  // FETCH MESSAGES
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return query(
@@ -58,7 +56,6 @@ export default function SupportPage() {
 
   const { data: rawMessages } = useCollection(messagesQuery);
 
-  // Client-side sort by timestamp to ensure chronological order without index requirements
   const messages = useMemo(() => {
     if (!rawMessages) return [];
     return [...rawMessages].sort((a, b) => {
@@ -74,79 +71,11 @@ export default function SupportPage() {
     }
   }, [messages, loading]);
 
-  const generateResponse = async (userMsg: string) => {
-    const text = userMsg.toLowerCase();
-    const name = profile?.name || "Worker";
-
-    // 1. GREETINGS
-    if (text.match(/\b(hi|hello|hey|greetings)\b/)) {
-      return `Hi ${name}! 👋 I'm your GigShield AI Assistant!\n\nI can help you with:\n🌧️ Weather & Rain Risk\n💰 Earnings & Income DNA\n🛡️ Your Coverage Details\n⚡ Filing Claims\n📊 Weekly Reports\n👤 Talk to Human Agent\n\nWhat would you like to know today?`;
-    }
-
-    // 2. WEATHER & RAIN
-    if (text.match(/\b(rain|weather|risk|storm)\b/)) {
-      try {
-        const API_KEY = "be5f61ff6b261dedfa89e321d466a063";
-        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${profile?.city || "Chennai"},IN&units=metric&appid=${API_KEY}`);
-        const data = await res.json();
-        const rainfall = data.rain?.['1h'] || 0;
-        const risk = rainfall > 10 ? 85 : 35;
-        return `Current weather in ${profile?.city}: ${data.weather[0].description}. \n🌧️ Rainfall: ${rainfall}mm \n⚠️ Disruption Risk: ${risk}% \n\nYour Pro Shield plan is monitoring these conditions live.`;
-      } catch (e) {
-        return "I'm monitoring the skies! There's currently a 35% risk of disruption in your zone.";
-      }
-    }
-
-    // 3. PLAN & COVERAGE
-    if (text.match(/\b(plan|coverage|shield|details)\b/)) {
-      return `🛡️ Your Active Plan: ${profile?.plan_id?.toUpperCase() || 'PRO'} SHIELD\n💰 Weekly Premium: ₹${profile?.premium || 25}\n⚡ Max Payout: ₹${profile?.coverage || 240}\n✅ Status: Active & Protected`;
-    }
-
-    // 4. CLAIMS
-    if (text.match(/\b(claim|claims|history)\b/)) {
-      return "I've checked your history. Your last claim was for ₹156 and was paid instantly via UPI. You have no pending claims.";
-    }
-
-    // 5. EARNINGS & DNA
-    if (text.match(/\b(earn|income|salary|dna)\b/)) {
-      return `📊 Your Income DNA Profile:\n🌅 Morning: ₹45/hr (0.75x)\n☀️ Afternoon: ₹57/hr (0.95x)\n🌆 Evening: ₹78/hr (1.30x) [PEAK]\n🌙 Night: ₹51/hr (0.85x)\n\nExpected Weekly: ₹3,360`;
-    }
-
-    // 6. SOS / EMERGENCY
-    if (text.match(/\b(sos|emergency)\b/)) {
-      return "🚨 SOS TRIGGERED! Please stay safe. Emergency Contacts:\n📞 112 (National Help)\n📞 100 (Police)\n📞 108 (Ambulance)\n\nI am alerting our field safety team of your location.";
-    }
-
-    // 7. HUMAN ESCALATION
-    if (text.match(/\b(payment|problem|help|human|agent|talk|person|issue)\b/)) {
-      const ticketId = `GS-${Math.floor(100000 + Math.random() * 900000)}`;
-      
-      // Create support ticket in Firebase
-      await addDoc(collection(db, "support_tickets"), {
-        ticketId,
-        workerId: user?.uid,
-        workerName: name,
-        workerCity: profile?.city || "",
-        workerPlan: profile?.plan_id || "pro",
-        issue: userMsg,
-        status: "open",
-        createdAt: serverTimestamp(),
-        lastMessage: userMsg,
-        unreadByAdmin: true
-      });
-
-      setActiveTicketId(ticketId);
-      return `🔗 Connecting to support agent...\n\n✅ Ticket #${ticketId} created!\n⏱️ Estimated wait: 2-3 minutes\n\nAn agent will join this chat shortly. You can keep chatting here while you wait! 💬`;
-    }
-
-    // FALLBACK
-    return "I didn't quite catch that 😊 Try asking about 'rain risk', 'my plan', or 'income DNA'!";
-  };
-
   const handleSend = async (msgOverride?: string) => {
     const text = (msgOverride || input).trim();
     if (!text || !user || !db) return;
 
+    console.log("AI request started");
     setInput("");
     setLoading(true);
 
@@ -161,10 +90,27 @@ export default function SupportPage() {
         timestamp: serverTimestamp()
       });
 
-      // 2. Generate Bot Response
-      const reply = await generateResponse(text);
+      // Timeout Protection
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      // 3. Save Bot Response
+      // 2. Fetch AI Response from API
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text })
+      });
+
+      clearTimeout(timeoutId);
+      console.log("API response arrived");
+
+      if (!res.ok) throw new Error("API failed");
+
+      const data = await res.json();
+      const reply = data?.reply || "AI fallback response";
+
+      // 3. Save AI Reply
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
@@ -175,8 +121,19 @@ export default function SupportPage() {
       });
 
     } catch (e: any) {
-      console.error("Support chat error:", e);
+      console.error("AI error:", e);
+      const errorMsg = e.name === 'AbortError' ? "Request timed out." : "Server error.";
+      
+      await addDoc(collection(db, "support_messages"), {
+        userId: user.uid,
+        userName: "GigShield Assistant",
+        text: errorMsg,
+        sender: "bot",
+        status: "error",
+        timestamp: serverTimestamp()
+      });
     } finally {
+      // ALWAYS STOP LOADING
       setLoading(false);
     }
   };

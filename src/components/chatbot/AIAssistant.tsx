@@ -39,8 +39,8 @@ interface AIAssistantProps {
 }
 
 /**
- * AI SUPPORT ASSISTANT - REFINED ASYNC FLOW
- * Fixed infinite loading and stabilized API response handling.
+ * AI SUPPORT ASSISTANT - STABILIZED ASYNC FLOW
+ * Fixed infinite loading with timeout safety and guaranteed resolution.
  */
 export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const { user } = useUser();
@@ -49,11 +49,11 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Get user profile for identity mapping
+  // 1. Get user profile
   const profileRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // 2. REAL-TIME LISTENER: Syncs messages (without orderBy for prototype safety)
+  // 2. REAL-TIME LISTENER: Syncs messages
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return query(
@@ -70,28 +70,24 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
     return [...rawMessages].sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
   }, [rawMessages]);
 
-  // Auto-scroll to latest message
+  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
 
-  /**
-   * STABILIZED MESSAGE HANDLER
-   * Guaranteed to clear loading state and handle API errors.
-   */
   const handleSend = async () => {
     const message = input.trim();
     if (!message || !user || !db) return;
 
-    console.log("Sending message:", message);
+    console.log("AI request started");
     setInput("");
     
     try {
       setLoading(true);
 
-      // Save User Message to Firestore
+      // Save User Message
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
@@ -101,23 +97,27 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         timestamp: serverTimestamp()
       });
 
-      // Fetch AI Response from API
+      // Timeout Protection
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      // Fetch AI Response
       const res = await fetch("/api/ai", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message })
       });
 
-      console.log("API response received");
+      clearTimeout(timeoutId);
+      console.log("API response arrived");
 
       if (!res.ok) throw new Error("API failed");
 
       const data = await res.json();
-      const reply = data?.reply || "AI fallback response";
+      const reply = data?.reply || "AI is not responding properly.";
 
-      // Save AI Reply to Firestore
+      // Save AI Reply
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
@@ -128,13 +128,13 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
       });
       
     } catch (err: any) {
-      console.error("AI ERROR:", err);
+      console.error("AI error:", err);
+      const errorMsg = err.name === 'AbortError' ? "Request timed out. Try again." : "Server error. Try again.";
       
-      // Save error message to history
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
-        text: "Server error. Try again.",
+        text: errorMsg,
         sender: "bot",
         status: "error",
         timestamp: serverTimestamp()
@@ -145,7 +145,6 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
     }
   };
 
-  // Determine if a human admin has engaged
   const isEscalated = messages?.some(m => m.sender === 'admin');
 
   if (!open) return null;
@@ -235,7 +234,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                className="flex-1 bg-transparent border-none focus-visible:ring-0 text-sm font-medium h-10 px-4"
+                className="flex-1 bg-transparent border-none focus-visible:ring-0 text-sm font-medium h-10 px-4" 
               />
               <Button onClick={handleSend} disabled={!input.trim() || loading} className="h-10 w-10 rounded-xl bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn shrink-0">
                 <Send size={18} />
