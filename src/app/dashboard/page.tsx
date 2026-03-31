@@ -338,81 +338,83 @@ export default function WorkerDashboard() {
 
         {/* 2. TOP SECTION: 2 CARDS SIDE BY SIDE */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Card 1: Active Protection */}
-          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-6 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[240px]">
-            <Shield className="absolute top-6 right-6 h-10 w-10 opacity-20" />
+          {/* Card 1: Active Protection (Compact) */}
+          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-5 shadow-xl relative overflow-hidden flex flex-col justify-between">
+            <Shield className="absolute top-5 right-5 h-8 w-8 opacity-20" />
             <div className="relative z-10">
-              <div className="flex justify-between items-start mb-6">
+              <div className="flex justify-between items-start mb-4">
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Active Plan</p>
-                  <h2 className="text-lg font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
+                  <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-0.5">Active Plan</p>
+                  <h2 className="text-base font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
                 </div>
                 <div className="text-right">
-                  <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Max Payout</p>
-                  <p className="text-sm font-bold">₹{metrics.coverage}</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-0.5">Max Payout</p>
+                  <p className="text-xs font-bold">₹{metrics.coverage}</p>
                 </div>
               </div>
 
-              <div className="text-center mb-6">
-                <p className="text-5xl font-black mb-1">₹{breakdown.finalPremium}</p>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">AI Calculated</p>
+              <div className="text-center mb-4">
+                <p className="text-4xl font-black mb-0.5">₹{breakdown.finalPremium}</p>
+                <div className="flex flex-col items-center gap-0.5">
+                  <p className="text-[8px] font-bold uppercase tracking-[0.2em] opacity-60">AI Calculated</p>
+                  <p className="text-[8px] opacity-50">Based on location & weather</p>
+                </div>
               </div>
 
-              <div className="space-y-2 bg-black/10 p-4 rounded-2xl border border-white/5">
-                <div className="flex justify-between text-[10px] font-medium">
-                  <span className="opacity-70">Base Premium</span>
+              <div className="space-y-1.5 bg-black/10 p-3 rounded-2xl border border-white/5">
+                <div className="flex justify-between text-[9px] font-medium">
+                  <span className="opacity-70">Base</span>
                   <span>₹{breakdown.basePremium}</span>
                 </div>
-                <div className="flex justify-between text-[10px] font-medium">
-                  <span className="opacity-70">Location ({profile?.city || 'Zone'})</span>
+                <div className="flex justify-between text-[9px] font-medium">
+                  <span className="opacity-70">Location</span>
                   <span>+₹{breakdown.locationCharge}</span>
                 </div>
-                <div className="flex justify-between text-[10px] font-medium">
-                  <span className="opacity-70">Weather Adjustment</span>
-                  <span>{breakdown.weatherCharge === 0 ? "Included" : `+₹${breakdown.weatherCharge}`}</span>
+                <div className="flex justify-between text-[9px] font-medium">
+                  <span className="opacity-70">Weather</span>
+                  <span>+₹{breakdown.weatherCharge}</span>
                 </div>
                 <div className="h-px bg-white/10 my-1" />
-                <div className="flex justify-between items-center">
-                  <span className="text-[9px] font-black uppercase tracking-widest opacity-70">Weekly Total</span>
+                <div className="flex justify-center items-center">
                   <span className="text-sm font-black text-[#DCFCE7]">₹{breakdown.finalPremium} / week ✅</span>
                 </div>
               </div>
             </div>
           </Card>
 
-          {/* Card 2: AI Risk Prediction */}
-          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 flex flex-col justify-between shadow-sm relative min-h-[240px]">
-            <Brain className="absolute top-6 right-6 h-6 w-6 text-[#6C47FF] opacity-20" />
+          {/* Card 2: AI Risk Prediction (Balanced) */}
+          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-5 flex flex-col justify-between shadow-sm relative">
+            <Brain className="absolute top-5 right-5 h-6 w-6 text-[#6C47FF] opacity-20" />
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8] mb-1">AI Risk Prediction</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-[#94A3B8] mb-0.5">AI Risk Prediction</p>
                   <p className="text-[8px] font-bold text-[#6C47FF] uppercase">Real-time Risk Analysis</p>
                 </div>
-                <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold py-0.5 px-2.5 rounded-lg text-[10px]">{weatherData.description}</Badge>
+                <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold py-0.5 px-2 rounded-lg text-[9px]">{weatherData.description}</Badge>
               </div>
               <div className="flex items-center gap-3">
                 <h2 className="text-4xl font-black text-[#1A1A2E]">{weatherData.rainfall}mm</h2>
               </div>
             </div>
             
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+            <div className="space-y-3 mt-4">
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-wider">
                   <span className="text-[#64748B]">Disruption Risk</span>
                   <span className="text-[#1A1A2E]">{disruptionRisk}%</span>
                 </div>
-                <Progress value={disruptionRisk} className="h-2 bg-[#f0f2f9]" />
+                <Progress value={disruptionRisk} className="h-1.5 bg-[#f0f2f9]" />
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-[#f0f2f9]">
-                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+              <div className="space-y-1 pt-2 border-t border-[#f0f2f9]">
+                <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-wider">
                   <span className="text-[#64748B]">Live Risk Score</span>
                   <span className={riskScore > 60 ? "text-[#EF4444]" : riskScore > 30 ? "text-[#F59E0B]" : "text-[#22C55E]"}>
                     {riskScore}/100
                   </span>
                 </div>
-                <div className="h-2 w-full bg-[#f0f2f9] rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-[#f0f2f9] rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${riskScore}%` }}
@@ -423,15 +425,6 @@ export default function WorkerDashboard() {
                     }}
                   />
                 </div>
-                {riskScore > 90 && (
-                  <motion.p 
-                    animate={{ opacity: [1, 0.5, 1] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                    className="text-[9px] font-black text-[#EF4444] uppercase tracking-tighter text-center"
-                  >
-                    ⚡ CRITICAL: CLAIM MAY AUTO-FIRE
-                  </motion.p>
-                )}
               </div>
             </div>
           </Card>
@@ -448,7 +441,7 @@ export default function WorkerDashboard() {
                 {[
                   { label: "ACTIVATION", value: profile?.plan_activated_at?.seconds ? format(new Date(profile.plan_activated_at.seconds * 1000), "dd MMM") : "Just now", icon: <Calendar className="h-4 w-4 text-[#6C47FF]" /> },
                   { label: "RENEWAL", value: "25 Mar", icon: <RefreshCcw className="h-4 w-4 text-[#F59E0B]" /> },
-                  { label: "PREMIUM", value: `₹${metrics.premium}`, icon: <IndianRupee className="h-4 w-4 text-[#22C55E]" /> },
+                  { label: "PREMIUM", value: `₹${breakdown.finalPremium}`, icon: <IndianRupee className="h-4 w-4 text-[#22C55E]" /> },
                   { label: "COMMITMENT", value: "4 Weeks", icon: <Shield className="h-4 w-4 text-[#6C47FF]" /> }
                 ].map((item) => (
                   <Card key={item.label} className="bg-white border border-[#F5F3FF] rounded-[20px] shadow-sm p-3 flex flex-col gap-2 relative overflow-hidden">
