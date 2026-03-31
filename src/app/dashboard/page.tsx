@@ -400,27 +400,27 @@ export default function WorkerDashboard() {
 
         {/* 3. POLICY MANAGEMENT: TITLE + 4 MINI CARDS INSIDE SAME BOX */}
         <section>
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-6">
-            <CardHeader className="p-0 mb-6">
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4">
+            <CardHeader className="p-0 mb-4">
               <CardTitle className="text-xl font-bold text-[#1A1A2E]">Policy Management</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-3 items-start">
                 {[
                   { label: "ACTIVATION DATE", value: profile?.plan_activated_at?.seconds ? format(new Date(profile.plan_activated_at.seconds * 1000), "dd MMM") : "Just now", icon: <Calendar className="h-4 w-4 text-[#6C47FF]" /> },
                   { label: "NEXT RENEWAL", value: "25 Mar", icon: <RefreshCcw className="h-4 w-4 text-[#F59E0B]" /> },
                   { label: "RENEWAL AMOUNT", value: `₹${metrics.premium || 0}`, icon: <IndianRupee className="h-4 w-4 text-[#22C55E]" /> },
                   { label: "COMMITMENT", value: "4 Weeks", icon: <Shield className="h-4 w-4 text-[#6C47FF]" /> }
                 ].map((item) => (
-                  <Card key={item.label} className="bg-white border-none rounded-[20px] shadow-sm p-4 flex flex-col gap-2 relative overflow-hidden border border-[#F5F3FF]">
+                  <Card key={item.label} className="bg-white border-none rounded-[20px] shadow-sm p-3 flex flex-col gap-2 relative overflow-hidden border border-[#F5F3FF]">
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-[#F8F9FF] rounded-lg">
+                      <div className="h-7 w-7 bg-[#F8F9FF] rounded-lg flex items-center justify-center shrink-0">
                         {item.icon}
                       </div>
-                      <p className="text-[9px] font-black text-[#94A3B8] uppercase tracking-wider">{item.label}</p>
+                      <p className="text-[8px] font-black text-[#94A3B8] uppercase tracking-wider">{item.label}</p>
                     </div>
                     <div>
-                      <p className="text-xl font-black text-[#1A1A2E]">{item.value}</p>
+                      <p className="text-lg font-black text-[#1A1A2E]">{item.value}</p>
                     </div>
                   </Card>
                 ))}
