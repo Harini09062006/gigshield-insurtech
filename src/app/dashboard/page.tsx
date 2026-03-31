@@ -107,7 +107,10 @@ export default function WorkerDashboard() {
   const [weatherData, setWeatherData] = useState({
     rainfall: 12,
     description: "Light Rain",
-    temperature: 28
+    temperature: 28,
+    aqi: 85,
+    wind: 15,
+    visibility: 800
   });
   const [disruptionRisk, setDisruptionRisk] = useState(35);
 
@@ -151,6 +154,36 @@ export default function WorkerDashboard() {
 
     return { incomeLoss, coverage, remainingRisk, premium, riskScore: riskScoreValue };
   }, [profile, breakdown.finalPremium]);
+
+  const getRiskInfo = (env: any) => {
+    const rainStatus = env.rainfall < 30 ? { label: "LOW", score: 0, color: "bg-emerald-50 text-emerald-600" } 
+                     : env.rainfall <= 60 ? { label: "MEDIUM", score: 1, color: "bg-amber-50 text-amber-600" } 
+                     : { label: "HIGH", score: 2, color: "bg-red-50 text-red-600" };
+
+    const aqiStatus = env.aqi < 100 ? { label: "SAFE", score: 0, color: "bg-emerald-50 text-emerald-600" } 
+                    : env.aqi <= 300 ? { label: "MODERATE", score: 1, color: "bg-amber-50 text-amber-600" } 
+                    : { label: "HIGH", score: 2, color: "bg-red-50 text-red-600" };
+
+    const tempStatus = env.temperature < 35 ? { label: "NORMAL", score: 0, color: "bg-emerald-50 text-emerald-600" } 
+                     : env.temperature <= 40 ? { label: "WARNING", score: 1, color: "bg-amber-50 text-amber-600" } 
+                     : { label: "HIGH", score: 2, color: "bg-red-50 text-red-600" };
+
+    const windStatus = env.wind < 30 ? { label: "SAFE", score: 0, color: "bg-emerald-50 text-emerald-600" } 
+                     : env.wind <= 50 ? { label: "WARNING", score: 1, color: "bg-amber-50 text-amber-600" } 
+                     : { label: "HIGH", score: 2, color: "bg-red-50 text-red-600" };
+
+    const fogStatus = env.visibility > 500 ? { label: "CLEAR", score: 0, color: "bg-emerald-50 text-emerald-600" } 
+                    : env.visibility >= 200 ? { label: "LOW", score: 1, color: "bg-amber-50 text-amber-600" } 
+                    : { label: "HIGH", score: 2, color: "bg-red-50 text-red-600" };
+
+    const totalScore = rainStatus.score + aqiStatus.score + tempStatus.score + windStatus.score + fogStatus.score;
+    const overall = totalScore >= 5 ? "HIGH" : totalScore >= 3 ? "MEDIUM" : "LOW";
+    const overallColor = overall === "HIGH" ? "text-red-600" : overall === "MEDIUM" ? "text-amber-600" : "text-emerald-600";
+
+    return { rain: rainStatus, aqi: aqiStatus, temp: tempStatus, wind: windStatus, visibility: fogStatus, overall, overallColor };
+  };
+
+  const riskInfo = getRiskInfo(weatherData);
 
   const getAllPassedChecks = () => ({
     gpsValidation: "PASSED",
@@ -256,7 +289,10 @@ export default function WorkerDashboard() {
       setWeatherData({
         rainfall: severeRainfall,
         description: isFirst ? "Severe Rainfall" : "Duplicate Detected",
-        temperature: realWeatherData.main?.temp || 28
+        temperature: realWeatherData.main?.temp || 28,
+        aqi: isFirst ? 350 : 420,
+        wind: isFirst ? 55 : 65,
+        visibility: isFirst ? 150 : 80
       });
       setDisruptionRisk(newRisk);
 
@@ -422,35 +458,58 @@ export default function WorkerDashboard() {
             </div>
           </Card>
 
-          {/* Card 2: AI Risk Prediction (Balanced) */}
+          {/* Card 2: AI Risk Prediction (Multi-Risk Monitoring) */}
           <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-4 flex flex-col justify-between shadow-sm relative h-full">
             <Brain className="absolute top-4 right-4 h-6 w-6 text-[#6C47FF] opacity-20" />
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <div>
                   <p className="text-[8px] font-black uppercase tracking-widest text-[#94A3B8] mb-0.5">AI Risk Prediction</p>
                   <p className="text-[8px] font-bold text-[#6C47FF] uppercase">Real-time Risk Analysis</p>
                 </div>
-                <Badge className={`${weatherData.rainfall > 50 ? 'bg-red-50 text-red-500' : 'bg-[#DCFCE7] text-[#22C55E]'} border-none font-bold py-0.5 px-2 rounded-lg text-[9px]`}>
-                  {weatherData.rainfall > 50 ? "High Risk Condition ⚠️" : "Safe Environment ✅"}
+                <Badge className={`${riskInfo.overall === 'HIGH' ? 'bg-red-50 text-red-500' : riskInfo.overall === 'MEDIUM' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'} border-none font-bold py-0.5 px-2 rounded-lg text-[9px]`}>
+                  {riskInfo.overall === 'HIGH' ? "High Risk Condition ⚠️" : riskInfo.overall === 'MEDIUM' ? "Moderate Alert 🟠" : "Safe Environment ✅"}
                 </Badge>
               </div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-4xl font-black text-[#1A1A2E]">{weatherData.rainfall}mm</h2>
-                {weatherData.rainfall > 50 && (
-                  <span className="text-xs font-bold text-red-500 uppercase tracking-tighter animate-pulse">Heavy Rain Detected 🌧</span>
-                )}
+              
+              {/* Multi-Risk Rows */}
+              <div className="space-y-1.5 mt-2">
+                {[
+                  { icon: "🌧️", label: "Rain", val: `${weatherData.rainfall}mm`, status: riskInfo.rain },
+                  { icon: "🌫️", label: "AQI", val: weatherData.aqi, status: riskInfo.aqi },
+                  { icon: "🌡️", label: "Temp", val: `${weatherData.temperature}°C`, status: riskInfo.temp },
+                  { icon: "🌬️", label: "Wind", val: `${weatherData.wind} km/h`, status: riskInfo.wind },
+                  { icon: "🌁", label: "Fog", val: `${weatherData.visibility}m`, status: riskInfo.visibility },
+                ].map((row, idx) => (
+                  <div key={idx} className="flex items-center justify-between py-1 border-b border-[#F5F3FF] last:border-none">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">{row.icon}</span>
+                      <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">{row.label}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-black text-[#1A1A2E]">{row.val}</span>
+                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${row.status.color}`}>
+                        {row.status.label}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                <span className="text-[#94A3B8]">🧠 Overall Risk:</span>
+                <span className={riskInfo.overallColor}>{riskInfo.overall}</span>
               </div>
             </div>
 
             {/* AI Insights Section */}
-            <div className="mt-2 space-y-2 border-t border-b border-[#f0f2f9] py-3">
+            <div className="mt-4 space-y-2 border-t border-b border-[#f0f2f9] py-3">
               <div className="flex flex-col">
                 <span className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest flex items-center gap-1.5">
                   📊 Prediction:
                 </span>
                 <span className="text-[10px] font-bold text-[#1A1A2E] mt-0.5">
-                  {weatherData.rainfall > 50 ? "Heavy rain expected for next few hours" : "Stable atmospheric conditions predicted"}
+                  {riskInfo.overall === 'HIGH' ? "Severe disruptions expected for next few hours" : riskInfo.overall === 'MEDIUM' ? "Variable conditions predicted; monitoring active" : "Stable atmospheric conditions predicted"}
                 </span>
               </div>
               <div className="flex flex-col">
@@ -459,9 +518,9 @@ export default function WorkerDashboard() {
                 </span>
                 <div className="flex flex-col mt-0.5">
                   <span className="text-[10px] font-bold text-[#6C47FF]">
-                    {riskScore > 60 ? "Premium increased automatically" : riskScore < 40 ? "Premium reduced automatically" : "No premium change (Standard Rate)" }
+                    {riskInfo.overall === 'HIGH' ? "Premium increased; High-alert status" : riskInfo.overall === 'MEDIUM' ? "Monitoring active; standard rates" : "Premium reduced; Safe Zone Active" }
                   </span>
-                  <span className="text-[9px] font-medium text-[#64748B]">Claim monitoring active • Automated verification enabled</span>
+                  <span className="text-[9px] font-medium text-[#64748B]">Automated verification enabled for all factors</span>
                 </div>
               </div>
             </div>
