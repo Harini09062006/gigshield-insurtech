@@ -31,7 +31,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, updateDoc } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp, updateDoc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -126,11 +126,18 @@ export default function WorkerDashboard() {
     if (!user?.uid || !db) return;
     
     setSimulating(true);
-    const currentCount = simulateCount;
-    setSimulateCount(prev => prev + 1);
+    console.log("Simulate clicked");
 
     try {
-      const isFirst = currentCount === 0;
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.data();
+      
+      const currentCount = userData?.simulationCount || 0;
+      const newCount = currentCount + 1;
+      setSimulateCount(newCount);
+
+      const isFirst = newCount === 1;
       
       const API_KEY = "be5f61ff6b261dedfa89e321d466a063";
       const realWeatherRes = await fetch(
@@ -162,19 +169,29 @@ export default function WorkerDashboard() {
       const maxPayout = profile?.plan_id === 'basic' ? 60 : profile?.plan_id === 'elite' ? 600 : 240;
       const compensation = Math.min(rawAmount, maxPayout);
       
-      const status = isFirst ? "paid" : "review";
+      const claimStatus = isFirst ? "paid" : "review";
       const decision = isFirst ? "APPROVED" : "REVIEW";
       
-      const fraudResult = {
-        gps: "PASSED",
-        duplicate: isFirst ? "PASSED" : "FAILED",
-        status: decision
+      // Control "Simulate Severe Weather" behavior as requested:
+      // First click → ALL checks PASS
+      // Second click → DUPLICATE FAIL → REVIEW REQUIRED
+      const fraudResults = {
+        gpsValidation: "PASSED",
+        deviceFingerprint: "PASSED",
+        accountAge: "PASSED",
+        behaviorPattern: "PASSED",
+        orderHistory: "PASSED",
+        duplicateCheck: isFirst ? "PASSED" : "FAILED",
+        weatherIntel: "PASSED",
+        networkAnalysis: "PASSED"
       };
       
-      setFraudChecks(fraudResult);
+      setFraudChecks(fraudResults);
 
+      // Create claim in Firebase
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
+        userId: user.uid,
         trigger_type: "SEVERE_RAIN",
         trigger_description: isFirst 
           ? `Severe Rainfall (${severeRainfall}mm) Simulated` 
@@ -182,17 +199,9 @@ export default function WorkerDashboard() {
         timeSlot: timeSlot,
         dna_hourly_rate: Math.round(baseRate * multiplier),
         compensation: Math.round(compensation),
-        status: status,
+        status: claimStatus,
         decision: decision,
-        fraudChecks: {
-          gpsValidation: "PASSED",
-          weatherIntelligence: "PASSED",
-          behaviorPattern: "PASSED",
-          accountAge: "PASSED",
-          orderHistory: "PASSED",
-          networkAnalysis: "PASSED",
-          duplicateCheck: isFirst ? "PASSED" : "FAILED"
-        },
+        fraudChecks: fraudResults,
         trustScore: isFirst ? 95 : 45,
         weather: {
           rainfall: severeRainfall,
@@ -202,8 +211,13 @@ export default function WorkerDashboard() {
         createdAt: serverTimestamp()
       });
 
-      await updateDoc(doc(db, "users", user.uid), {
+      // Update user profile with simulation count and latest results
+      await updateDoc(userRef, {
+        simulationCount: newCount,
         riskScore: newRisk,
+        fraudChecks: fraudResults,
+        claimStatus: decision,
+        lastSimulation: Date.now(),
         updatedAt: serverTimestamp()
       });
 
@@ -489,7 +503,7 @@ export default function WorkerDashboard() {
                   <p className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter mb-1">Recommended Plan</p>
                   <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
                 </div>
-                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl h-12 px-8 transition-all text-sm">Upgrade Plan</Button>
+                <Link href="/plans"><Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl h-12 px-8 transition-all text-sm">Upgrade Plan</Button></Link>
               </div>
             </Card>
 
