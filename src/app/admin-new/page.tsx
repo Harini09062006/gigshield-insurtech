@@ -41,7 +41,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { firebaseConfig } from "@/firebase/config";
 
 export default function AdminNewPage() {
   const db = useFirestore();
@@ -51,20 +50,29 @@ export default function AdminNewPage() {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [supportMessages, setSupportMessages] = useState<any[]>([]);
 
   const isAuthReady = !isUserLoading && !!user;
 
-  // 1. PROJECT & DB DIAGNOSTICS
+  // 1. PROJECT & DB DIAGNOSTICS (ENHANCED DATA BINDING)
   useEffect(() => {
-    console.log("🔥 ADMIN DASHBOARD RENDERED");
-    console.log("🔥 AUTH READY:", isAuthReady);
-    
-    if (!db) return;
+    if (!db || !isAuthReady) return;
 
-    // RAW COLLECTION LISTENER FOR DEBUGGING
+    console.log("🔥 ADMIN DASHBOARD CONNECTED TO FIRESTORE");
+    
+    // PRIMARY CHAT LISTENER FOR BINDING
     const unsubscribe = onSnapshot(collection(db, "chats"), (snapshot) => {
-      console.log("🔥 GLOBAL CHATS COUNT:", snapshot.size);
-      snapshot.forEach(d => console.log("📄 GLOBAL CHAT DOC:", d.id, d.data()));
+      console.log("🔥 CHATS SNAPSHOT SIZE:", snapshot.size);
+      
+      const data = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }));
+
+      console.log("🔥 FINAL CHAT DATA FOR BINDING:", data);
+      
+      // STEP 1 - FIX STATE SETTING
+      setSupportMessages(data);
     });
 
     return () => unsubscribe();
@@ -81,14 +89,8 @@ export default function AdminNewPage() {
     return query(collection(db, "claims"), limit(100));
   }, [db, isAuthReady]);
 
-  const chatsQuery = useMemoFirebase(() => {
-    if (!db || !isAuthReady) return null;
-    return query(collection(db, "chats"), limit(1000));
-  }, [db, isAuthReady]);
-
   const { data: rawUsers, isLoading: loadingUsers } = useCollection(usersQuery);
   const { data: rawClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
-  const { data: rawMessages, isLoading: loadingMessages } = useCollection(chatsQuery);
 
   const realUsers = useMemo(() => {
     if (!rawUsers) return [];
@@ -117,16 +119,20 @@ export default function AdminNewPage() {
     totalPayouts: realClaims?.filter(c => (c.status === 'approved' || c.status === 'paid') && c.gps_status !== 'mismatch').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0
   }), [realUsers, realClaims]);
 
+  // DERIVE THREADS FROM SUPPORT MESSAGES STATE
   const threads = useMemo(() => {
-    if (!rawMessages) return [];
+    if (!supportMessages) return [];
     const groups = new Map<string, any>();
-    const sortedMsgs = [...rawMessages].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    
+    // Sort descending to get latest message for preview
+    const sortedMsgs = [...supportMessages].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     
     sortedMsgs.forEach(msg => {
-      if (!groups.has(msg.userId)) {
-        groups.set(msg.userId, {
-          userId: msg.userId,
-          userName: userMap.get(msg.userId)?.name || msg.userName || "Worker",
+      const uId = msg.userId || "anonymous";
+      if (!groups.has(uId)) {
+        groups.set(uId, {
+          userId: uId,
+          userName: userMap.get(uId)?.name || msg.userName || "Worker",
           lastMessage: msg.message || msg.text,
           status: msg.status || 'open',
           timestamp: msg.createdAt,
@@ -134,14 +140,18 @@ export default function AdminNewPage() {
       }
     });
     return Array.from(groups.values());
-  }, [rawMessages, userMap]);
+  }, [supportMessages, userMap]);
 
   const activeChatMessages = useMemo(() => {
-    if (!rawMessages || !activeChatUserId) return [];
-    return rawMessages
+    if (!supportMessages || !activeChatUserId) return [];
+    return supportMessages
       .filter(m => m.userId === activeChatUserId)
       .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
-  }, [rawMessages, activeChatUserId]);
+  }, [supportMessages, activeChatUserId]);
+
+  // STEP 3 — ADD DEBUG IN UI
+  console.log("🔥 UI RENDERING DATA (THREADS):", threads);
+  console.log("🔥 UI RENDERING DATA (STATS):", stats);
 
   const updateClaimStatus = async (id: string, status: string) => {
     if (!db) return;
@@ -180,8 +190,8 @@ export default function AdminNewPage() {
   };
 
   const resolveThread = async () => {
-    if (!activeChatUserId || !db || !rawMessages) return;
-    const threadMsgs = rawMessages.filter(m => m.userId === activeChatUserId && m.status !== 'resolved');
+    if (!activeChatUserId || !db || !supportMessages) return;
+    const threadMsgs = supportMessages.filter(m => m.userId === activeChatUserId && m.status !== 'resolved');
     const promises = threadMsgs.map(m => updateDoc(doc(db, "chats", m.id), { status: "resolved" }));
     await Promise.all(promises);
     setActiveChatUserId(null);
@@ -357,7 +367,7 @@ export default function AdminNewPage() {
                   <h3 className="text-xs font-black uppercase text-[#94A3B8] tracking-widest">Conversations</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                  {loadingMessages ? <div className="p-4"><Skeleton className="h-20 w-full rounded-xl"/></div> : 
+                  {threads.length === 0 ? <div className="p-10 text-center opacity-40"><MessageSquare size={48} className="mx-auto mb-2"/><p className="text-sm font-bold">No conversations yet</p></div> : 
                     threads.map(t => (
                     <button 
                       key={t.userId} 

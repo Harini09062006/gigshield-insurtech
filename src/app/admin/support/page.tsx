@@ -38,7 +38,6 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { firebaseConfig } from "@/firebase/config";
 
 export default function AdminSupportPortal() {
   const { user, isUserLoading } = useUser();
@@ -59,21 +58,17 @@ export default function AdminSupportPortal() {
     async function checkRole() {
       if (isUserLoading) return;
       if (!user) { 
-        console.warn("⚠️ No user found, redirecting to login");
         router.replace("/login"); 
         return; 
       }
       
       try {
-        console.log("🔍 Checking admin role for UID:", user.uid);
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
           if (data.role === "admin") {
             setIsAdmin(true);
-            console.log("✅ Admin access granted");
           } else {
-            console.warn("🚫 Access denied: User is not an admin.");
             router.replace("/dashboard");
           }
         } else {
@@ -88,34 +83,32 @@ export default function AdminSupportPortal() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 2. ADMIN RAW DATA LISTENER (DEBUG & FIX)
+  // 2. ADMIN RAW DATA LISTENER (FIXED BINDING)
   useEffect(() => {
     if (!db || !isAdmin) return;
 
     console.log("📡 Starting Support Queue Listener...");
     
-    // TEMPORARY: Remove where filters to ensure data appears in UI
+    // Listen to all chats for management
     const q = collection(db, "chats");
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       console.log("🔥 SUPPORT SNAPSHOT SIZE:", snapshot.size);
       
-      const data = snapshot.docs.map(doc => {
-        const d = doc.data();
-        console.log("📄 DOC IN QUEUE:", doc.id, d);
-        return { id: doc.id, ...d };
-      });
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
       
-      // Filter for priority issues in-memory to verify logic
-      const priorityIssues = data.filter(item => 
-        item.type === "payment_issue" && item.status === "pending_admin"
+      // Deduplicate by userId to show unique conversations in sidebar
+      const uniqueConversations = Array.from(
+        new Map(data.map(item => [item.userId, item])).values()
       );
 
-      console.log("🎯 PRIORITY ISSUES FOUND:", priorityIssues.length);
-
-      // Deduplicate by userId
-      const uniqueIssues = Array.from(new Map(data.map(item => [item.userId, item])).values());
-      setIssues(uniqueIssues);
+      console.log("🔥 FINAL DATA FOR UI:", uniqueConversations);
+      
+      // STEP 1 - FIX STATE SETTING
+      setIssues(uniqueConversations);
     }, (error) => {
       console.error("❌ Support listener error:", error);
     });
@@ -125,7 +118,6 @@ export default function AdminSupportPortal() {
 
   // 3. REAL-TIME MESSAGES FOR SELECTED WORKER
   useEffect(() => {
-    console.log("🔥 SELECTED ISSUE CHANGED:", selectedIssue?.userId);
     if (!selectedIssue?.userId || !db) return;
     
     const q = query(
@@ -134,7 +126,6 @@ export default function AdminSupportPortal() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log("💬 MESSAGES SNAPSHOT SIZE:", snapshot.size);
       const msgs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -149,6 +140,9 @@ export default function AdminSupportPortal() {
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
+
+  // STEP 3 — ADD DEBUG IN UI
+  console.log("🔥 UI RENDERING DATA (ISSUES):", issues);
 
   const handleSendReply = async () => {
     if (!replyText.trim() || !selectedIssue || !db) return;
@@ -208,8 +202,8 @@ export default function AdminSupportPortal() {
           {issues.length === 0 ? (
             <div className="p-10 text-center opacity-40">
               <MessageSquare size={48} className="mx-auto mb-2" />
-              <p className="text-sm font-bold">No active escalations</p>
-              <p className="text-[10px] mt-1 italic">Check console for raw data logs</p>
+              <p className="text-sm font-bold">No active conversations</p>
+              <p className="text-[10px] mt-1 italic">Check console for data binding logs</p>
             </div>
           ) : (
             issues.map((t: any) => (
@@ -228,7 +222,6 @@ export default function AdminSupportPortal() {
                   <h4 className="font-bold text-sm">{t.userName || "Worker"}</h4>
                   {t.type === 'payment_issue' && <AlertTriangle size={12} className="text-amber-500" />}
                 </div>
-                <p className="text-xs font-medium text-[#64748B] truncate mb-3">{t.workerCity || 'Unknown City'} • {t.workerPlan?.toUpperCase() || 'PLAN'}</p>
                 <p className="text-[11px] italic text-[#64748B] line-clamp-1">"{t.message || t.text}"</p>
               </button>
             ))
