@@ -42,6 +42,7 @@ import { useRouter } from "next/navigation";
 import { getUserLocation } from "@/services/locationService";
 import { useToast } from "@/hooks/use-toast";
 import { autoUpdatePremium } from "@/services/aiAutoUpdater";
+import { format } from "date-fns";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -342,6 +343,41 @@ export default function WorkerDashboard() {
     if (user) fetchWeather();
   }, [user]);
 
+  // Income DNA variables
+  const baseRate = profile?.avg_hourly_earnings || 60;
+  const morningRate = Math.round(baseRate * 0.75);
+  const afternoonRate = Math.round(baseRate * 0.95);
+  const eveningRate = Math.round(baseRate * 1.30);
+  const nightRate = Math.round(baseRate * 0.85);
+
+  const currentHour = new Date().getHours();
+  let activeSlotName = "Night Shift";
+  let activeRate = nightRate;
+
+  if (currentHour >= 6 && currentHour < 10) {
+    activeSlotName = "Morning Peak";
+    activeRate = morningRate;
+  } else if (currentHour >= 12 && currentHour < 16) {
+    activeSlotName = "Afternoon Peak";
+    activeRate = afternoonRate;
+  } else if (currentHour >= 17 && currentHour < 21) {
+    activeSlotName = "Evening Peak";
+    activeRate = eveningRate;
+  }
+
+  const chartData = [
+    { time: "6 AM", evening: 20, lunch: 30, active: 60 },
+    { time: "8 AM", evening: 30, lunch: 60, active: 70 },
+    { time: "10 AM", evening: 40, lunch: 80, active: 75 },
+    { time: "12 PM", evening: 50, lunch: 95, active: 80 },
+    { time: "2 PM", evening: 55, lunch: 70, active: 75 },
+    { time: "4 PM", evening: 65, lunch: 40, active: 70 },
+    { time: "6 PM", evening: 95, lunch: 20, active: 80 },
+    { time: "8 PM", evening: 85, lunch: 15, active: 75 },
+    { time: "10 PM", evening: 60, lunch: 10, active: 60 },
+    { time: "11 PM", evening: 30, lunch: 5, active: 40 }
+  ];
+
   if (isUserLoading) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
   if (!user) return null;
 
@@ -449,6 +485,164 @@ export default function WorkerDashboard() {
             ))}
           </div>
         </Card>
+
+        {/* SECTION 1 — INCOME DNA PROFILE */}
+        <section className="space-y-6">
+          <div className="flex justify-between items-center px-2">
+            <h2 className="text-xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
+            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Updated {format(new Date(), "HH:mm")}</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="bg-white border-none border-b-4 border-[#F59E0B] rounded-[20px] shadow-sm p-5 flex flex-col gap-3 relative overflow-hidden">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🌅</span>
+                <p className="text-[10px] font-black text-[#64748B] uppercase">Morning</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#64748B]">6-10 AM</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">₹{morningRate}/hr</p>
+              </div>
+              <p className="text-[10px] font-bold text-[#6C47FF]">0.75x multiplier</p>
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#F59E0B]" />
+            </Card>
+
+            <Card className="bg-white border-none border-b-4 border-[#EAB308] rounded-[20px] shadow-sm p-5 flex flex-col gap-3 relative overflow-hidden">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">☀️</span>
+                <p className="text-[10px] font-black text-[#64748B] uppercase">Afternoon</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#64748B]">12-4 PM</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">₹{afternoonRate}/hr</p>
+              </div>
+              <p className="text-[10px] font-bold text-[#6C47FF]">0.95x multiplier</p>
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#EAB308]" />
+            </Card>
+
+            <Card className="bg-white border-none border-b-4 border-[#6C47FF] rounded-[20px] shadow-sm p-5 flex flex-col gap-3 relative overflow-hidden">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🌆</span>
+                <p className="text-[10px] font-black text-[#64748B] uppercase">Evening</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#64748B]">5-9 PM</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">₹{eveningRate}/hr</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold text-[#6C47FF]">1.30x multiplier</p>
+                <Badge className="bg-[#6C47FF] text-white text-[8px] font-black uppercase px-1.5 py-0.5 border-none">Peak</Badge>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#6C47FF]" />
+            </Card>
+
+            <Card className="bg-white border-none border-b-4 border-[#3B82F6] rounded-[20px] shadow-sm p-5 flex flex-col gap-3 relative overflow-hidden">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🌙</span>
+                <p className="text-[10px] font-black text-[#64748B] uppercase">Night</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#64748B]">9 PM-12 AM</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">₹{nightRate}/hr</p>
+              </div>
+              <p className="text-[10px] font-bold text-[#6C47FF]">0.85x multiplier</p>
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#3B82F6]" />
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr,2fr] gap-6">
+            <Card className="bg-white border-none rounded-[24px] shadow-sm p-8 flex flex-col justify-between">
+              <div className="space-y-4">
+                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Expected Weekly Earnings</p>
+                <h3 className="text-6xl font-black text-[#6C47FF]">₹{profile?.dna?.weeklyIncome || 3360}</h3>
+                <p className="text-xs text-[#64748B] leading-relaxed">Derived from your Income DNA earning pattern across projected working hours.</p>
+              </div>
+              <div className="mt-8 pt-6 border-t border-[#E8E6FF] space-y-4">
+                <div>
+                  <p className="text-[9px] font-bold text-[#64748B] uppercase tracking-tighter mb-1">Recommended Plan</p>
+                  <p className="text-lg font-bold text-[#F59E0B]">Pro Shield</p>
+                </div>
+                <Button variant="outline" className="w-full border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl h-11 transition-all">Upgrade Plan</Button>
+              </div>
+            </Card>
+
+            <Card className="bg-white border-none rounded-[24px] shadow-sm p-6">
+              <h3 className="text-sm font-bold text-[#1A1A2E] mb-8">Peak Earning Hours (24-Hour Profile)</h3>
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="time" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 9, fill: '#94A3B8', fontWeight: 600 }}
+                    />
+                    <YAxis hide />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '10px' }} />
+                    <Area type="monotone" dataKey="evening" stroke="#6C47FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvening)" />
+                    <Area type="monotone" dataKey="lunch" stroke="#F59E0B" strokeWidth={2} fillOpacity={1} fill="url(#colorLunch)" />
+                    <Area type="monotone" dataKey="active" stroke="#94A3B8" strokeWidth={1} fill="none" strokeDasharray="5 5" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-6 flex justify-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-[#6C47FF]" />
+                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">Evening peak</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-[#F59E0B]" />
+                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">Lunch peak</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-0.5 w-3 border-t border-dashed border-[#94A3B8]" />
+                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">Active hours</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
+        <section>
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-6">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+              <h2 className="text-xl font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-4 py-1.5 font-bold border-none text-xs">
+                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
+                <p className="text-3xl font-black text-[#EF4444]">₹{activeRate * 3}</p>
+                <p className="text-[10px] text-[#64748B]">Calculated for 3 hour weather disruption</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
+                <p className="text-3xl font-black text-[#22C55E]">₹{profile?.coverage || 240}</p>
+                <p className="text-[10px] text-[#64748B]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
+                <p className="text-3xl font-black text-[#EF4444]">₹{Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
+                <p className="text-[10px] text-[#64748B]">Net income gap after parametric payout</p>
+              </div>
+            </div>
+          </Card>
+        </section>
       </main>
 
       <Button onClick={() => setChatOpen(true)} className="fixed bottom-8 right-8 h-14 w-14 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"><Brain className="h-7 w-7" /></Button>
