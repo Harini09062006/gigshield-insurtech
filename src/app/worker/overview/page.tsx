@@ -10,9 +10,12 @@ import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { format } from "date-fns";
-import { useMemo, useEffect } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
+import { useMemo } from "react";
 
+/**
+ * WORKER OVERVIEW - READ-ONLY PERSPECTIVE
+ * Optimized to prevent infinite write loops by using computed display values.
+ */
 export default function WorkerOverview() {
   const { user } = useUser();
   const db = useFirestore();
@@ -25,89 +28,51 @@ export default function WorkerOverview() {
   const { data: profile } = useDoc(profileRef);
 
   /**
-   * AI INSURANCE CALCULATION
-   * Synchronizes DNA and Risk Score into the user profile.
+   * AI INSURANCE CALCULATION (Display Only)
+   * Computes derived values for the UI without writing back to Firestore automatically.
    */
-  const calculateAndUpdateInsurance = async (userData: any, userId: string) => {
-    if (!userData || !userId || !db) return;
+  const metrics = useMemo(() => {
+    if (!profile) return {
+      incomeLoss: 0,
+      coverage: 0,
+      remainingRisk: 0,
+      premium: 0,
+      riskScore: 35,
+      weeklyIncome: 3360
+    };
 
-    const dna = userData.dna;
-    const riskScore = userData.riskScore || 30;
-    const plan = userData.plan_id || userData.plan || "pro";
-
-    // PREMIUM (AI logic)
-    let premium = (dna.weeklyIncome * riskScore) / 1000;
-    premium = Math.max(20, Math.min(80, premium));
-    premium = Math.round(premium);
+    const riskScore = profile.riskScore ?? 35;
+    const plan = profile.plan_id ?? profile.plan ?? "pro";
+    const baseRate = profile.avg_hourly_earnings ?? 60;
+    const dna = profile.dna || { weeklyIncome: baseRate * 40 };
+    const weeklyIncome = dna.weeklyIncome || (baseRate * 40);
 
     // INCOME LOSS
-    const incomeLoss = Math.round(dna.weeklyIncome * (riskScore / 100));
+    const incomeLoss = profile.incomeLoss ?? Math.round(weeklyIncome * (riskScore / 100));
 
     // COVERAGE
-    const coverage =
+    const coverage = profile.coverage ?? (
       plan === "basic" ? 60 :
       plan === "pro" ? 240 :
-      600;
+      600
+    );
+
+    // PREMIUM (Simulated AI logic for display)
+    let premium = profile.premium ?? Math.round((weeklyIncome * riskScore) / 1000);
+    premium = Math.max(20, Math.min(80, premium));
 
     // REMAINING RISK
     const remainingRisk = Math.max(0, incomeLoss - coverage);
 
-    // BREAK INFINITE LOOP: Only update if values actually changed
-    if (
-      userData.premium === premium &&
-      userData.incomeLoss === incomeLoss &&
-      userData.coverage === coverage &&
-      userData.remainingRisk === remainingRisk
-    ) {
-      return;
-    }
-
-    console.log("OVERVIEW CALCULATED VALUES:", {
-      premium,
-      incomeLoss,
-      coverage,
-      remainingRisk
-    });
-
-    // SAFE UPDATE
-    await updateDoc(doc(db, "users", userId), {
-      premium,
+    return {
       incomeLoss,
       coverage,
       remainingRisk,
-      lastUpdated: Date.now()
-    });
-  };
-
-  /**
-   * LIFECYCLE SYNC
-   * Ensures data integrity and triggers calculations.
-   */
-  useEffect(() => {
-    async function syncOverview() {
-      if (user && profile && db) {
-        // STEP 1: Ensure DNA exists in Firestore
-        if (!profile.dna) {
-          console.warn("DNA missing — initializing default DNA");
-          await updateDoc(doc(db, "users", user.uid), {
-            dna: {
-              morning: 45,
-              afternoon: 57,
-              evening: 78,
-              night: 51,
-              weeklyIncome: 3360
-            }
-          });
-          return;
-        }
-
-        // STEP 2: Trigger calculation on data load
-        // calculateAndUpdateInsurance checks for changes internally to prevent loops
-        calculateAndUpdateInsurance(profile, user.uid);
-      }
-    }
-    syncOverview();
-  }, [user, profile, db]);
+      premium,
+      riskScore,
+      weeklyIncome
+    };
+  }, [profile]);
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
@@ -124,6 +89,11 @@ export default function WorkerOverview() {
       return timeB - timeA;
     });
   }, [rawClaims]);
+
+  const morningRate = Math.round((profile?.avg_hourly_earnings || 60) * 0.75);
+  const afternoonRate = Math.round((profile?.avg_hourly_earnings || 60) * 0.95);
+  const eveningRate = Math.round((profile?.avg_hourly_earnings || 60) * 1.30);
+  const nightRate = Math.round((profile?.avg_hourly_earnings || 60) * 0.85);
 
   const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
   const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -159,11 +129,11 @@ export default function WorkerOverview() {
                 <div className="grid grid-cols-2 gap-2 mt-4">
                   <div className="bg-white/10 p-2 rounded-lg">
                     <p className="text-[10px] uppercase opacity-60">Coverage</p>
-                    <p className="text-sm font-bold">₹{profile?.coverage || 0}</p>
+                    <p className="text-sm font-bold">₹{metrics.coverage}</p>
                   </div>
                   <div className="bg-white/10 p-2 rounded-lg">
                     <p className="text-[10px] uppercase opacity-60">Premium</p>
-                    <p className="text-sm font-bold">₹{profile?.premium || 0}</p>
+                    <p className="text-sm font-bold">₹{metrics.premium}</p>
                   </div>
                 </div>
               </CardContent>
@@ -178,15 +148,15 @@ export default function WorkerOverview() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-end">
-                  <div className="text-3xl font-bold text-heading">{profile?.riskScore || 35}%</div>
+                  <div className="text-3xl font-bold text-heading">{metrics.riskScore}%</div>
                   <Badge className="bg-info-bg text-info border-transparent">Monitoring</Badge>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-bold text-body">
                     <span>Disruption Risk</span>
-                    <span className="text-warning">{profile?.riskScore || 35}%</span>
+                    <span className="text-warning">{metrics.riskScore}%</span>
                   </div>
-                  <Progress value={profile?.riskScore || 35} className="h-2 bg-muted/20" />
+                  <Progress value={metrics.riskScore} className="h-2 bg-muted/20" />
                 </div>
               </CardContent>
             </Card>
@@ -219,22 +189,22 @@ export default function WorkerOverview() {
           <CardContent className="grid gap-6 md:grid-cols-3 pt-4">
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Potential Income Loss</p>
-              <p className="text-2xl font-bold text-danger">₹{profile?.incomeLoss || 0}</p>
+              <p className="text-2xl font-bold text-danger">₹{metrics.incomeLoss}</p>
               <p className="text-[10px] text-body">AI-calculated based on current risk profile</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Insurance Coverage</p>
-              <p className="text-2xl font-bold text-success">₹{profile?.coverage || 0}</p>
+              <p className="text-2xl font-bold text-success">₹{metrics.coverage}</p>
               <p className="text-[10px] text-body">Capped by {profile?.plan_id ? profile.plan_id.toUpperCase() : "PRO"} limit</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Remaining Risk</p>
-              <p className="text-2xl font-bold text-danger">₹{profile?.remainingRisk || 0}</p>
+              <p className="text-2xl font-bold text-danger">₹{metrics.remainingRisk}</p>
               <p className="text-[10px] text-body">Consider upgrading plan if gap is high</p>
             </div>
             <div className="md:col-span-3 bg-warning-bg p-3 rounded-lg border border-warning/20 flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-warning" />
-              <p className="text-sm font-medium text-warning">Your remaining risk is calculated dynamically. An increase in local risk or a change in your Income DNA will trigger a re-evaluation.</p>
+              <p className="text-sm font-medium text-warning">Your remaining risk is calculated dynamically based on real-time geographical risk monitoring.</p>
             </div>
           </CardContent>
         </Card>
@@ -248,20 +218,20 @@ export default function WorkerOverview() {
               </div>
               <p className="text-sm text-body">Your personalized earning pattern — used to calculate accurate payouts</p>
             </div>
-            <p className="text-xs text-muted font-mono uppercase tracking-widest">Updated {profile?.dna?.updated_at?.seconds ? format(new Date(profile.dna.updated_at.seconds * 1000), "HH:mm") : "Today"}</p>
+            <p className="text-xs text-muted font-mono uppercase tracking-widest">Updated Live</p>
           </header>
 
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="bg-white border-border shadow-card rounded-card p-6 flex flex-col justify-between">
               <div>
                 <p className="text-xs font-bold text-muted uppercase tracking-widest mb-2">Expected Weekly Earnings</p>
-                <div className="text-5xl font-bold text-primary">₹{profile?.dna?.weeklyIncome || 3360}</div>
+                <div className="text-5xl font-bold text-primary">₹{Math.round((morningRate * 4 + afternoonRate * 4 + eveningRate * 4 + nightRate * 3) * 7)}</div>
                 <p className="text-xs text-body mt-2">Derived from your Income DNA earning pattern</p>
               </div>
               <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-bold text-muted uppercase mb-1">Recommended Plan</p>
-                  <p className="text-lg font-bold text-warning">{profile?.dna?.recommended_plan || "Elite Shield"}</p>
+                  <p className="text-lg font-bold text-warning">{profile?.plan_id === 'basic' ? 'Pro Shield' : 'Elite Shield'}</p>
                 </div>
                 <Link href="/plans"><Button variant="outline" className="border-primary text-primary font-bold hover:bg-primary-light rounded-btn">Upgrade Plan</Button></Link>
               </div>
@@ -269,10 +239,10 @@ export default function WorkerOverview() {
 
             <div className="grid grid-cols-2 gap-4">
               {[
-                { label: "Morning (6-10 AM)", rate: profile?.dna?.morning || 45, mult: "0.75", val: 45, icon: "🌅" },
-                { label: "Afternoon (12-4 PM)", rate: profile?.dna?.afternoon || 57, mult: "0.95", val: 57, icon: "☀" },
-                { label: "Evening (5-9 PM)", rate: profile?.dna?.evening || 78, mult: "1.30", val: 78, icon: "🌆" },
-                { label: "Night (9 PM-12 AM)", rate: profile?.dna?.night || 51, mult: "0.85", val: 51, icon: "🌙" }
+                { label: "Morning (6-10 AM)", rate: morningRate, mult: "0.75", val: 45, icon: "🌅" },
+                { label: "Afternoon (12-4 PM)", rate: afternoonRate, mult: "0.95", val: 57, icon: "☀" },
+                { label: "Evening (5-9 PM)", rate: eveningRate, mult: "1.30", val: 78, icon: "🌆" },
+                { label: "Night (9 PM-12 AM)", rate: nightRate, mult: "0.85", val: 51, icon: "🌙" }
               ].map((slot, i) => (
                 <Card key={i} className="bg-white border-border shadow-sm p-4 rounded-xl flex flex-col justify-between">
                   <div className="flex items-center justify-between mb-2">

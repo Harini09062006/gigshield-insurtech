@@ -31,7 +31,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, updateDoc, getDoc } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp, updateDoc } from "firebase/firestore";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -71,59 +71,27 @@ export default function WorkerDashboard() {
   const { data: profile } = useDoc(profileRef);
 
   /**
-   * RE-CALCULATE AND UPDATE INSURANCE
-   * Externalized for cross-trigger support.
+   * SIMULATE WEATHER HANDLER
+   * Atomic update to profile and claims to prevent write loops.
    */
-  const calculateAndUpdateInsurance = async (userData: any, userId: string) => {
-    if (!userData || !userId || !db) return;
-
-    const riskScore = userData.riskScore || 30;
-    const plan = userData.plan_id || userData.plan || "pro";
-    const baseRate = userData.avg_hourly_earnings || 60;
-
-    const incomeLoss = Math.round(baseRate * 3 * (riskScore / 100));
-    const coverage = plan === "elite" ? 600 : plan === "pro" ? 240 : 60;
-    const remainingRisk = Math.max(0, incomeLoss - coverage);
-
-    if (
-      userData.incomeLoss === incomeLoss &&
-      userData.coverage === coverage &&
-      userData.remainingRisk === remainingRisk
-    ) return;
-
-    await updateDoc(doc(db, "users", userId), {
-      incomeLoss,
-      coverage,
-      remainingRisk,
-      updatedAt: serverTimestamp()
-    });
-  };
-
   const handleSimulateWeather = async () => {
     try {
       console.log("Simulate clicked");
-      if (!user?.uid || !db) {
-        console.error("Missing userId or db instance");
-        return;
-      }
+      if (!user?.uid || !db) return;
 
       setSimulating(true);
       
       // Step 1: Severe scenario variables
       const severeRainfall = 65;
       const newRisk = 75;
-      
       const userRef = doc(db, "users", user.uid);
 
       // Step 2: DNA Calculation
       const hour = new Date().getHours();
       const timeSlot = 
-        hour >= 6 && hour < 10 
-          ? "Morning Peak" :
-        hour >= 12 && hour < 16 
-          ? "Afternoon Peak" :
-        hour >= 17 && hour < 21 
-          ? "Evening Peak" :
+        hour >= 6 && hour < 10 ? "Morning Peak" :
+        hour >= 12 && hour < 16 ? "Afternoon Peak" :
+        hour >= 17 && hour < 21 ? "Evening Peak" :
         "Night Shift";
       
       const multipliers: Record<string, number> = {
@@ -177,21 +145,25 @@ export default function WorkerDashboard() {
         createdAt: serverTimestamp()
       });
 
-      // Step 4: Update ONLY riskScore in Firestore (non-destructive)
+      // Step 4: Atomic update to user profile metrics
+      const plan = profile?.plan_id || "pro";
+      const incomeLoss = Math.round(baseRate * 3 * (newRisk / 100));
+      const coverage = plan === "elite" ? 600 : plan === "pro" ? 240 : 60;
+      const remainingRisk = Math.max(0, incomeLoss - coverage);
+
       await updateDoc(userRef, {
         riskScore: newRisk,
+        incomeLoss,
+        coverage,
+        remainingRisk,
         simulationCount: (profile?.simulationCount || 0) + 1,
-        lastSimulation: Date.now()
+        lastSimulation: Date.now(),
+        updatedAt: serverTimestamp()
       });
 
-      console.log("Risk updated in Firebase");
+      console.log("Risk and Insurance metrics updated in Firebase");
 
-      // Step 5: Trigger Calculation logic safely
-      if (typeof calculateAndUpdateInsurance === "function") {
-        await calculateAndUpdateInsurance({ ...profile, riskScore: newRisk }, user.uid);
-      }
-      
-      // Step 6: Update local state safely
+      // Step 5: Update local state safely for instant UI feedback
       setWeatherData(prev => ({
         ...prev,
         rainfall: severeRainfall,
@@ -293,104 +265,37 @@ export default function WorkerDashboard() {
           </Button>
         </div>
 
-        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
+        {/* SECTION 1 — EARNINGS PROTECTION SUMMARY */}
         <section className="mb-5">
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-[18px] mb-5">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2 px-1">
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4 mb-5">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2 px-1">
               <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-2.5 py-1.5 font-bold border-none text-[10px] ml-auto mb-2">
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-2 py-1 font-bold border-none text-[10px] ml-auto mb-2">
                 DNA Rate: ₹{activeRate}/hr ({activeSlotName})
               </Badge>
             </div>
 
-            <div className="flex justify-between items-start gap-4 px-1">
-              <div className="flex flex-col space-y-2 flex-1">
+            <div className="flex justify-between items-start gap-2 px-1">
+              <div className="flex flex-col space-y-1 flex-1">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
-                <p className="text-xl font-black text-[#EF4444] mb-1.5">₹{activeRate * 3}</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{profile?.incomeLoss || (activeRate * 3)}</p>
                 <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Calculated for 3 hour weather disruption</p>
               </div>
-              <div className="flex flex-col space-y-2 flex-1">
+              <div className="flex flex-col space-y-1 flex-1">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
-                <p className="text-xl font-black text-[#22C55E] mb-1.5">₹{profile?.coverage || profile?.maxPayout || 240}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
+                <p className="text-xl font-black text-[#22C55E]">₹{profile?.coverage || 240}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Max payout limit for your {profile?.plan_id?.toUpperCase() || 'PRO'} plan</p>
               </div>
-              <div className="flex flex-col space-y-2 flex-1">
+              <div className="flex flex-col space-y-1 flex-1">
                 <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
-                <p className="text-xl font-black text-[#EF4444] mb-1.5">₹{Math.max(0, (activeRate * 3) - (profile?.coverage || profile?.maxPayout || 240))}</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{profile?.remainingRisk || 0}</p>
                 <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Net income gap after parametric payout</p>
               </div>
             </div>
           </Card>
         </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-6 flex flex-col justify-between shadow-xl relative overflow-hidden min-h-[200px]">
-            <Shield className="absolute top-6 right-6 h-7 w-7 opacity-40" />
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Active Protection</p>
-              <h2 className="text-2xl font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
-                <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Max Payout</p>
-                <p className="text-sm font-bold">₹{profile?.coverage || profile?.maxPayout || 240}</p>
-              </div>
-              <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
-                <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
-                <p className="text-base font-black">₹{profile?.premium || 25}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
-            <Brain className="absolute top-6 right-6 h-5 w-5 text-[#6C47FF]" />
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8] mb-1">AI Risk Prediction</p>
-              <div className="flex items-center gap-3 mt-1">
-                <h2 className="text-3xl font-black text-[#1A1A2E]">{weatherData.rainfall}mm</h2>
-                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[10px]">{weatherData.description}</Badge>
-              </div>
-            </div>
-            <div className="mt-4 space-y-2">
-              <div className="flex justify-between items-center text-[10px] font-bold">
-                <span className="text-[#64748B]">Disruption Risk</span>
-                <span className="text-[#1A1A2E]">{disruptionRisk}%</span>
-              </div>
-              <Progress value={disruptionRisk} className="h-2 bg-[#f0f2f9]" />
-            </div>
-          </Card>
-
-          <Card className="bg-[#FEFCE8] rounded-[24px] border border-[#FEF08A] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
-            <RefreshCcw className="absolute top-6 right-6 h-5 w-5 text-[#F59E0B]" />
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#F59E0B] mb-1">Commitment Status</p>
-              <div className="flex items-center gap-3 mt-1">
-                <h2 className="text-2xl font-black text-[#1A1A2E]">Week 1 of 4</h2>
-                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[9px]">Renewal ON</Badge>
-              </div>
-              <p className="text-[11px] font-bold text-[#64748B] italic mt-3">Next Renewal: 25 Mar</p>
-            </div>
-          </Card>
-        </div>
-
-        <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden">
-          <div className="px-6 pt-5"><h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#1A1A2E]">Policy Status</h3></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#E8E6FF]">
-            {[
-              { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
-              { label: "Next Renewal", value: "25 Mar", icon: RefreshCcw },
-              { label: "Renewal Amount", value: `₹${profile?.premium || 25}`, icon: IndianRupee },
-              { label: "Commitment", value: "Week 1/4", icon: Info },
-            ].map((stat, i) => (
-              <div key={i} className="p-5 flex items-center gap-3">
-                <div className="h-10 w-10 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0"><stat.icon className="h-4.5 w-4.5" /></div>
-                <div><p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p><p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p></div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* SECTION 1 — INCOME DNA PROFILE */}
+        {/* SECTION 2 — INCOME DNA PROFILE */}
         <section className="space-y-6">
           <div className="flex justify-between items-center px-2">
             <h2 className="text-xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
@@ -471,6 +376,73 @@ export default function WorkerDashboard() {
             </Card>
           </div>
         </section>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-6 flex flex-col justify-between shadow-xl relative overflow-hidden min-h-[200px]">
+            <Shield className="absolute top-6 right-6 h-7 w-7 opacity-40" />
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Active Protection</p>
+              <h2 className="text-2xl font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
+                <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Max Payout</p>
+                <p className="text-sm font-bold">₹{profile?.coverage || 240}</p>
+              </div>
+              <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
+                <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
+                <p className="text-base font-black">₹{profile?.premium || 25}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
+            <Brain className="absolute top-6 right-6 h-5 w-5 text-[#6C47FF]" />
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8] mb-1">AI Risk Prediction</p>
+              <div className="flex items-center gap-3 mt-1">
+                <h2 className="text-3xl font-black text-[#1A1A2E]">{weatherData.rainfall}mm</h2>
+                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[10px]">{weatherData.description}</Badge>
+              </div>
+            </div>
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between items-center text-[10px] font-bold">
+                <span className="text-[#64748B]">Disruption Risk</span>
+                <span className="text-[#1A1A2E]">{disruptionRisk}%</span>
+              </div>
+              <Progress value={disruptionRisk} className="h-2 bg-[#f0f2f9]" />
+            </div>
+          </Card>
+
+          <Card className="bg-[#FEFCE8] rounded-[24px] border border-[#FEF08A] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
+            <RefreshCcw className="absolute top-6 right-6 h-5 w-5 text-[#F59E0B]" />
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[#F59E0B] mb-1">Commitment Status</p>
+              <div className="flex items-center gap-3 mt-1">
+                <h2 className="text-2xl font-black text-[#1A1A2E]">Week 1 of 4</h2>
+                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[9px]">Renewal ON</Badge>
+              </div>
+              <p className="text-[11px] font-bold text-[#64748B] italic mt-3">Next Renewal: 25 Mar</p>
+            </div>
+          </Card>
+        </div>
+
+        <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden">
+          <div className="px-6 pt-5"><h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#1A1A2E]">Policy Status</h3></div>
+          <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#E8E6FF]">
+            {[
+              { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
+              { label: "Next Renewal", value: "25 Mar", icon: RefreshCcw },
+              { label: "Renewal Amount", value: `₹${profile?.premium || 25}`, icon: IndianRupee },
+              { label: "Commitment", value: "Week 1/4", icon: Info },
+            ].map((stat, i) => (
+              <div key={i} className="p-5 flex items-center gap-3">
+                <div className="h-10 w-10 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0"><stat.icon className="h-4.5 w-4.5" /></div>
+                <div><p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p><p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p></div>
+              </div>
+            ))}
+          </div>
+        </Card>
       </main>
 
       <Link href="/support">
