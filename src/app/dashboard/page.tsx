@@ -179,7 +179,7 @@ export default function WorkerDashboard() {
       
       const claimStatus = isFirst ? "paid" : "review";
       const payoutStatus = isFirst ? "PAID" : "PENDING";
-      const decision = isFirst ? "APPROVED" : "REVIEW_REQUIRED";
+      const decision = isFirst ? "APPROVED" : "REVIEW";
       
       const fraudResults = {
         ...getAllPassedChecks(),
@@ -405,7 +405,7 @@ export default function WorkerDashboard() {
               <CardTitle className="text-xl font-bold text-[#1A1A2E]">Policy Management</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="grid grid-cols-2 gap-3 items-start">
+              <div className="grid grid-cols-4 gap-3 items-center">
                 {[
                   { label: "ACTIVATION DATE", value: profile?.plan_activated_at?.seconds ? format(new Date(profile.plan_activated_at.seconds * 1000), "dd MMM") : "Just now", icon: <Calendar className="h-4 w-4 text-[#6C47FF]" /> },
                   { label: "NEXT RENEWAL", value: "25 Mar", icon: <RefreshCcw className="h-4 w-4 text-[#F59E0B]" /> },
@@ -501,7 +501,7 @@ export default function WorkerDashboard() {
               </div>
               <div className="mt-8 pt-8 border-t border-[#E8E6FF] flex items-center justify-between">
                 <div>
-                  <p className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter mb-1">Recommended Plan</p>
+                  <p className="text-9px] font-bold text-[#94A3B8] uppercase tracking-tighter mb-1">Recommended Plan</p>
                   <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
                 </div>
                 <Link href="/plans"><Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl h-12 px-8 transition-all text-sm">Upgrade Plan</Button></Link>
