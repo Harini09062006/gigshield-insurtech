@@ -72,6 +72,7 @@ export default function AdminSupportPortal() {
   useEffect(() => {
     if (!db || !isAdmin) return;
 
+    console.log("[SupportQueue] Starting Firestore listener...");
     const q = query(
       collection(db, "chats"),
       where("type", "==", "payment_issue"),
@@ -84,11 +85,13 @@ export default function AdminSupportPortal() {
         ...doc.data()
       }));
       
-      console.log("ADMIN DATA (Support Queue):", data);
+      console.log("ADMIN DATA (Support Queue Count):", data.length);
 
       // Deduplicate by userId to show unique conversations in the sidebar
       const uniqueIssues = Array.from(new Map(data.map(item => [item.userId, item])).values());
       setIssues(uniqueIssues);
+    }, (error) => {
+      console.error("[SupportQueue] Listener failed:", error);
     });
 
     return () => unsubscribe();
@@ -156,13 +159,10 @@ export default function AdminSupportPortal() {
         where("status", "==", "pending_admin")
       );
       
-      const snap = await getDoc(doc(db, "users", issue.userId)); // Just verifying connection
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      onSnapshot(q, (snapshot) => {
         snapshot.docs.forEach(async (d) => {
           await updateDoc(doc(db, "chats", d.id), { status: "resolved" });
         });
-        unsubscribe(); 
       });
 
       if (selectedIssue?.userId === issue.userId) setSelectedIssue(null);
@@ -281,7 +281,7 @@ export default function AdminSupportPortal() {
               ))}
             </div>
 
-            <div className="p-6 bg-white border-t border-[#E8E6FF] shadow-[0_-8px_30px_rgba(0,0,0,0.02)]">
+            <div className="p-6 bg-white border-t border-[#E8E6FF] shadow-[0_-8px_30_rgba(0,0,0,0.02)]">
               <div className="max-w-4xl mx-auto flex gap-4 bg-[#F8F9FF] border border-[#E8E6FF] p-2 rounded-2xl">
                 <Input 
                   placeholder="Type your response to worker..." 

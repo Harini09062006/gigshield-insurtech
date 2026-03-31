@@ -53,6 +53,18 @@ export default function AdminNewPage() {
 
   const isAuthReady = !isUserLoading && !!user;
 
+  // Diagnostic Firestore Connectivity Check
+  useEffect(() => {
+    if (!db) return;
+    console.log("[AdminPortal] Testing connectivity to collection 'chats'...");
+    const unsubscribe = onSnapshot(collection(db, "chats"), (snapshot) => {
+      console.log("ADMIN DATA (Global Chat Count):", snapshot.docs.length);
+    }, (err) => {
+      console.error("ADMIN DATA (Global Listener Error):", err);
+    });
+    return () => unsubscribe();
+  }, [db]);
+
   // Firestore Subscriptions
   const usersQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
@@ -76,13 +88,6 @@ export default function AdminNewPage() {
   const { data: rawUsers, isLoading: loadingUsers } = useCollection(usersQuery);
   const { data: rawClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
   const { data: rawMessages, isLoading: loadingMessages } = useCollection(chatsQuery);
-
-  // Diagnostic Log for connection verification
-  useEffect(() => {
-    if (rawMessages) {
-      console.log("ADMIN DATA (All Chats):", rawMessages);
-    }
-  }, [rawMessages]);
 
   const realUsers = useMemo(() => {
     if (!rawUsers) return [];
