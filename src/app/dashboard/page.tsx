@@ -331,32 +331,62 @@ export default function WorkerDashboard() {
     }
   };
 
+  /**
+   * REFACTORED SIMULATE WEATHER HANDLER
+   * Fixed simulation to correctly update risk and trigger recalculations.
+   */
   const simulateWeather = async () => {
-    if (!user || !profile || !db) return;
-    
-    const newRisk = 75;
-    
-    await updateDoc(doc(db, "users", user.uid), {
-      riskScore: newRisk,
-      lastUpdated: Date.now()
-    });
+    try {
+      console.log("Simulate clicked");
 
-    calculateAndUpdateInsurance({ ...profile, riskScore: newRisk }, user.uid);
+      if (!user?.uid) {
+        console.error("Missing userId");
+        return;
+      }
 
-    const weatherPayload: WeatherData = {
-      rainfall: 80,
-      temperature: 35,
-      aqi: 120,
-      windSpeed: 45,
-      humidity: 92,
-      visibility: 200,
-      timestamp: new Date().toISOString(),
-      source: "SIMULATED",
-      city: profile.city || "Mumbai"
-    };
-    
-    await handleWeatherData(weatherPayload);
-    toast({ title: "AI Risk Re-evaluation", description: `Dynamic protection metrics updated based on simulation. Risk: ${newRisk}%` });
+      const newRisk = 75;
+      const userRef = doc(db, "users", user.uid);
+
+      // 1. Update Firebase
+      await updateDoc(userRef, {
+        riskScore: newRisk,
+        lastUpdated: Date.now()
+      });
+
+      console.log("Risk updated in Firebase");
+
+      // 2. Trigger existing calculations explicitly
+      if (typeof calculateAndUpdateInsurance === "function") {
+        calculateAndUpdateInsurance(
+          { ...profile, riskScore: newRisk },
+          user.uid
+        );
+      }
+
+      // 3. Process the simulated weather event triggers
+      const weatherPayload: WeatherData = {
+        rainfall: 80,
+        temperature: 35,
+        aqi: 120,
+        windSpeed: 45,
+        humidity: 92,
+        visibility: 200,
+        timestamp: new Date().toISOString(),
+        source: "SIMULATED",
+        city: profile?.city || "Mumbai"
+      };
+      
+      await handleWeatherData(weatherPayload);
+      
+      console.log("Risk updated");
+      toast({ 
+        title: "AI Risk Re-evaluation", 
+        description: `Dynamic protection metrics updated based on simulation. Risk: ${newRisk}%` 
+      });
+
+    } catch (error) {
+      console.error("Simulate button error:", error);
+    }
   };
 
   const handleLogout = async () => {
@@ -517,36 +547,6 @@ export default function WorkerDashboard() {
           </div>
         </Card>
 
-        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY (MOVED ABOVE DNA) */}
-        <section className="mb-5">
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2">
-              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-2 py-1 font-bold border-none text-[10px] ml-auto">
-                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex flex-col space-y-2">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
-                <p className="text-xl font-black text-[#EF4444] mb-1">₹{profile?.incomeLoss || activeRate * 3}</p>
-                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Calculated for 3 hour weather disruption</p>
-              </div>
-              <div className="flex flex-col space-y-2">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
-                <p className="text-xl font-black text-[#22C55E] mb-1">₹{profile?.coverage || 240}</p>
-                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
-              </div>
-              <div className="flex flex-col space-y-2">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
-                <p className="text-xl font-black text-[#EF4444] mb-1">₹{profile?.remainingRisk || Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
-                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Net income gap after parametric payout</p>
-              </div>
-            </div>
-          </Card>
-        </section>
-
         {/* SECTION 1 — INCOME DNA PROFILE */}
         <section className="space-y-6">
           <div className="flex justify-between items-center px-2">
@@ -673,6 +673,36 @@ export default function WorkerDashboard() {
               </div>
             </Card>
           </div>
+        </section>
+
+        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
+        <section className="mb-5">
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-[18px]">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2">
+              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-[10px] py-[6px] font-bold border-none text-[10px] ml-auto mb-2">
+                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
+              </Badge>
+            </div>
+
+            <div className="flex justify-between gap-6">
+              <div className="flex-1 flex flex-col space-y-[10px]">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
+                <p className="text-xl font-black text-[#EF4444] mb-[6px]">₹{profile?.incomeLoss || activeRate * 3}</p>
+                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Calculated for 3 hour weather disruption</p>
+              </div>
+              <div className="flex-1 flex flex-col space-y-[10px]">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
+                <p className="text-xl font-black text-[#22C55E] mb-[6px]">₹{profile?.coverage || 240}</p>
+                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
+              </div>
+              <div className="flex-1 flex flex-col space-y-[10px]">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
+                <p className="text-xl font-black text-[#EF4444] mb-[6px]">₹{profile?.remainingRisk || Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
+                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Net income gap after parametric payout</p>
+              </div>
+            </div>
+          </Card>
         </section>
       </main>
 
