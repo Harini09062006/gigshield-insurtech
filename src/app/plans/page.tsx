@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -172,19 +173,20 @@ export default function PlansPage() {
       const profile = userSnap.data();
       const city = profile?.city || "Mumbai";
 
-      // Calculate Dynamic Premium Breakdown
-      const currentRain = await getCityRainfall(city);
-      const baseVal = plan?.price || 25;
-      const locationCharge = city === "Chennai" ? 3 : 0;
-      const weatherCharge = currentRain > 50 ? 2 : 0;
-      const finalPremium = baseVal + locationCharge + weatherCharge;
-
-      // Initialize AI Dynamic Premium with initial risk audit
+      // Fetch AI Dynamic Profile to get base risk score
       const aiResult = await generateAIPremium(db, { 
         id: user.uid, 
         city: city,
         plan_id: selectedPlan 
       });
+
+      // Calculate Dynamic Premium Breakdown including Safe Zone Discount
+      const currentRain = await getCityRainfall(city);
+      const baseVal = plan?.price || 25;
+      const locationCharge = city === "Chennai" ? 3 : 0;
+      const weatherCharge = currentRain > 50 ? 2 : 0;
+      const safeZoneDiscount = aiResult.riskScore < 40 ? 3 : 0;
+      const finalPremium = Math.max(1, baseVal + locationCharge + weatherCharge - safeZoneDiscount);
 
       // Update plan details with AI-driven dynamic pricing and breakdown audit
       await updateDoc(doc(db, "users", user.uid), {
@@ -193,13 +195,14 @@ export default function PlansPage() {
         plan_activated_at: serverTimestamp(),
         auto_renew: true,
         commitment_weeks: 4,
-        premium: finalPremium, // Use the breakdown total as primary premium
+        premium: finalPremium, 
         riskScore: aiResult.riskScore,
         lastPremiumUpdated: Date.now(),
         // Breakdown Audit Fields
         basePremium: baseVal,
         locationCharge,
         weatherCharge,
+        safeZoneDiscount,
         finalPremium
       });
 
@@ -225,7 +228,7 @@ export default function PlansPage() {
 
       toast({ 
         title: "Protection Activated", 
-        description: `You are now covered by ${plan?.name}. Dynamic premium: ₹${finalPremium}/week.` 
+        description: `You are now covered by ${plan?.name}. Final premium: ₹${finalPremium}/week.` 
       });
       
       router.push("/dashboard");

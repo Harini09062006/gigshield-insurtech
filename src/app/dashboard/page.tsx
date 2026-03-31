@@ -73,15 +73,20 @@ const calculateRiskScore = (
 
 /**
  * Calculates the dynamic premium breakdown based on specific rules.
+ * Now includes support for Safe Zone Discounts.
  */
-const calculatePremiumBreakdown = (workerCity: string, rainfall: number, basePremium: number) => {
+const calculatePremiumBreakdown = (workerCity: string, rainfall: number, basePremium: number, riskScore: number) => {
   const locationCharge = workerCity === "Chennai" ? 3 : 0;
   const weatherCharge = rainfall > 50 ? 2 : 0;
+  // Apply discount if risk score is low (< 40)
+  const safeZoneDiscount = riskScore < 40 ? 3 : 0;
+  
   return {
     basePremium,
     locationCharge,
     weatherCharge,
-    finalPremium: basePremium + locationCharge + weatherCharge
+    safeZoneDiscount,
+    finalPremium: Math.max(1, basePremium + locationCharge + weatherCharge - safeZoneDiscount)
   };
 };
 
@@ -121,25 +126,22 @@ export default function WorkerDashboard() {
   );
 
   const breakdown = React.useMemo(() => {
-    if (!profile) return { basePremium: 25, locationCharge: 0, weatherCharge: 0, finalPremium: 25 };
+    if (!profile) return { basePremium: 25, locationCharge: 0, weatherCharge: 0, safeZoneDiscount: 0, finalPremium: 25 };
     const plan = profile.plan_id ?? "pro";
     const baseVal = plan === "basic" ? 10 : plan === "elite" ? 50 : 25;
-    return calculatePremiumBreakdown(profile.city || "", weatherData.rainfall, baseVal);
-  }, [profile, weatherData.rainfall]);
-
-  const premiumIncrease = breakdown.finalPremium - breakdown.basePremium;
+    return calculatePremiumBreakdown(profile.city || "", weatherData.rainfall, baseVal, riskScore);
+  }, [profile, weatherData.rainfall, riskScore]);
 
   const metrics = React.useMemo(() => {
     if (!profile) return { incomeLoss: 0, coverage: 0, remainingRisk: 0, premium: 0, riskScore: 35 };
 
     const riskScoreValue = profile.riskScore ?? 35;
     const plan = profile.plan_id ?? "pro";
-    const baseRate = profile.avg_hourly_earnings ?? 60;
     
+    const baseRate = profile.avg_hourly_earnings ?? 60;
     const incomeLoss = Math.round((baseRate * 1.3) * 3 * (riskScoreValue / 100));
     const coverage = plan === "basic" ? 60 : plan === "pro" ? 240 : 600;
     
-    // Use the dynamic finalPremium from breakdown
     const premium = breakdown.finalPremium;
     const remainingRisk = Math.max(0, incomeLoss - coverage);
 
@@ -358,7 +360,7 @@ export default function WorkerDashboard() {
               <div className="text-center mb-3">
                 <p className="text-4xl font-black mb-0.5">₹{breakdown.finalPremium}</p>
                 <div className="flex flex-col items-center gap-0.5">
-                  <p className="text-[8px] font-bold uppercase tracking-[0.2em] opacity-60">AI Calculated</p>
+                  <p className="text-[8px] font-bold uppercase tracking-[0.2em] opacity-60">📊 AI Calculated Premium</p>
                   <p className="text-[8px] opacity-50 italic">Based on location & weather</p>
                 </div>
               </div>
@@ -368,13 +370,17 @@ export default function WorkerDashboard() {
                 <p className="text-[9px] font-bold opacity-80">
                   Base: ₹{breakdown.basePremium} → Now: ₹{breakdown.finalPremium}
                 </p>
-                {premiumIncrease > 0 ? (
+                {riskScore > 60 ? (
                   <p className="text-[8px] font-black text-[#FEE2E2] uppercase tracking-tighter">
-                    ⬆ +₹{premiumIncrease} due to weather & location risk
+                    ⬆ Increased due to high risk
+                  </p>
+                ) : riskScore < 40 ? (
+                  <p className="text-[8px] font-black text-[#DCFCE7] uppercase tracking-tighter">
+                    ✓ Lower premium (Safe Zone)
                   </p>
                 ) : (
                   <p className="text-[8px] font-black text-[#DCFCE7] uppercase tracking-tighter">
-                    ✓ Stable pricing (Low Risk)
+                    ✓ Stable pricing (Normal Conditions)
                   </p>
                 )}
               </div>
@@ -384,14 +390,22 @@ export default function WorkerDashboard() {
                   <span className="opacity-70">Base</span>
                   <span>₹{breakdown.basePremium}</span>
                 </div>
+                {breakdown.locationCharge > 0 && (
+                  <div className="flex justify-between text-[10px] font-medium">
+                    <span className="opacity-70">Location Risk (Chennai)</span>
+                    <span>+₹{breakdown.locationCharge}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-[10px] font-medium">
-                  <span className="opacity-70">Location</span>
-                  <span>+₹{breakdown.locationCharge}</span>
+                  <span className="opacity-70">Weather Risk (Rain)</span>
+                  <span>{breakdown.weatherCharge > 0 ? `+₹${breakdown.weatherCharge}` : "No extra cost (Low Risk)"}</span>
                 </div>
-                <div className="flex justify-between text-[10px] font-medium">
-                  <span className="opacity-70">Weather</span>
-                  <span>+₹{breakdown.weatherCharge}</span>
-                </div>
+                {breakdown.safeZoneDiscount > 0 && (
+                  <div className="flex justify-between text-[10px] font-medium">
+                    <span className="opacity-70 text-[#DCFCE7]">Safe Zone Discount</span>
+                    <span className="text-[#DCFCE7]">-₹{breakdown.safeZoneDiscount}</span>
+                  </div>
+                )}
                 <div className="h-px bg-white/10 my-1" />
                 <div className="flex justify-center items-center">
                   <span className="text-sm font-black text-[#DCFCE7]">₹{breakdown.finalPremium} / week ✅</span>
@@ -437,7 +451,7 @@ export default function WorkerDashboard() {
                 </span>
                 <div className="flex flex-col mt-0.5">
                   <span className="text-[10px] font-bold text-[#6C47FF]">
-                    {premiumIncrease > 0 ? "Premium increased automatically" : "No premium change (Standard Rate)" }
+                    {riskScore > 60 ? "Premium increased automatically" : riskScore < 40 ? "Premium reduced automatically" : "No premium change (Standard Rate)" }
                   </span>
                   <span className="text-[9px] font-medium text-[#64748B]">Claim monitoring active • Automated verification enabled</span>
                 </div>
