@@ -65,7 +65,6 @@ export default function AdminNewPage() {
   }, [db, isAuthReady]);
 
   // Standardized Chat History Listener
-  // Removed orderBy to prevent Missing Index error
   const chatsQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
     return query(
@@ -77,6 +76,13 @@ export default function AdminNewPage() {
   const { data: rawUsers, isLoading: loadingUsers } = useCollection(usersQuery);
   const { data: rawClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
   const { data: rawMessages, isLoading: loadingMessages } = useCollection(chatsQuery);
+
+  // Diagnostic Log for connection verification
+  useEffect(() => {
+    if (rawMessages) {
+      console.log("ADMIN DATA (All Chats):", rawMessages);
+    }
+  }, [rawMessages]);
 
   const realUsers = useMemo(() => {
     if (!rawUsers) return [];
@@ -283,7 +289,7 @@ export default function AdminNewPage() {
                 {claim.gps_status === 'mismatch' ? <span className="text-red-500 font-black">Not Approved</span> : (claim.status || 'pending')}
               </td>
               <td className="px-6 py-4 text-right space-x-2">
-                <Button size="sm" variant="ghost" className="text-[#22C55E]" onClick={() => updateClaimStatus(claim.id, 'approved')}><CheckCircle size={16} /></Button>
+                <Button size="sm" variant="ghost" className="text-[#22C55E]" onClick={() => updateClaimStatus(claim.id, 'approved')}><CheckCircle2 size={16} /></Button>
                 <Button size="sm" variant="ghost" className="text-[#EF4444]" onClick={() => updateClaimStatus(claim.id, 'failed')}><XCircle size={16} /></Button>
               </td>
             </tr>
@@ -391,7 +397,7 @@ export default function AdminNewPage() {
                           placeholder="Type response..." 
                           value={replyText} 
                           onChange={(e) => setReplyText(e.target.value)} 
-                          onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
+                          onKeyDown={(e) => e.key === "Enter" && handleSendReply()}
                           className="bg-white rounded-xl"
                         />
                         <Button onClick={handleSendReply} className="bg-[#6C47FF] rounded-xl"><Send size={18} /></Button>

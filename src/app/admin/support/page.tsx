@@ -84,6 +84,8 @@ export default function AdminSupportPortal() {
         ...doc.data()
       }));
       
+      console.log("ADMIN DATA (Support Queue):", data);
+
       // Deduplicate by userId to show unique conversations in the sidebar
       const uniqueIssues = Array.from(new Map(data.map(item => [item.userId, item])).values());
       setIssues(uniqueIssues);
@@ -93,7 +95,6 @@ export default function AdminSupportPortal() {
   }, [db, isAdmin]);
 
   // 3. REAL-TIME MESSAGES FOR SELECTED WORKER
-  // Removed orderBy to prevent Missing Index error
   useEffect(() => {
     if (!selectedIssue?.userId || !db) return;
     
@@ -127,6 +128,7 @@ export default function AdminSupportPortal() {
       // ADMIN REPLY WRITE (MANDATORY)
       await addDoc(collection(db, "chats"), {
         userId: selectedIssue.userId,
+        userName: selectedIssue.userName || "Worker",
         message: text,
         sender: "admin",
         type: "payment_issue",
@@ -147,13 +149,16 @@ export default function AdminSupportPortal() {
 
   const markResolved = async (issue: any) => {
     try {
-      const userPendingQuery = query(
+      // Create a query to find all pending messages for this user and resolve them
+      const q = query(
         collection(db, "chats"),
         where("userId", "==", issue.userId),
         where("status", "==", "pending_admin")
       );
       
-      const unsubscribe = onSnapshot(userPendingQuery, (snapshot) => {
+      const snap = await getDoc(doc(db, "users", issue.userId)); // Just verifying connection
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
         snapshot.docs.forEach(async (d) => {
           await updateDoc(doc(db, "chats", d.id), { status: "resolved" });
         });

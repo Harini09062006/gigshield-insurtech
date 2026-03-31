@@ -48,6 +48,10 @@ export function initializeFirebase() {
   };
 }
 
+// Export singletons for direct import if needed
+const { firestore: db, auth: authInstance } = initializeFirebase();
+export { db, authInstance as auth };
+
 /**
  * Helper to get initialized SDKs from a provided app instance.
  */
