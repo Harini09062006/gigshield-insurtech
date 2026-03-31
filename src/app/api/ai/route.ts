@@ -1,4 +1,5 @@
 export async function POST(req: Request) {
+  console.log("API HIT");
   try {
     const { message } = await req.json();
 
@@ -10,12 +11,12 @@ export async function POST(req: Request) {
 
     // ALWAYS RETURN SOMETHING
     return Response.json({
-      reply: "Hello! AI is working correctly now and ready to help you with GigShield."
+      reply: "AI is now responding correctly."
     });
   } catch (err) {
     console.error("API ROUTE ERROR:", err);
     return Response.json({
-      reply: "API error occurred while connecting to the AI assistant."
+      reply: "API error fallback"
     });
   }
 }

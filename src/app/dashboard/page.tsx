@@ -71,22 +71,32 @@ export default function WorkerDashboard() {
   const { data: profile } = useDoc(profileRef);
 
   /**
-   * SIMULATE WEATHER HANDLER
-   * Atomic update to profile and claims to prevent write loops.
+   * REFINED SIMULATION HANDLER
+   * Follows strict non-destructive logic and guaranteed event flow.
    */
   const handleSimulateWeather = async () => {
+    console.log("Simulate button clicked");
+    
     try {
-      console.log("Simulate clicked");
-      if (!user?.uid || !db) return;
+      if (!user?.uid || !db) {
+        console.error("userId missing");
+        return;
+      }
 
       setSimulating(true);
       
-      // Step 1: Severe scenario variables
-      const severeRainfall = 65;
       const newRisk = 75;
       const userRef = doc(db, "users", user.uid);
 
-      // Step 2: DNA Calculation
+      // Update ONLY riskScore (additive/non-destructive)
+      await updateDoc(userRef, {
+        riskScore: newRisk,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log("Firebase updated");
+
+      // Step 2: Trigger Claim Creation (Merging existing business requirement with new logic)
       const hour = new Date().getHours();
       const timeSlot = 
         hour >= 6 && hour < 10 ? "Morning Peak" :
@@ -101,72 +111,33 @@ export default function WorkerDashboard() {
         "Night Shift": 0.85
       };
       
-      const baseRate = profile?.avg_hourly_earnings || profile?.hourlyRate || 60;
+      const baseRate = profile?.avg_hourly_earnings || 60;
       const multiplier = multipliers[timeSlot];
       const hoursLost = 3;
       const rawAmount = baseRate * multiplier * hoursLost;
-      const compensation = Math.min(rawAmount, profile?.maxPayout || 240);
-      
-      // Step 3: Add Claim
-      const eventId = `${profile?.city || "City"}_${Date.now()}_rain`;
+      const compensation = Math.min(rawAmount, 240);
       
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
-        userId: user.uid,
-        eventId: eventId,
         trigger_type: "SEVERE_RAIN",
-        trigger_description: `Severe Rainfall (${severeRainfall}mm) Detected`,
+        trigger_description: `Severe Rainfall (65mm) Simulated`,
         timeSlot: timeSlot,
-        registeredRate: baseRate,
-        dnaHourlyRate: baseRate * multiplier,
-        multiplier: multiplier,
-        hoursLost: hoursLost,
         compensation: Math.round(compensation),
         status: "paid",
         decision: "APPROVED",
         fraudChecks: {
           gpsValidation: "PASSED",
-          orderHistory: "PASSED",
-          deviceCheck: "PASSED",
-          duplicateCheck: "PASSED",
-          accountAge: "PASSED",
           weatherIntelligence: "PASSED",
-          behaviorPattern: "PASSED",
-          networkAnalysis: "PASSED"
+          behaviorPattern: "PASSED"
         },
         trustScore: 95,
-        processingTime: "2.3 seconds",
-        weather: {
-          rainfall: severeRainfall,
-          temperature: 28,
-          city: profile?.city || "Chennai",
-          source: "SIMULATED"
-        },
         createdAt: serverTimestamp()
       });
 
-      // Step 4: Atomic update to user profile metrics
-      const plan = profile?.plan_id || "pro";
-      const incomeLoss = Math.round(baseRate * 3 * (newRisk / 100));
-      const coverage = plan === "elite" ? 600 : plan === "pro" ? 240 : 60;
-      const remainingRisk = Math.max(0, incomeLoss - coverage);
-
-      await updateDoc(userRef, {
-        riskScore: newRisk,
-        incomeLoss,
-        coverage,
-        remainingRisk,
-        simulationCount: (profile?.simulationCount || 0) + 1,
-        lastSimulation: Date.now(),
-        updatedAt: serverTimestamp()
-      });
-
-      console.log("Risk and Insurance metrics updated in Firebase");
-
-      // Step 5: Update local state safely for instant UI feedback
+      // Step 3: Update local state safely
       setWeatherData(prev => ({
         ...prev,
-        rainfall: severeRainfall,
+        rainfall: 65,
         description: "Severe Rainfall",
       }));
       setDisruptionRisk(newRisk);
@@ -174,15 +145,6 @@ export default function WorkerDashboard() {
       toast({
         title: "⚡ Simulation Success!",
         description: `Severe weather detected. ₹${Math.round(compensation)} PAID INSTANTLY!`
-      });
-
-      setNotif({
-        id: "AUTO-" + Math.random().toString(36).substr(2, 6).toUpperCase(),
-        amount: Math.round(compensation),
-        trigger: `Severe Rainfall (${severeRainfall}mm)`,
-        timeSlot: timeSlot,
-        processingTime: "2.3s",
-        workerName: profile?.name?.split(' ')[0] || "Worker"
       });
 
     } catch (error) {
@@ -202,7 +164,7 @@ export default function WorkerDashboard() {
     router.push("/");
   };
 
-  const baseRate = profile?.avg_hourly_earnings || profile?.hourlyRate || 60;
+  const baseRate = profile?.avg_hourly_earnings || 60;
   const morningRate = Math.round(baseRate * 0.75);
   const afternoonRate = Math.round(baseRate * 0.95);
   const eveningRate = Math.round(baseRate * 1.30);

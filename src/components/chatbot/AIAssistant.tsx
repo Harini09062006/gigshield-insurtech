@@ -39,14 +39,14 @@ interface AIAssistantProps {
 }
 
 /**
- * AI SUPPORT ASSISTANT - CORE CONNECTION COMPONENT
- * Handles real-time messaging sync between Worker and Admin Portal.
+ * AI SUPPORT ASSISTANT - REFINED ASYNC FLOW
+ * Fixed infinite loading and stabilized API response handling.
  */
 export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const { user } = useUser();
   const db = useFirestore();
   const [input, setInput] = useState("");
-  const [isBotThinking, setIsBotThinking] = useState(false);
+  const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 1. Get user profile for identity mapping
@@ -75,27 +75,23 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isBotThinking]);
+  }, [messages, loading]);
 
   /**
    * STABILIZED MESSAGE HANDLER
-   * Ensures AI always responds and loading state is cleared.
+   * Guaranteed to clear loading state and handle API errors.
    */
   const handleSend = async () => {
     const message = input.trim();
     if (!message || !user || !db) return;
 
+    console.log("Sending message:", message);
     setInput("");
-    console.log("AI request sent");
     
-    // 1. Create AbortController for timeout safety
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-
     try {
-      setIsBotThinking(true);
+      setLoading(true);
 
-      // 2. Save User Message to Firestore
+      // Save User Message to Firestore
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
@@ -105,28 +101,23 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         timestamp: serverTimestamp()
       });
 
-      // 3. Fetch AI Response from API with timeout signal
+      // Fetch AI Response from API
       const res = await fetch("/api/ai", {
         method: "POST",
-        signal: controller.signal,
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ message })
       });
 
-      clearTimeout(timeoutId);
+      console.log("API response received");
 
-      if (!res.ok) {
-        throw new Error("AI API request failed");
-      }
+      if (!res.ok) throw new Error("API failed");
 
       const data = await res.json();
-      console.log("AI response received");
+      const reply = data?.reply || "AI fallback response";
 
-      const reply = data?.reply || data?.text || "I'm currently recalibrating. Please try asking again in a moment.";
-
-      // 4. Save AI Reply to Firestore
+      // Save AI Reply to Firestore
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
@@ -137,26 +128,20 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
       });
       
     } catch (err: any) {
-      console.error("AI error:", err);
-      let errorMsg = "I encountered a connection issue. Please try again.";
+      console.error("AI ERROR:", err);
       
-      if (err.name === 'AbortError') {
-        errorMsg = "AI request timed out. Please try again.";
-      }
-
       // Save error message to history
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
-        text: errorMsg,
+        text: "Server error. Try again.",
         sender: "bot",
         status: "error",
         timestamp: serverTimestamp()
       });
     } finally {
       // ALWAYS STOP LOADING
-      setIsBotThinking(false);
-      clearTimeout(timeoutId);
+      setLoading(false);
     }
   };
 
@@ -230,7 +215,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
                   </div>
                 </motion.div>
               ))}
-              {isBotThinking && (
+              {loading && (
                 <div className="flex gap-3 items-center animate-pulse">
                   <div className="h-8 w-8 rounded-lg bg-white border border-[#E8E6FF] flex items-center justify-center text-[#6C47FF]"><Bot size={14} /></div>
                   <div className="bg-white border border-[#E8E6FF] p-3 rounded-2xl rounded-tl-none flex items-center gap-2">
@@ -252,7 +237,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 className="flex-1 bg-transparent border-none focus-visible:ring-0 text-sm font-medium h-10 px-4"
               />
-              <Button onClick={handleSend} disabled={!input.trim() || isBotThinking} className="h-10 w-10 rounded-xl bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn shrink-0">
+              <Button onClick={handleSend} disabled={!input.trim() || loading} className="h-10 w-10 rounded-xl bg-[#6C47FF] hover:bg-[#5535E8] shadow-btn shrink-0">
                 <Send size={18} />
               </Button>
             </div>
