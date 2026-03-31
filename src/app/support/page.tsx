@@ -65,7 +65,7 @@ export default function SupportPage() {
 
   /**
    * REFACTORED SEND HANDLER
-   * Synchronizes API calls with Firestore persistence.
+   * Synchronizes API calls with Firestore persistence and timeout safety.
    */
   const handleSend = async () => {
     const message = input.trim();
@@ -74,7 +74,13 @@ export default function SupportPage() {
     setLoading(true);
     setInput("");
 
+    // Create AbortController for timeout safety
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
     try {
+      console.log("Sending message...");
+      
       // 1. Save User Message to Firestore
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
@@ -88,18 +94,21 @@ export default function SupportPage() {
       // 2. Fetch AI response via route handler
       const res = await fetch("/api/ai", {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ message })
       });
 
+      clearTimeout(timeoutId);
+
       if (!res.ok) {
         throw new Error("Failed to connect to AI engine");
       }
 
       const data = await res.json();
-      console.log("API response:", data);
+      console.log("Response received:", data);
 
       const reply = data?.reply || data?.text || "I'm having trouble thinking clearly. Could you try again?";
 
@@ -113,20 +122,27 @@ export default function SupportPage() {
         timestamp: serverTimestamp()
       });
 
-    } catch (e) {
+    } catch (e: any) {
       console.error("SUPPORT AI ERROR:", e);
-      toast({ variant: "destructive", title: "Message Failed", description: "Connection issue. Bot is unavailable." });
+      
+      let errorMsg = "I experienced a temporary disconnect. Please try again or wait for an admin.";
+      if (e.name === 'AbortError') {
+        errorMsg = "AI request timed out. Please try again.";
+      } else {
+        toast({ variant: "destructive", title: "Message Failed", description: "Connection issue. Bot is unavailable." });
+      }
       
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
-        text: "I experienced a temporary disconnect. Please try again or wait for an admin.",
+        text: errorMsg,
         sender: "bot",
         status: "error",
         timestamp: serverTimestamp()
       });
     } finally {
       setLoading(false);
+      clearTimeout(timeoutId);
     }
   };
 

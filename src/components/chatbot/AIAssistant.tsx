@@ -84,10 +84,15 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
 
     setInput("");
     
+    // 1. Create AbortController for timeout safety
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
     try {
       setIsBotThinking(true);
+      console.log("Sending message to AI...");
 
-      // 1. Save User Message to Firestore (updates UI via listener)
+      // 2. Save User Message to Firestore (updates UI via listener)
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
@@ -97,25 +102,28 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         timestamp: serverTimestamp()
       });
 
-      // 2. Fetch AI Response from stabilized API
+      // 3. Fetch AI Response from stabilized API with timeout signal
       const res = await fetch("/api/ai", {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ message })
       });
 
+      clearTimeout(timeoutId);
+
       if (!res.ok) {
         throw new Error("AI API request failed");
       }
 
       const data = await res.json();
-      console.log("API response:", data);
+      console.log("Response received from AI:", data);
 
       const reply = data?.reply || data?.text || "I'm currently recalibrating. Please try asking again in a moment.";
 
-      // 3. Save AI Reply to Firestore
+      // 4. Save AI Reply to Firestore
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
@@ -125,19 +133,26 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         timestamp: serverTimestamp()
       });
       
-    } catch (err) {
+    } catch (err: any) {
       console.error("AI ERROR:", err);
+      let errorMsg = "I encountered a connection issue. If this persists, I'll alert a human admin to help you.";
+      
+      if (err.name === 'AbortError') {
+        errorMsg = "AI request timed out. Please try again.";
+      }
+
       // Save error message to chat history
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
-        text: "I encountered a connection issue. If this persists, I'll alert a human admin to help you.",
+        text: errorMsg,
         sender: "bot",
         status: "error",
         timestamp: serverTimestamp()
       });
     } finally {
       setIsBotThinking(false);
+      clearTimeout(timeoutId);
     }
   };
 
