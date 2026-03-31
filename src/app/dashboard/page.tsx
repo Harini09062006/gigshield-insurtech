@@ -513,28 +513,28 @@ export default function WorkerDashboard() {
 
         {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
         <section>
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-              <h2 className="text-xl font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-4 py-1.5 font-bold border-none text-xs">
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-3">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2">
+              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-3 py-1 font-bold border-none text-[10px]">
                 DNA Rate: ₹{activeRate}/hr ({activeSlotName})
               </Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
-                <p className="text-3xl font-black text-[#EF4444]">₹{profile?.incomeLoss || activeRate * 3}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-0.5">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{profile?.incomeLoss || activeRate * 3}</p>
                 <p className="text-[10px] text-[#64748B]">Calculated for 3 hour weather disruption</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
-                <p className="text-3xl font-black text-[#22C55E]">₹{profile?.coverage || 240}</p>
+              <div className="space-y-0.5">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
+                <p className="text-xl font-black text-[#22C55E]">₹{profile?.coverage || 240}</p>
                 <p className="text-[10px] text-[#64748B]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
-                <p className="text-3xl font-black text-[#EF4444]">₹{profile?.remainingRisk || Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
+              <div className="space-y-0.5">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{profile?.remainingRisk || Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
                 <p className="text-[10px] text-[#64748B]">Net income gap after parametric payout</p>
               </div>
             </div>
