@@ -548,71 +548,71 @@ export default function WorkerDashboard() {
             <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Updated {format(new Date(), "HH:mm")}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="bg-white border-none border-b-4 border-[#F59E0B] rounded-[20px] shadow-sm p-5 flex flex-col gap-3 relative overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-white border-none border-b-4 border-[#F59E0B] rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
               <div className="flex items-center gap-2">
-                <span className="text-xl">🌅</span>
-                <p className="text-[10px] font-black text-[#64748B] uppercase">Morning</p>
+                <span className="text-lg">🌅</span>
+                <p className="text-[9px] font-black text-[#64748B] uppercase">Morning</p>
               </div>
               <div>
-                <p className="text-[10px] text-[#64748B]">6-10 AM</p>
-                <p className="text-xl font-bold text-[#1A1A2E]">₹{morningRate}/hr</p>
+                <p className="text-[9px] text-[#64748B]">6-10 AM</p>
+                <p className="text-lg font-bold text-[#1A1A2E]">₹{morningRate}/hr</p>
               </div>
-              <p className="text-[10px] font-bold text-[#6C47FF]">0.75x multiplier</p>
+              <p className="text-[9px] font-bold text-[#6C47FF]">0.75x multiplier</p>
               <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#F59E0B]" />
             </Card>
 
-            <Card className="bg-white border-none border-b-4 border-[#EAB308] rounded-[20px] shadow-sm p-5 flex flex-col gap-3 relative overflow-hidden">
+            <Card className="bg-white border-none border-b-4 border-[#EAB308] rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
               <div className="flex items-center gap-2">
-                <span className="text-xl">☀️</span>
-                <p className="text-[10px] font-black text-[#64748B] uppercase">Afternoon</p>
+                <span className="text-lg">☀️</span>
+                <p className="text-[9px] font-black text-[#64748B] uppercase">Afternoon</p>
               </div>
               <div>
-                <p className="text-[10px] text-[#64748B]">12-4 PM</p>
-                <p className="text-xl font-bold text-[#1A1A2E]">₹{afternoonRate}/hr</p>
+                <p className="text-[9px] text-[#64748B]">12-4 PM</p>
+                <p className="text-lg font-bold text-[#1A1A2E]">₹{afternoonRate}/hr</p>
               </div>
-              <p className="text-[10px] font-bold text-[#6C47FF]">0.95x multiplier</p>
+              <p className="text-[9px] font-bold text-[#6C47FF]">0.95x multiplier</p>
               <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#EAB308]" />
             </Card>
 
-            <Card className="bg-white border-none border-b-4 border-[#6C47FF] rounded-[20px] shadow-sm p-5 flex flex-col gap-3 relative overflow-hidden">
+            <Card className="bg-white border-none border-b-4 border-[#6C47FF] rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
               <div className="flex items-center gap-2">
-                <span className="text-xl">🌆</span>
-                <p className="text-[10px] font-black text-[#64748B] uppercase">Evening</p>
+                <span className="text-lg">🌆</span>
+                <p className="text-[9px] font-black text-[#64748B] uppercase">Evening</p>
               </div>
               <div>
-                <p className="text-[10px] text-[#64748B]">5-9 PM</p>
-                <p className="text-xl font-bold text-[#1A1A2E]">₹{eveningRate}/hr</p>
+                <p className="text-[9px] text-[#64748B]">5-9 PM</p>
+                <p className="text-lg font-bold text-[#1A1A2E]">₹{eveningRate}/hr</p>
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold text-[#6C47FF]">1.30x multiplier</p>
-                <Badge className="bg-[#6C47FF] text-white text-[8px] font-black uppercase px-1.5 py-0.5 border-none">Peak</Badge>
+                <p className="text-[9px] font-bold text-[#6C47FF]">1.30x multiplier</p>
+                <Badge className="bg-[#6C47FF] text-white text-[7px] font-black uppercase px-1 py-0 border-none">Peak</Badge>
               </div>
               <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#6C47FF]" />
             </Card>
 
-            <Card className="bg-white border-none border-b-4 border-[#3B82F6] rounded-[20px] shadow-sm p-5 flex flex-col gap-3 relative overflow-hidden">
+            <Card className="bg-white border-none border-b-4 border-[#3B82F6] rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
               <div className="flex items-center gap-2">
-                <span className="text-xl">🌙</span>
-                <p className="text-[10px] font-black text-[#64748B] uppercase">Night</p>
+                <span className="text-lg">🌙</span>
+                <p className="text-[9px] font-black text-[#64748B] uppercase">Night</p>
               </div>
               <div>
-                <p className="text-[10px] text-[#64748B]">9 PM-12 AM</p>
-                <p className="text-xl font-bold text-[#1A1A2E]">₹{nightRate}/hr</p>
+                <p className="text-[9px] text-[#64748B]">9 PM-12 AM</p>
+                <p className="text-lg font-bold text-[#1A1A2E]">₹{nightRate}/hr</p>
               </div>
-              <p className="text-[10px] font-bold text-[#6C47FF]">0.85x multiplier</p>
+              <p className="text-[9px] font-bold text-[#6C47FF]">0.85x multiplier</p>
               <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#3B82F6]" />
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr,2fr] gap-6">
-            <Card className="bg-white border-none rounded-[24px] shadow-sm p-8 flex flex-col justify-between">
-              <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr,3fr] gap-4">
+            <Card className="bg-white border-none rounded-[24px] shadow-sm p-6 flex flex-col justify-between">
+              <div className="space-y-2">
                 <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Expected Weekly Earnings</p>
-                <h3 className="text-6xl font-black text-[#6C47FF]">₹{profile?.dna?.weeklyIncome || 3360}</h3>
+                <h3 className="text-5xl font-black text-[#6C47FF]">₹{profile?.dna?.weeklyIncome || 3360}</h3>
                 <p className="text-xs text-[#64748B] leading-relaxed">Derived from your Income DNA earning pattern across projected working hours.</p>
               </div>
-              <div className="mt-8 pt-6 border-t border-[#E8E6FF] space-y-4">
+              <div className="mt-4 pt-4 border-t border-[#E8E6FF] space-y-4">
                 <div>
                   <p className="text-[9px] font-bold text-[#64748B] uppercase tracking-tighter mb-1">Recommended Plan</p>
                   <p className="text-lg font-bold text-[#F59E0B]">Pro Shield</p>
@@ -621,9 +621,9 @@ export default function WorkerDashboard() {
               </div>
             </Card>
 
-            <Card className="bg-white border-none rounded-[24px] shadow-sm p-6">
-              <h3 className="text-sm font-bold text-[#1A1A2E] mb-8">Peak Earning Hours (24-Hour Profile)</h3>
-              <div className="h-[220px] w-full">
+            <Card className="bg-white border-none rounded-[24px] shadow-sm p-5">
+              <h3 className="text-sm font-bold text-[#1A1A2E] mb-4">Peak Earning Hours (24-Hour Profile)</h3>
+              <div className="h-[180px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
@@ -651,7 +651,7 @@ export default function WorkerDashboard() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-              <div className="mt-6 flex justify-center gap-6">
+              <div className="mt-4 flex justify-center gap-6">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-[#6C47FF]" />
                   <span className="text-[9px] font-bold text-[#94A3B8] uppercase">Evening peak</span>
