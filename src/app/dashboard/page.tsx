@@ -511,36 +511,6 @@ export default function WorkerDashboard() {
           </div>
         </Card>
 
-        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
-        <section className="mb-5">
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-[18px]">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2">
-              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-[10px] py-[6px] font-bold border-none text-[10px] ml-auto">
-                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex flex-col space-y-[10px]">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
-                <p className="text-xl font-black text-[#EF4444] mb-[6px]">₹{profile?.incomeLoss || activeRate * 3}</p>
-                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Calculated for 3 hour weather disruption</p>
-              </div>
-              <div className="flex flex-col space-y-[10px]">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
-                <p className="text-xl font-black text-[#22C55E] mb-[6px]">₹{profile?.coverage || 240}</p>
-                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
-              </div>
-              <div className="flex flex-col space-y-[10px]">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
-                <p className="text-xl font-black text-[#EF4444] mb-[6px]">₹{profile?.remainingRisk || Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
-                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Net income gap after parametric payout</p>
-              </div>
-            </div>
-          </Card>
-        </section>
-
         {/* SECTION 1 — INCOME DNA PROFILE */}
         <section className="space-y-6">
           <div className="flex justify-between items-center px-2">
@@ -548,7 +518,7 @@ export default function WorkerDashboard() {
             <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Updated {format(new Date(), "HH:mm")}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="bg-white border-none border-b-4 border-[#F59E0B] rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🌅</span>
@@ -556,9 +526,9 @@ export default function WorkerDashboard() {
               </div>
               <div>
                 <p className="text-[9px] text-[#64748B]">6-10 AM</p>
-                <p className="text-lg font-bold text-[#1A1A2E]">₹{morningRate}/hr</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">₹{morningRate}/hr</p>
               </div>
-              <p className="text-[9px] font-bold text-[#6C47FF]">0.75x multiplier</p>
+              <p className="text-xs font-bold text-[#6C47FF]">0.75x multiplier</p>
               <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#F59E0B]" />
             </Card>
 
@@ -569,9 +539,9 @@ export default function WorkerDashboard() {
               </div>
               <div>
                 <p className="text-[9px] text-[#64748B]">12-4 PM</p>
-                <p className="text-lg font-bold text-[#1A1A2E]">₹{afternoonRate}/hr</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">₹{afternoonRate}/hr</p>
               </div>
-              <p className="text-[9px] font-bold text-[#6C47FF]">0.95x multiplier</p>
+              <p className="text-xs font-bold text-[#6C47FF]">0.95x multiplier</p>
               <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#EAB308]" />
             </Card>
 
@@ -582,10 +552,10 @@ export default function WorkerDashboard() {
               </div>
               <div>
                 <p className="text-[9px] text-[#64748B]">5-9 PM</p>
-                <p className="text-lg font-bold text-[#1A1A2E]">₹{eveningRate}/hr</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">₹{eveningRate}/hr</p>
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-[9px] font-bold text-[#6C47FF]">1.30x multiplier</p>
+                <p className="text-xs font-bold text-[#6C47FF]">1.30x multiplier</p>
                 <Badge className="bg-[#6C47FF] text-white text-[7px] font-black uppercase px-1 py-0 border-none">Peak</Badge>
               </div>
               <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#6C47FF]" />
@@ -598,32 +568,32 @@ export default function WorkerDashboard() {
               </div>
               <div>
                 <p className="text-[9px] text-[#64748B]">9 PM-12 AM</p>
-                <p className="text-lg font-bold text-[#1A1A2E]">₹{nightRate}/hr</p>
+                <p className="text-xl font-bold text-[#1A1A2E]">₹{nightRate}/hr</p>
               </div>
-              <p className="text-[9px] font-bold text-[#6C47FF]">0.85x multiplier</p>
+              <p className="text-xs font-bold text-[#6C47FF]">0.85x multiplier</p>
               <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#3B82F6]" />
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[2fr,3fr] gap-4">
-            <Card className="bg-white border-none rounded-[24px] shadow-sm p-5 flex flex-col justify-between">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <Card className="lg:col-span-2 bg-white border-none rounded-[24px] shadow-sm p-4 flex flex-col justify-between">
               <div className="space-y-2">
                 <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Expected Weekly Earnings</p>
-                <h3 className="text-5xl font-black text-[#6C47FF]">₹{profile?.dna?.weeklyIncome || 3360}</h3>
-                <p className="text-xs text-[#64748B] leading-relaxed">Derived from your Income DNA earning pattern across projected working hours.</p>
+                <h3 className="text-3xl font-black text-[#6C47FF]">₹{profile?.dna?.weeklyIncome || 3360}</h3>
+                <p className="text-[10px] text-[#64748B] leading-relaxed">Derived from your Income DNA earning pattern across projected working hours.</p>
               </div>
               <div className="mt-4 pt-4 border-t border-[#E8E6FF] space-y-4">
                 <div>
                   <p className="text-[9px] font-bold text-[#64748B] uppercase tracking-tighter mb-1">Recommended Plan</p>
                   <p className="text-lg font-bold text-[#F59E0B]">Pro Shield</p>
                 </div>
-                <Button variant="outline" className="w-full border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl h-11 transition-all">Upgrade Plan</Button>
+                <Button variant="outline" className="w-full border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl h-11 transition-all text-sm">Upgrade Plan</Button>
               </div>
             </Card>
 
-            <Card className="bg-white border-none rounded-[24px] shadow-sm p-5">
+            <Card className="lg:col-span-3 bg-white border-none rounded-[24px] shadow-sm p-5">
               <h3 className="text-sm font-bold text-[#1A1A2E] mb-4">Peak Earning Hours (24-Hour Profile)</h3>
-              <div className="h-[180px] w-full">
+              <div className="h-[200px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
@@ -667,6 +637,36 @@ export default function WorkerDashboard() {
               </div>
             </Card>
           </div>
+        </section>
+
+        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
+        <section className="mb-5">
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-[18px]">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2">
+              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-[10px] py-[6px] font-bold border-none text-[10px] ml-auto">
+                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex flex-col space-y-[10px]">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
+                <p className="text-xl font-black text-[#EF4444] mb-[6px]">₹{profile?.incomeLoss || activeRate * 3}</p>
+                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Calculated for 3 hour weather disruption</p>
+              </div>
+              <div className="flex flex-col space-y-[10px]">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
+                <p className="text-xl font-black text-[#22C55E] mb-[6px]">₹{profile?.coverage || 240}</p>
+                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
+              </div>
+              <div className="flex flex-col space-y-[10px]">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
+                <p className="text-xl font-black text-[#EF4444] mb-[6px]">₹{profile?.remainingRisk || Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
+                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Net income gap after parametric payout</p>
+              </div>
+            </div>
+          </Card>
         </section>
       </main>
 
