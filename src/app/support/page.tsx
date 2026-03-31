@@ -19,7 +19,8 @@ import {
   where,
   addDoc,
   serverTimestamp,
-  onSnapshot
+  onSnapshot,
+  orderBy
 } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -34,33 +35,23 @@ export default function SupportPage() {
   
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [rawMessages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // STABILIZE REFERENCE TO PREVENT INFINITE LOOP
   const profileRef = useMemoFirebase(
     () => (db && user?.uid ? doc(db, "users", user.uid) : null),
     [db, user?.uid]
   );
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
-  // In-memory sort to avoid Firestore index requirement (Step 3 & 4 implementation)
-  const messages = useMemo(() => {
-    return [...rawMessages].sort((a, b) => {
-      const timeA = a.createdAt?.seconds || 0;
-      const timeB = b.createdAt?.seconds || 0;
-      return timeA - timeB;
-    });
-  }, [rawMessages]);
-
-  // FETCH MESSAGES REAL-TIME (Step 3 implementation)
+  // CHATBOT REAL-TIME LISTENER (MANDATORY)
   useEffect(() => {
     if (!db || !user?.uid) return;
 
-    // Listen to ALL messages for this user in the 'chats' collection
     const q = query(
       collection(db, "chats"),
-      where("userId", "==", user.uid)
+      where("userId", "==", user.uid),
+      orderBy("createdAt")
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

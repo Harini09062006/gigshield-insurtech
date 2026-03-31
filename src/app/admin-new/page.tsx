@@ -33,7 +33,8 @@ import {
   serverTimestamp, 
   limit,
   addDoc,
-  onSnapshot
+  onSnapshot,
+  orderBy
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -64,17 +65,20 @@ export default function AdminNewPage() {
     return query(collection(db, "claims"), limit(100));
   }, [db, isAuthReady]);
 
-  // Use 'chats' collection for consistency across the platform (Step 4 implementation)
+  // Standardized Chat History Listener (MANDATORY ORDERING)
   const chatsQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    return query(collection(db, "chats"), limit(1000));
+    return query(
+      collection(db, "chats"), 
+      orderBy("createdAt"),
+      limit(1000)
+    );
   }, [db, isAuthReady]);
 
   const { data: rawUsers, isLoading: loadingUsers } = useCollection(usersQuery);
   const { data: rawClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
   const { data: rawMessages, isLoading: loadingMessages } = useCollection(chatsQuery);
 
-  // In-memory sorting to replace Firestore orderBy
   const realUsers = useMemo(() => {
     if (!rawUsers) return [];
     return [...rawUsers].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
@@ -105,7 +109,7 @@ export default function AdminNewPage() {
   const threads = useMemo(() => {
     if (!rawMessages) return [];
     const groups = new Map<string, any>();
-    // Sort messages locally by timestamp descending to find latest status
+    // Group messages by user, ensuring the latest message status determines thread status
     const sortedMsgs = [...rawMessages].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     
     sortedMsgs.forEach(msg => {
@@ -146,7 +150,7 @@ export default function AdminNewPage() {
     const text = replyText;
     setReplyText("");
     try {
-      // (Step 2 implementation)
+      // ADMIN REPLY (MANDATORY)
       await addDoc(collection(db, "chats"), {
         userId: activeChatUserId,
         userName: userMap.get(activeChatUserId)?.name || "Worker",

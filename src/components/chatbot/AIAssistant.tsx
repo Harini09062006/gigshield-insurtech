@@ -28,7 +28,8 @@ import {
   addDoc, 
   serverTimestamp, 
   doc, 
-  onSnapshot
+  onSnapshot,
+  orderBy
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -49,32 +50,23 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const db = useFirestore();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [rawMessages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // STABILIZE REFERENCE TO PREVENT INFINITE LOOP
   const profileRef = useMemoFirebase(
     () => (db && user?.uid ? doc(db, "users", user.uid) : null),
     [db, user?.uid]
   );
   const { data: profile } = useDoc(profileRef);
 
-  // In-memory sort to avoid Firestore index requirement
-  const messages = useMemo(() => {
-    return [...rawMessages].sort((a, b) => {
-      const timeA = a.createdAt?.seconds || 0;
-      const timeB = b.createdAt?.seconds || 0;
-      return timeA - timeB;
-    });
-  }, [rawMessages]);
-
-  // REAL-TIME SYNC: Listen to all 'chats' for this user (Step 3 implementation)
+  // CHATBOT REAL-TIME LISTENER (MANDATORY)
   useEffect(() => {
     if (!db || !user?.uid) return;
 
     const q = query(
       collection(db, "chats"),
-      where("userId", "==", user.uid)
+      where("userId", "==", user.uid),
+      orderBy("createdAt")
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -195,7 +187,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
               <Brain size={48} className="text-[#6C47FF]" />
               <div className="space-y-1">
                 <h3 className="text-xl font-bold text-[#1A1A2E]">How can we help you?</h3>
-                <p className="text-sm text-[#64748B] max-w-sm">Ask about claims, risk, or payment issues.</p>
+                <p className="text-sm text-[#64748B] max-sm">Ask about claims, risk, or payment issues.</p>
               </div>
             </div>
           ) : (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { 
   useFirestore, 
   useUser, 
@@ -15,7 +15,8 @@ import {
   serverTimestamp, 
   getDoc, 
   addDoc, 
-  onSnapshot
+  onSnapshot,
+  orderBy
 } from "firebase/firestore";
 import { 
   Shield, 
@@ -50,17 +51,8 @@ export default function AdminSupportPortal() {
   const [selectedIssue, setSelectedIssue] = useState<any>(null);
   const [replyText, setReplyText] = useState("");
   const [issues, setIssues] = useState<any[]>([]);
-  const [rawMessages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  // In-memory sort to avoid Firestore index requirement
-  const messages = useMemo(() => {
-    return [...rawMessages].sort((a, b) => {
-      const timeA = a.createdAt?.seconds || 0;
-      const timeB = b.createdAt?.seconds || 0;
-      return timeA - timeB;
-    });
-  }, [rawMessages]);
 
   // 1. AUTH & ROLE CHECK
   useEffect(() => {
@@ -77,7 +69,7 @@ export default function AdminSupportPortal() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 2. REAL-TIME ESCALATION QUEUE (Step 1 implementation)
+  // 2. ADMIN REAL-TIME LISTENER (MANDATORY)
   useEffect(() => {
     if (!db || !isAdmin) return;
 
@@ -107,7 +99,8 @@ export default function AdminSupportPortal() {
     
     const q = query(
       collection(db, "chats"),
-      where("userId", "==", selectedIssue.userId)
+      where("userId", "==", selectedIssue.userId),
+      orderBy("createdAt")
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -131,7 +124,7 @@ export default function AdminSupportPortal() {
     setReplyText("");
 
     try {
-      // 1. Add Admin Message to 'chats' (Step 2 implementation)
+      // ADMIN REPLY WRITE (MANDATORY)
       await addDoc(collection(db, "chats"), {
         userId: selectedIssue.userId,
         message: text,
@@ -141,8 +134,8 @@ export default function AdminSupportPortal() {
         createdAt: serverTimestamp()
       });
 
-      // 2. Proactively update all pending messages for this user to 'resolved'
-      const pendingMessages = rawMessages.filter(m => m.status === 'pending_admin');
+      // Proactively update all pending messages for this user to 'resolved'
+      const pendingMessages = messages.filter(m => m.status === 'pending_admin');
       for (const msg of pendingMessages) {
         await updateDoc(doc(db, "chats", msg.id), { status: "resolved" });
       }
@@ -154,7 +147,6 @@ export default function AdminSupportPortal() {
 
   const markResolved = async (issue: any) => {
     try {
-      // Update the specific issue status
       const userPendingQuery = query(
         collection(db, "chats"),
         where("userId", "==", issue.userId),
@@ -165,7 +157,7 @@ export default function AdminSupportPortal() {
         snapshot.docs.forEach(async (d) => {
           await updateDoc(doc(db, "chats", d.id), { status: "resolved" });
         });
-        unsubscribe(); // One-time update
+        unsubscribe(); 
       });
 
       if (selectedIssue?.userId === issue.userId) setSelectedIssue(null);
