@@ -44,9 +44,15 @@ export default function SupportPage() {
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
   // CHATBOT REAL-TIME LISTENER (MANDATORY)
-  // Removed orderBy to prevent Missing Index error
   useEffect(() => {
     if (!db || !user?.uid) return;
+
+    console.log("🔥 CHATBOT: Testing raw connection to 'chats' for user:", user.uid);
+    
+    // Diagnostic raw read
+    const unsubRaw = onSnapshot(collection(db, "chats"), (snap) => {
+      console.log("🔥 GLOBAL CHAT COUNT (RAW):", snap.docs.length);
+    });
 
     const q = query(
       collection(db, "chats"),
@@ -59,10 +65,14 @@ export default function SupportPage() {
         ...doc.data()
       })).sort((a: any, b: any) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
       
+      console.log("CHATBOT: Messages found for user:", msgs.length);
       setMessages(msgs);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubRaw();
+    };
   }, [db, user?.uid]);
 
   useEffect(() => {
