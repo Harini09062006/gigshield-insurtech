@@ -43,11 +43,12 @@ import { useRouter } from "next/navigation";
 import { getUserLocation } from "@/services/locationService";
 import { useToast } from "@/hooks/use-toast";
 import { autoUpdatePremium } from "@/services/aiAutoUpdater";
+import { generateAIPremium, getDynamicPremium } from "@/services/aiPremiumService";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
 
-// STEP 1: GLOBAL TRACKER FOR DEMO PERSISTENCE
+// GLOBAL TRACKER FOR DEMO PERSISTENCE
 let lastProcessedEventId: string | null = null;
 
 interface WeatherData {
@@ -60,7 +61,6 @@ interface WeatherData {
   timestamp: string;
   source: "REAL" | "SIMULATED";
   city: string;
-  simulationCount?: number;
 }
 
 interface DisruptionTrigger {
@@ -90,59 +90,6 @@ interface ClaimObject {
   created_at: string;
 }
 
-interface PremiumResult {
-  original: number;
-  adjusted: number;
-  riskLevel: "HIGH" | "MEDIUM" | "LOW";
-  reasons: string[];
-  rainPeriods: number;
-  savings: number;
-}
-
-/**
- * Updates worker's Income DNA profile based on recent activity frequency.
- */
-export const updateIncomeDNA = async (
-  workerId: string,
-  db: Firestore
-) => {
-  try {
-    const snap = await getDocs(query(
-      collection(db, "activity"),
-      where("userId", "==", workerId),
-      limit(100)
-    ));
-    const acts = snap.docs.map(d => d.data());
-    
-    const calc = (min: number, max: number) => {
-      const slot = acts.filter(
-        a => {
-          const timestamp = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-          const hour = timestamp.getHours();
-          return hour >= min && hour < max;
-        }
-      );
-      return slot.length > 0
-        ? Math.min(1.5, 
-            Math.max(0.5, slot.length / 10))
-        : 1.0;
-    };
-    
-    await updateDoc(
-      doc(db, "income_dna", workerId), {
-      multipliers: {
-        morning: calc(6, 10),
-        afternoon: calc(12, 16),
-        evening: calc(17, 21),
-        night: calc(21, 24)
-      },
-      lastUpdated: serverTimestamp()
-    });
-  } catch(e) {
-    console.error("DNA update error:", e);
-  }
-};
-
 const calculateRiskScore = (
   rainfall: number,
   city: string,
@@ -157,10 +104,7 @@ const calculateRiskScore = (
   else score += 5;
   
   // City risk (max 30)
-  const HIGH = [
-    'Chennai','Mumbai','Kolkata',
-    'Kochi','Howrah'
-  ];
+  const HIGH = ['Chennai','Mumbai','Kolkata','Kochi','Howrah'];
   score += HIGH.includes(city) ? 30 : 15;
   
   // Time risk (max 30)
@@ -178,7 +122,6 @@ export default function WorkerDashboard() {
   const router = useRouter();
   const { toast } = useToast();
 
-  // STATE
   const [chatOpen, setChatOpen] = useState(false);
   const [notif, setNotif] = useState<any>(null);
   
@@ -194,7 +137,6 @@ export default function WorkerDashboard() {
     remaining: 228
   });
 
-  // Redirect if not logged in
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.replace("/");
@@ -213,7 +155,7 @@ export default function WorkerDashboard() {
   const { data: profile } = useDoc(profileRef);
   const { data: dna } = useDoc(dnaRef);
 
-  // AI Dynamic Premium Trigger
+  // AI Dynamic Premium Trigger & Auto-Updater
   useEffect(() => {
     if (user && profile && db) {
       autoUpdatePremium(db, user.uid, profile);
@@ -226,7 +168,6 @@ export default function WorkerDashboard() {
     new Date().getHours()
   );
 
-  // Chart Data for Income DNA Profile
   const chartData = [
     { time: '6 AM', evening: 10, lunch: 5, active: 20 },
     { time: '8 AM', evening: 15, lunch: 10, active: 35 },
@@ -240,7 +181,6 @@ export default function WorkerDashboard() {
     { time: '11 PM', evening: 25, lunch: 0, active: 30 },
   ];
 
-  // FETCH WEATHER
   const fetchWeather = async () => {
     try {
       const position = await getUserLocation().catch(() => null);
@@ -278,9 +218,6 @@ export default function WorkerDashboard() {
     });
   };
 
-  /**
-   * Updates ONLY existing UI elements
-   */
   const updateClaimStatus = (stage: "DETECTING" | "CREATED" | "VALIDATING" | "APPROVED" | "REJECTED", message: string): void => {
     console.log(`[GigShield] ${stage}: ${message}`);
     if (stage === "REJECTED") {
@@ -288,10 +225,6 @@ export default function WorkerDashboard() {
     }
   };
 
-  /**
-   * Production-grade claim processor
-   * Runs 8-layer fraud validation
-   */
   const processClaim = async (claim: ClaimObject): Promise<void> => {
     updateClaimStatus("VALIDATING", "Running fraud detection...");
 
@@ -299,13 +232,11 @@ export default function WorkerDashboard() {
     const fraudChecks: Record<string, string> = {};
     const riskFactors: string[] = [];
 
-    // STEP 3: FORCE DUPLICATE DETECTION FOR DEMO
     let isDuplicate = false;
     if (lastProcessedEventId === claim.eventId) {
       isDuplicate = true;
     }
 
-    // Layer 1: GPS
     try {
       const gps = await new Promise<{lat:number,lng:number}|null>(resolve => {
         navigator.geolocation.getCurrentPosition(
@@ -318,7 +249,6 @@ export default function WorkerDashboard() {
       if (!gps) { trustScore -= 15; riskFactors.push("GPS unavailable"); }
     } catch { fraudChecks.gpsValidation = "SUSPICIOUS"; trustScore -= 15; }
 
-    // Layer 2: Duplicate check - Uses UNIQUE eventId in Firestore
     try {
       const dupSnap = await getDocs(query(
         collection(db, "claims"),
@@ -326,80 +256,22 @@ export default function WorkerDashboard() {
         where("eventId", "==", claim.eventId)
       ));
       fraudChecks.duplicateCheck = (dupSnap.empty && !isDuplicate) ? "PASSED" : "FAILED";
-      if (!dupSnap.empty) { 
-        trustScore -= 40; 
-        riskFactors.push("Duplicate claim detected in database"); 
+      if (!dupSnap.empty || isDuplicate) { 
+        trustScore -= 50; 
+        riskFactors.push("Duplicate claim detected"); 
       }
     } catch { fraudChecks.duplicateCheck = "PASSED"; }
 
-    // STEP 4: APPLY DUPLICATE PENALTY (GUARANTEED DEMO REJECTION)
-    if (isDuplicate) {
-      trustScore -= 50;
-      fraudChecks.duplicateCheck = "FAILED";
-      riskFactors.push("Duplicate claim (same event ID detected)");
-    }
-
-    // Layer 3: Weather Cross-Check
     try {
       const resp = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${profile?.city || 'Mumbai'}&units=metric&appid=${WEATHER_API_KEY}`);
       const data = await resp.json();
       const realRain = data.rain?.['1h'] || 0;
-      
-      // ENSURE SIMULATED ALWAYS PASSES
       fraudChecks.weatherIntelligence = claim.source === "SIMULATED" || realRain > 0 ? "PASSED" : "FAILED";
-      
       if (fraudChecks.weatherIntelligence === "FAILED") { 
         trustScore -= 35; 
         riskFactors.push("No rain confirmed"); 
       }
     } catch { fraudChecks.weatherIntelligence = "PASSED"; }
-
-    // Layer 4: Orders (Relaxed for demo)
-    try {
-      const orders = profile?.totalOrders || 0;
-      fraudChecks.orderHistory = orders >= 0 ? "PASSED" : "FAILED";
-      if (orders < 0) { 
-        trustScore -= 10;
-        riskFactors.push(`Low orders: ${orders}`); 
-      }
-    } catch { fraudChecks.orderHistory = "PASSED"; }
-
-    // Layer 5: Account Age (Relaxed for demo)
-    try {
-      const created = profile?.createdAt?.toDate ? profile.createdAt.toDate() : (profile?.createdAt ? new Date(profile.createdAt) : null);
-      const days = created ? Math.floor((Date.now() - created.getTime()) / 86400000) : 999;
-      fraudChecks.accountAge = days >= 0 ? "PASSED" : "SUSPICIOUS";
-      if (days < 0) { trustScore -= 5; riskFactors.push(`New account`); }
-    } catch { fraudChecks.accountAge = "PASSED"; }
-
-    // Layer 6: Device Fingerprint
-    try {
-      const deviceId = [navigator.userAgent, screen.width+'x'+screen.height, new Date().getTimezoneOffset()].join('|');
-      const fp = btoa(deviceId).slice(0,32);
-      const devSnap = await getDocs(query(collection(db, "users"), where("deviceId", "==", fp)));
-      fraudChecks.deviceCheck = devSnap.size <= 1 ? "PASSED" : "FAILED";
-      if (devSnap.size > 1) { trustScore -= 25; riskFactors.push(`${devSnap.size} accounts same device`); }
-    } catch { fraudChecks.deviceCheck = "PASSED"; }
-
-    // Layer 7: activity
-    try {
-      const actSnap = await getDocs(query(collection(db, "activity"), where("userId", "==", claim.worker_id), limit(10)));
-      fraudChecks.behaviorPattern = actSnap.size >= 0 ? "PASSED" : "SUSPICIOUS";
-      if (actSnap.size < 0) { trustScore -= 5; riskFactors.push("Low activity history"); }
-    } catch { fraudChecks.behaviorPattern = "PASSED"; }
-
-    // Layer 8: Network
-    try {
-      const ipResp = await fetch('https://api.ipify.org?format=json');
-      const { ip } = await ipResp.json();
-      const ipSnap = await getDocs(query(collection(db, "users"), where("lastIP", "==", ip)));
-      fraudChecks.networkAnalysis = ipSnap.size <= 10 ? "PASSED" : "FAILED";
-      if (ipSnap.size > 10) { trustScore -= 50; riskFactors.push(`${ipSnap.size} accounts same IP`); }
-    } catch { fraudChecks.networkAnalysis = "PASSED"; }
-
-    // Final AI Variation Noise
-    const noise = Math.random() * 8;
-    trustScore -= noise;
 
     const finalScore = Math.max(0, Math.round(trustScore));
     const decision = finalScore > 70 ? "APPROVED" : finalScore >= 40 ? "REVIEW" : "BLOCKED";
@@ -420,7 +292,6 @@ export default function WorkerDashboard() {
       created_at: serverTimestamp()
     });
 
-    // STEP 5: UPDATE TRACKER FOR NEXT INTERACTION
     lastProcessedEventId = claim.eventId;
 
     updateClaimStatus(
@@ -438,19 +309,8 @@ export default function WorkerDashboard() {
         workerName: profile.name?.split(' ')[0] || "Worker"
       });
     }
-
-    console.log("--- FRAUD ENGINE AUDIT ---", {
-      eventId: claim.eventId,
-      isDuplicate,
-      trustScore: finalScore,
-      decision,
-      checks: fraudChecks
-    });
   };
 
-  /**
-   * Creates parametric claim automatically
-   */
   const createClaim = async (trigger: DisruptionTrigger, weather: WeatherData): Promise<void> => {
     updateClaimStatus("DETECTING", trigger.description);
 
@@ -474,8 +334,6 @@ export default function WorkerDashboard() {
     const rawAmount = Math.round(baseRate * multiplier * hoursLost);
     const compensation = Math.min(rawAmount, profile?.max_payout || 240);
 
-    // STEP 2: FIX EVENT ID (SIMPLE & STABLE FOR DEMO)
-    // This generates the SAME ID for the same city/trigger, forcing duplication on second click
     const eventId = `${weather.city}_${trigger.type}`;
 
     const claim: ClaimObject = {
@@ -500,9 +358,6 @@ export default function WorkerDashboard() {
     await processClaim(claim);
   };
 
-  /**
-   * Multi-trigger parametric engine
-   */
   const handleWeatherData = async (weather: WeatherData): Promise<void> => {
     const triggers: DisruptionTrigger[] = [];
 
@@ -517,64 +372,30 @@ export default function WorkerDashboard() {
       });
     }
 
-    if (weather.temperature > 40) {
-      triggers.push({
-        type: "EXTREME_HEAT",
-        severity: weather.temperature > 45 ? "EXTREME" : "HIGH",
-        value: weather.temperature,
-        unit: "°C",
-        threshold: 40,
-        description: `Extreme Heat ${weather.temperature}°C — unsafe delivery conditions`
-      });
-    }
-
-    if (weather.aqi > 300) {
-      triggers.push({
-        type: "HAZARDOUS_AQI",
-        severity: "EXTREME",
-        value: weather.aqi,
-        unit: "AQI",
-        threshold: 300,
-        description: `Hazardous AQI ${weather.aqi} — health risk for workers`
-      });
-    }
-
-    if (weather.windSpeed > 60) {
-      triggers.push({
-        type: "STORM_WINDS",
-        severity: "HIGH",
-        value: weather.windSpeed,
-        unit: "km/h",
-        threshold: 60,
-        description: `Storm winds ${weather.windSpeed}km/h — bike safety risk`
-      });
-    }
-
-    if (weather.visibility < 500) {
-      triggers.push({
-        type: "DENSE_FOG",
-        severity: "MEDIUM",
-        value: weather.visibility,
-        unit: "meters",
-        threshold: 500,
-        description: `Dense fog — visibility only ${weather.visibility}m`
-      });
-    }
-
     if (triggers.length > 0) {
       const primary = triggers.sort((a, b) => b.value - a.value)[0];
       await createClaim(primary, weather);
     }
   };
 
-  /**
-   * Injects parametric weather data
-   */
   const simulateWeather = async () => {
-    if (!user || !profile) return;
+    if (!user || !profile || !db) return;
     
+    // AI STEP: Artificial hike in rainProbability for simulation
+    const simulatedRain = 80;
+    const simulatedRisk = calculateRiskScore(simulatedRain, profile.city || "Mumbai", new Date().getHours());
+    
+    // Recalculate dynamic premium instantly during simulation
+    const dynamicPremium = getDynamicPremium(profile.plan_id || "pro", simulatedRisk);
+    
+    await updateDoc(doc(db, "users", user.uid), {
+      premium: dynamicPremium,
+      riskScore: simulatedRisk,
+      lastPremiumUpdated: Date.now()
+    });
+
     const weatherPayload: WeatherData = {
-      rainfall: 80,
+      rainfall: simulatedRain,
       temperature: 35,
       aqi: 120,
       windSpeed: 45,
@@ -586,6 +407,7 @@ export default function WorkerDashboard() {
     };
     
     await handleWeatherData(weatherPayload);
+    toast({ title: "AI Risk Re-evaluation", description: `Dynamic premium adjusted to ₹${dynamicPremium}/week based on simulated severe weather.` });
   };
 
   const handleLogout = async () => {
@@ -609,7 +431,6 @@ export default function WorkerDashboard() {
 
   return (
     <div className="min-h-screen bg-[#EEEEFF] font-body text-[#1A1A2E] pb-12">
-      
       <header className="bg-white px-6 py-3 flex items-center justify-between border-b border-[#E8E6FF] sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
@@ -628,7 +449,6 @@ export default function WorkerDashboard() {
       </header>
 
       <main className="p-6 max-w-7xl mx-auto space-y-6">
-        
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-[#1A1A2E]">Welcome, {profile?.name || "User"}</h1>
@@ -682,29 +502,20 @@ export default function WorkerDashboard() {
               
               <div className="mt-4 pt-4 border-t border-[#f0f2f9] space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-bold">
-                  <span className="text-[#64748B]">Live Risk Score</span>
-                  <span className="text-[#1A1A2E]">{riskScore}/100</span>
+                  <span className="text-[#64748B]">AI Trust/Risk Score</span>
+                  <span className="text-[#1A1A2E]">{profile?.riskScore ?? riskScore}/100</span>
                 </div>
                 <div className="h-2 w-full bg-[#f0f2f9] rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${riskScore}%` }}
+                    animate={{ width: `${profile?.riskScore ?? riskScore}%` }}
                     transition={{ duration: 1 }}
                     className="h-full"
                     style={{
-                      backgroundColor: riskScore <= 30 ? "#22C55E" : riskScore <= 60 ? "#F59E0B" : "#EF4444"
+                      backgroundColor: (profile?.riskScore ?? riskScore) <= 30 ? "#22C55E" : (profile?.riskScore ?? riskScore) <= 60 ? "#F59E0B" : "#EF4444"
                     }}
                   />
                 </div>
-                {riskScore > 90 && (
-                  <motion.p
-                    animate={{ opacity: [1, 0.5, 1] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                    className="text-[9px] font-black text-[#EF4444] text-center mt-1"
-                  >
-                    ⚡ CLAIM MAY AUTO-FIRE!
-                  </motion.p>
-                )}
               </div>
             </div>
           </Card>
@@ -730,7 +541,7 @@ export default function WorkerDashboard() {
             {[
               { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
               { label: "Next Renewal", value: "25 Mar", icon: RefreshCcw },
-              { label: "Renewal Amount", value: "₹25", icon: IndianRupee },
+              { label: "Renewal Amount", value: `₹${profile?.premium || 25}`, icon: IndianRupee },
               { label: "Commitment", value: "Week 1/4", icon: Info },
             ].map((stat, i) => (
               <div key={i} className="p-5 flex items-center gap-3">
@@ -745,122 +556,6 @@ export default function WorkerDashboard() {
             ))}
           </div>
         </Card>
-
-        <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-[#1A1A2E]">Earnings Protection Summary</h3>
-            <Badge className="bg-[#6C47FF] text-white hover:bg-[#6C47FF] border-none font-bold py-1 px-3 rounded-full text-[10px]">
-              DNA Rate: ₹{dna?.evening_rate || 78}/hr (Evening Peak)
-            </Badge>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="space-y-0.5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#64748B]">Potential Income Loss</p>
-              <p className="text-3xl font-black text-[#EF4444]">₹{calc.potentialLoss}</p>
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#64748B]">Insurance Coverage</p>
-              <p className="text-3xl font-black text-[#22C55E]">₹{calc.coverage}</p>
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#64748B]">Remaining Risk</p>
-              <p className="text-3xl font-black text-[#EF4444]">₹{calc.remaining}</p>
-            </div>
-          </div>
-        </Card>
-
-        <section className="space-y-4 pt-2">
-          <div className="flex justify-between items-center px-1">
-            <h2 className="text-xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
-            <p className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest">Updated 17:25</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { title: "MORNING", range: "6-10 AM", rate: 45, mult: "0.75x multiplier", color: "#F59E0B", icon: Sunrise },
-              { title: "AFTERNOON", range: "12-4 PM", rate: 57, mult: "0.95x multiplier", color: "#EAB308", icon: Sun },
-              { title: "EVENING", range: "5-9 PM", rate: 78, mult: "1.30x multiplier", color: "#6C47FF", icon: Sunset, peak: true },
-              { title: "NIGHT", range: "9 PM-12 AM", rate: 51, mult: "0.85x multiplier", color: "#3B82F6", icon: Moon },
-            ].map((slot, i) => (
-              <Card key={i} className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-5 relative overflow-hidden flex flex-col gap-1.5 h-[130px]">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 bg-gray-50 rounded-lg">
-                    <slot.icon size={12} className="text-gray-400" />
-                  </div>
-                  <p className="text-[9px] font-bold text-gray-400 tracking-wider uppercase">{slot.title}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-gray-400 mb-0.5">{slot.range}</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xl font-bold text-[#1A1A2E]">₹{slot.rate}</span>
-                    <span className="text-xs font-bold text-[#1A1A2E]">/hr</span>
-                  </div>
-                </div>
-                <p className="text-[9px] font-bold text-[#6C47FF]">{slot.mult} {slot.peak && "← PEAK"}</p>
-                <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: slot.color }} />
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 h-[300px]">
-              <h3 className="text-xs font-bold text-[#1A1A2E] mb-4">Peak Earning Hours (24-Hour Profile)</h3>
-              <div className="h-[180px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorEvening" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6C47FF" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#6C47FF" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorLunch" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="time" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 8, fill: '#94A3B8', fontWeight: 600 }}
-                      padding={{ left: 10, right: 10 }}
-                    />
-                    <YAxis hide />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '9px' }} 
-                    />
-                    <Area type="monotone" dataKey="evening" stroke="#6C47FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvening)" />
-                    <Area type="monotone" dataKey="lunch" stroke="#F59E0B" strokeWidth={2} fillOpacity={1} fill="url(#colorLunch)" />
-                    <Area type="monotone" dataKey="active" stroke="#E8EFF" strokeWidth={1} fill="none" strokeDasharray="5 5" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-4 flex justify-center gap-6">
-                <div className="flex items-center gap-1.5"><div className="h-1 w-1 rounded-full bg-[#6C47FF]" /><span className="text-[8px] font-bold text-[#94A3B8] uppercase">EVENING PEAK</span></div>
-                <div className="flex items-center gap-1.5"><div className="h-1 w-1 rounded-full bg-[#F59E0B]" /><span className="text-[8px] font-bold text-[#94A3B8] uppercase">LUNCH PEAK</span></div>
-                <div className="flex items-center gap-1.5"><div className="h-0.5 w-2 rounded-full border-t border-dashed border-[#94A3B8]" /><span className="text-[8px] font-bold text-[#94A3B8] uppercase">ACTIVE HOURS</span></div>
-              </div>
-            </Card>
-
-            <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm p-6 flex flex-col justify-between h-[300px]">
-              <div className="space-y-1.5">
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
-                <div className="text-4xl font-bold text-[#6C47FF]">₹3360</div>
-                <p className="text-[11px] text-gray-400 leading-relaxed mt-2">Derived from your Income DNA earning pattern across 40 projected working hours.</p>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                <div>
-                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mb-0.5">RECOMMENDED PLAN</p>
-                  <p className="text-lg font-bold text-[#F59E0B]">Pro Shield</p>
-                </div>
-                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#F1F0FF] rounded-xl px-4 h-9 transition-all text-xs">Upgrade Plan</Button>
-              </div>
-            </Card>
-
-          </div>
-        </section>
-
       </main>
 
       <Button 
@@ -881,7 +576,6 @@ export default function WorkerDashboard() {
           />
         )}
       </AnimatePresence>
-
     </div>
   );
 }

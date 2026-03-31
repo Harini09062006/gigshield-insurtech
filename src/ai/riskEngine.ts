@@ -6,10 +6,10 @@
 export interface RiskFeatures {
   rainProbability: number;
   temperature: number;
-  pollutionIndex: number;
   areaType: "flood" | "normal";
   trustScore: number;
-  claimFrequency: number;
+  pollutionIndex?: number;
+  claimFrequency?: number;
 }
 
 /**
@@ -19,21 +19,21 @@ export interface RiskFeatures {
 export const computeRiskScore = (features: RiskFeatures): number => {
   let score = 0;
 
-  // 1. Weather Risk (Max 35)
-  score += (features.rainProbability / 100) * 25;
+  // 1. Weather Risk (Max 30)
+  score += (features.rainProbability / 100) * 30;
+  
+  // 2. Temperature Risk (Max 10)
   score += (features.temperature > 35 ? 10 : 0);
 
-  // 2. Location Risk (Max 20)
+  // 3. Location Risk (Max 20)
   if (features.areaType === "flood") score += 20;
-  else score += 5;
 
-  // 3. Behavioral Risk (Max 35)
-  // Penalize high frequency and low trust
-  if (features.claimFrequency > 3) score += 15;
+  // 4. Behavioral Risk (Max 20)
   if (features.trustScore < 50) score += 20;
 
-  // 4. Environmental Risk (Max 10)
-  if (features.pollutionIndex > 150) score += 10;
+  // 5. Environmental Risk (Max 20)
+  if (features.pollutionIndex && features.pollutionIndex > 150) score += 10;
+  if (features.claimFrequency && features.claimFrequency > 3) score += 10;
 
   return Math.min(Math.round(score), 100);
 };

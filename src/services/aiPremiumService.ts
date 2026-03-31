@@ -5,15 +5,28 @@
 
 import { buildFeatures } from "@/ai/featureBuilder";
 import { computeRiskScore } from "@/ai/riskEngine";
-import { predictPremium } from "@/ai/premiumModel";
 import { Firestore, collection, query, where, getDocs } from "firebase/firestore";
 
 /**
+ * Calculates a dynamic premium based on the selected plan and AI risk score.
+ */
+export const getDynamicPremium = (planId: string, riskScore: number): number => {
+  let base = 25; // Default Pro
+  if (planId === "basic") base = 10;
+  if (planId === "pro") base = 25;
+  if (planId === "elite") base = 50;
+
+  // AI adjustment: base * (1 + riskScore/100)
+  const multiplier = 1 + (riskScore / 100);
+  return Math.round(base * multiplier);
+};
+
+/**
  * Fetches advanced environmental data for risk modeling.
- * In a production app, this would call multiple specialized APIs.
  */
 export const getAdvancedWeather = async (city: string) => {
-  // Simulating advanced meteorological data
+  // In a production app, this would call real meteorological APIs
+  // For demo persistence, we use consistent simulated values
   return {
     rainProbability: 80,
     temperature: 36,
@@ -36,7 +49,9 @@ export const generateAIPremium = async (db: Firestore, user: any) => {
     
     const features = buildFeatures(user, weather, claimsSnap.size);
     const riskScore = computeRiskScore(features);
-    const premium = predictPremium(riskScore);
+    
+    // Use the plan-based dynamic multiplier
+    const premium = getDynamicPremium(user.plan_id || "pro", riskScore);
 
     console.log(`[AI Premium] Risk Score: ${riskScore} | Decision: ₹${premium}`);
 

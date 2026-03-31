@@ -167,10 +167,14 @@ export default function PlansPage() {
       const plan = PLANS.find(p => p.id === selectedPlan);
       const avgEarnings = Number(hourlyEarnings);
       
-      // Initialize AI Dynamic Premium
-      const aiResult = await generateAIPremium(db, { id: user.uid, city: 'Mumbai' });
+      // Initialize AI Dynamic Premium with initial risk audit
+      const aiResult = await generateAIPremium(db, { 
+        id: user.uid, 
+        city: 'Mumbai',
+        plan_id: selectedPlan 
+      });
 
-      // Update plan details
+      // Update plan details with AI-driven dynamic pricing
       await updateDoc(doc(db, "users", user.uid), {
         plan_id: selectedPlan,
         avg_hourly_earnings: avgEarnings,
