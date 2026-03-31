@@ -2,7 +2,7 @@
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
-import { collection, query, orderBy, doc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import { collection, query, doc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Shield, LayoutDashboard, Bell, Users, LogOut, CheckCircle2, XCircle, Loader2, Lock, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 export default function AdminClaims() {
   const { user, isUserLoading } = useUser();
@@ -53,16 +53,20 @@ export default function AdminClaims() {
   
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !isAdmin || checkingAdmin) return null;
-    return query(collection(db, "claims"), orderBy("createdAt", "desc"));
+    return query(collection(db, "claims"));
   }, [db, isAdmin, checkingAdmin]);
 
   const { data: rawClaims, isLoading, error } = useCollection(claimsQuery);
 
-  const claims = (rawClaims || []).sort((a, b) => {
-    const timeA = a.createdAt?.seconds || a.created_at?.seconds || 0;
-    const timeB = b.createdAt?.seconds || b.created_at?.seconds || 0;
-    return timeB - timeA;
-  });
+  // In-memory sort to replace Firestore orderBy
+  const claims = useMemo(() => {
+    if (!rawClaims) return [];
+    return [...rawClaims].sort((a, b) => {
+      const timeA = a.createdAt?.seconds || a.created_at?.seconds || 0;
+      const timeB = b.createdAt?.seconds || b.created_at?.seconds || 0;
+      return timeB - timeA;
+    });
+  }, [rawClaims]);
 
   const updateStatus = async (claimId: string, status: 'approved' | 'rejected') => {
     try {

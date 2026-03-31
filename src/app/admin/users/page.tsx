@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from "@/firebase";
-import { collection, query, orderBy, getDoc, doc } from "firebase/firestore";
+import { collection, query, getDoc, doc } from "firebase/firestore";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Shield, LayoutDashboard, Bell, Users, LogOut, Search, Calendar, Loader2, Lock, Headphones } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 export default function AdminUsers() {
   const { user, isUserLoading } = useUser();
@@ -51,10 +52,16 @@ export default function AdminUsers() {
   
   const usersQuery = useMemoFirebase(() => {
     if (!db || !isAdmin || checkingAdmin) return null;
-    return query(collection(db, "users"), orderBy("createdAt", "desc"));
+    return query(collection(db, "users"));
   }, [db, isAdmin, checkingAdmin]);
 
-  const { data: users, isLoading } = useCollection(usersQuery);
+  const { data: rawUsers, isLoading } = useCollection(usersQuery);
+
+  // In-memory sort to replace Firestore orderBy
+  const users = useMemo(() => {
+    if (!rawUsers) return [];
+    return [...rawUsers].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  }, [rawUsers]);
 
   const handleLogout = async () => {
     await auth.signOut();

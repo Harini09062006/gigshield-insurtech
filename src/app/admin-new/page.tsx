@@ -28,7 +28,6 @@ import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebas
 import { 
   collection, 
   query, 
-  orderBy, 
   updateDoc, 
   doc, 
   serverTimestamp, 
@@ -42,10 +41,6 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 
-/**
- * REVERTED ADMIN UI WITH REAL-TIME FIRESTORE DATA
- * Enhanced with GPS mismatch visual cues and priority denial logic.
- */
 export default function AdminNewPage() {
   const db = useFirestore();
   const router = useRouter();
@@ -55,35 +50,33 @@ export default function AdminNewPage() {
   const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
-  const isAuthReady = !isUserLoading;
+  const isAuthReady = !isUserLoading && !!user;
 
-  useEffect(() => {
-    console.log("[Admin Dashboard] Connection Check:", {
-      dbInitialized: !!db,
-      authReady: isAuthReady,
-      currentUid: user?.uid || 'anonymous'
-    });
-  }, [db, isAuthReady, user]);
-
-  // Firestore Subscriptions with Auth-Ready Gating
+  // Firestore Subscriptions - Removed orderBy to prevent index errors
   const usersQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    return query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));
+    return query(collection(db, "users"), limit(100));
   }, [db, isAuthReady]);
 
   const claimsQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    return query(collection(db, "claims"), orderBy("createdAt", "desc"), limit(100));
+    return query(collection(db, "claims"), limit(100));
   }, [db, isAuthReady]);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    return query(collection(db, "support_messages"), orderBy("timestamp", "desc"), limit(500));
+    return query(collection(db, "support_messages"), limit(500));
   }, [db, isAuthReady]);
 
-  const { data: realUsers, isLoading: loadingUsers, error: usersError } = useCollection(usersQuery);
-  const { data: rawClaims, isLoading: loadingClaims, error: claimsError } = useCollection(claimsQuery);
-  const { data: rawMessages, isLoading: loadingMessages, error: messagesError } = useCollection(messagesQuery);
+  const { data: rawUsers, isLoading: loadingUsers } = useCollection(usersQuery);
+  const { data: rawClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
+  const { data: rawMessages, isLoading: loadingMessages } = useCollection(messagesQuery);
+
+  // In-memory sorting to replace Firestore orderBy
+  const realUsers = useMemo(() => {
+    if (!rawUsers) return [];
+    return [...rawUsers].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  }, [rawUsers]);
 
   const realClaims = useMemo(() => {
     if (!rawClaims) return [];
@@ -94,19 +87,12 @@ export default function AdminNewPage() {
     });
   }, [rawClaims]);
 
-  useEffect(() => {
-    if (usersError || claimsError || messagesError) {
-      console.error("[Admin Dashboard] Sync Errors Detected:", { usersError, claimsError, messagesError });
-    }
-  }, [usersError, claimsError, messagesError]);
-
   const userMap = useMemo(() => {
     const map = new Map<string, any>();
     realUsers?.forEach(u => map.set(u.id || u.uid, u));
     return map;
   }, [realUsers]);
 
-  // Aggregated Stats - Priority logic implemented
   const stats = useMemo(() => ({
     totalWorkers: realUsers?.length || 0,
     riskEvents: realClaims?.filter(c => c.gps_status === 'mismatch').length || 0,
@@ -114,11 +100,13 @@ export default function AdminNewPage() {
     totalPayouts: realClaims?.filter(c => (c.status === 'approved' || c.status === 'paid') && c.gps_status !== 'mismatch').reduce((sum, c) => sum + (c.compensation || 0), 0) || 0
   }), [realUsers, realClaims]);
 
-  // Group messages for sidebar
   const threads = useMemo(() => {
     if (!rawMessages) return [];
     const groups = new Map<string, any>();
-    rawMessages.forEach(msg => {
+    // Sort messages locally by timestamp descending
+    const sortedMsgs = [...rawMessages].sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+    
+    sortedMsgs.forEach(msg => {
       if (!groups.has(msg.userId)) {
         groups.set(msg.userId, {
           userId: msg.userId,
@@ -194,28 +182,6 @@ export default function AdminNewPage() {
             <h3 className="text-2xl font-bold text-[#1A1A2E] mt-1">{stat.value}</h3>
           </div>
         ))}
-      </div>
-
-      <div className="space-y-6">
-        <h2 className="text-xl font-bold text-[#1A1A2E]">City Risk Monitoring</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { city: "Mumbai", status: "High Risk", color: "bg-red-500", rainfall: "45mm" },
-            { city: "Bengaluru", status: "Safe", color: "bg-emerald-500", rainfall: "2mm" },
-            { city: "Delhi", status: "Moderate", color: "bg-amber-500", rainfall: "12mm" },
-          ].map((c) => (
-            <div key={c.city} className="bg-white p-6 rounded-2xl border border-[#E8E6FF] shadow-sm flex items-center justify-between">
-              <div>
-                <h4 className="text-lg font-bold text-[#1A1A2E]">{c.city}</h4>
-                <p className="text-xs text-[#64748B] mt-1">Live Rainfall: {c.rainfall}</p>
-              </div>
-              <div className="text-right">
-                <div className={`h-2 w-2 ${c.color} rounded-full inline-block mr-2 animate-pulse`} />
-                <span className="text-xs font-bold uppercase tracking-wider">{c.status}</span>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E8E6FF] shadow-sm overflow-hidden">
