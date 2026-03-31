@@ -265,6 +265,7 @@ export default function WorkerDashboard() {
 
   return (
     <div className="min-h-screen bg-[#EEEEFF] font-body text-[#1A1A2E] pb-12">
+      {/* 1. HEADER */}
       <header className="bg-white px-6 py-3 flex items-center justify-between border-b border-[#E8E6FF] sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn"><Shield className="h-4.5 w-4.5 text-white" /></div>
@@ -297,8 +298,9 @@ export default function WorkerDashboard() {
           </Button>
         </div>
 
-        {/* SECTION 2 — ACTIVE PROTECTION + RISK */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {/* 2. TOP SECTION: 3 CARDS SIDE BY SIDE */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1: Active Protection */}
           <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-6 flex flex-col justify-between shadow-xl relative overflow-hidden min-h-[200px]">
             <Shield className="absolute top-6 right-6 h-7 w-7 opacity-40" />
             <div>
@@ -317,6 +319,7 @@ export default function WorkerDashboard() {
             </div>
           </Card>
 
+          {/* Card 2: AI Risk Prediction */}
           <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
             <Brain className="absolute top-6 right-6 h-5 w-5 text-[#6C47FF]" />
             <div>
@@ -335,7 +338,6 @@ export default function WorkerDashboard() {
                 <Progress value={disruptionRisk} className="h-2 bg-[#f0f2f9]" />
               </div>
 
-              {/* NEW LIVE RISK SCORE SECTION */}
               <div className="space-y-2 pt-2 border-t border-[#f0f2f9]">
                 <div className="flex justify-between items-center text-[10px] font-bold">
                   <span className="text-[#64748B]">Live Risk Score</span>
@@ -366,45 +368,8 @@ export default function WorkerDashboard() {
               </div>
             </div>
           </Card>
-        </div>
 
-        {/* SECTION 3 — POLICY MANAGEMENT SECTION */}
-        <section>
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-6">
-            <CardHeader className="p-0 mb-6">
-              <CardTitle className="text-xl font-bold text-[#1A1A2E]">Policy Management Section</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label: "MORNING", time: "6-10 AM", rate: morningRate, icon: "🌅", color: "#F59E0B", mult: "0.75x" },
-                  { label: "AFTERNOON", time: "12-4 PM", rate: afternoonRate, icon: "☀️", color: "#EAB308", mult: "0.95x" },
-                  { label: "EVENING", time: "5-9 PM", rate: eveningRate, icon: "🌆", color: "#6C47FF", mult: "1.30x", peak: true },
-                  { label: "NIGHT", time: "9 PM-12 AM", rate: nightRate, icon: "🌙", color: "#3B82F6", mult: "0.85x" }
-                ].map((slot) => (
-                  <Card key={slot.label} className="bg-white border-none rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{slot.icon}</span>
-                      <p className="text-[9px] font-black text-[#64748B] uppercase">{slot.label}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-[#64748B]">{slot.time}</p>
-                      <p className="text-xl font-bold text-[#1A1A2E]">₹{slot.rate}/hr</p>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-bold text-[#6C47FF]">{slot.mult} multiplier</p>
-                      {slot.peak && <Badge className="bg-[#6C47FF] text-white text-[7px] font-black uppercase px-1 py-0 border-none">Peak</Badge>}
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ backgroundColor: slot.color }} />
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* COMMITMENT STATUS CARD */}
-        <div className="grid grid-cols-1 gap-2">
+          {/* Card 3: Commitment Status */}
           <Card className="bg-[#FEFCE8] rounded-[24px] border border-[#FEF08A] p-6 flex flex-col justify-between shadow-sm relative min-h-[200px]">
             <RefreshCcw className="absolute top-6 right-6 h-5 w-5 text-[#F59E0B]" />
             <div>
@@ -418,62 +383,119 @@ export default function WorkerDashboard() {
           </Card>
         </div>
 
-        {/* SECTION 4 — EARNINGS PROTECTION SUMMARY */}
+        {/* 3. POLICY MANAGEMENT: TITLE + 4 MINI CARDS INSIDE SAME BOX */}
+        <section>
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-6">
+            <CardHeader className="p-0 mb-6">
+              <CardTitle className="text-xl font-bold text-[#1A1A2E]">Policy Management</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: "ACTIVATION DATE", value: profile?.plan_activated_at?.seconds ? format(new Date(profile.plan_activated_at.seconds * 1000), "dd MMM") : "Just now", icon: <Calendar className="h-4 w-4 text-[#6C47FF]" /> },
+                  { label: "NEXT RENEWAL", value: "25 Mar", icon: <RefreshCcw className="h-4 w-4 text-[#F59E0B]" /> },
+                  { label: "RENEWAL AMOUNT", value: `₹${metrics.premium || 0}`, icon: <IndianRupee className="h-4 w-4 text-[#22C55E]" /> },
+                  { label: "COMMITMENT", value: "4 Weeks", icon: <Shield className="h-4 w-4 text-[#6C47FF]" /> }
+                ].map((item) => (
+                  <Card key={item.label} className="bg-white border-none rounded-[20px] shadow-sm p-4 flex flex-col gap-2 relative overflow-hidden border border-[#F5F3FF]">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-[#F8F9FF] rounded-lg">
+                        {item.icon}
+                      </div>
+                      <p className="text-[9px] font-black text-[#94A3B8] uppercase tracking-wider">{item.label}</p>
+                    </div>
+                    <div>
+                      <p className="text-xl font-black text-[#1A1A2E]">{item.value}</p>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* 4. EARNINGS PROTECTION SUMMARY: FULL WIDTH CARD */}
         <section>
           <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2 px-1">
-              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-2 py-1 font-bold border-none text-[10px]">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-2 px-1">
+              <h2 className="text-lg font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-3 py-1 font-bold border-none text-[10px] uppercase tracking-widest">
                 DNA Rate: ₹{activeRate}/hr ({activeSlotName})
               </Badge>
             </div>
 
-            <div className="flex justify-between items-start gap-2 px-1">
-              <div className="flex flex-col space-y-1 flex-1">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
-                <p className="text-xl font-black text-[#EF4444]">₹{metrics.incomeLoss}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">AI-calculated for disruption risk</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 px-1">
+              <div className="flex flex-col space-y-1 p-4 bg-[#FEE2E2]/30 rounded-2xl">
+                <p className="text-[11px] font-black text-[#EF4444] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
+                <p className="text-2xl font-black text-[#EF4444]">₹{metrics.incomeLoss || 0}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1 italic">AI-calculated disruption risk</p>
               </div>
-              <div className="flex flex-col space-y-1 flex-1">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
-                <p className="text-xl font-black text-[#22C55E]">₹{metrics.coverage}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Capped by {profile?.plan_id?.toUpperCase() || 'PRO'} plan</p>
+              <div className="flex flex-col space-y-1 p-4 bg-[#DCFCE7]/30 rounded-2xl">
+                <p className="text-[11px] font-black text-[#22C55E] uppercase tracking-widest">INSURANCE COVERAGE</p>
+                <p className="text-2xl font-black text-[#22C55E]">₹{metrics.coverage || 0}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1 italic">Capped by {profile?.plan_id?.toUpperCase() || 'PRO'} plan</p>
               </div>
-              <div className="flex flex-col space-y-1 flex-1">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
-                <p className="text-xl font-black text-[#EF4444]">₹{metrics.remainingRisk}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Net financial gap</p>
+              <div className="flex flex-col space-y-1 p-4 bg-[#F1F0FF] rounded-2xl">
+                <p className="text-[11px] font-black text-[#6C47FF] uppercase tracking-widest">REMAINING RISK</p>
+                <p className="text-2xl font-black text-[#6C47FF]">₹{metrics.remainingRisk || 0}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1 italic">Net financial gap</p>
               </div>
             </div>
           </Card>
         </section>
 
-        {/* SECTION 5 — INCOME DNA PROFILE */}
+        {/* 5. INCOME DNA PROFILE SECTION */}
         <section className="space-y-6">
           <div className="flex justify-between items-center px-2">
             <h2 className="text-xl font-bold text-[#1A1A2E]">Income DNA Profile</h2>
             <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Updated {format(new Date(), "HH:mm")}</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <Card className="col-span-2 bg-white border-none rounded-[24px] shadow-sm p-5 flex flex-col justify-between">
+          {/* Time Slot Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: "MORNING", time: "6-10 AM", rate: morningRate, icon: "🌅", color: "#F59E0B", mult: "0.75x" },
+              { label: "AFTERNOON", time: "12-4 PM", rate: afternoonRate, icon: "☀️", color: "#EAB308", mult: "0.95x" },
+              { label: "EVENING", time: "5-9 PM", rate: eveningRate, icon: "🌆", color: "#6C47FF", mult: "1.30x", peak: true },
+              { label: "NIGHT", time: "9 PM-12 AM", rate: nightRate, icon: "🌙", color: "#3B82F6", mult: "0.85x" }
+            ].map((slot) => (
+              <Card key={slot.label} className="bg-white border-none rounded-[20px] shadow-sm p-4 flex flex-col gap-1 relative overflow-hidden">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{slot.icon}</span>
+                  <p className="text-[9px] font-black text-[#64748B] uppercase">{slot.label}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-[#64748B]">{slot.time}</p>
+                  <p className="text-xl font-bold text-[#1A1A2E]">₹{slot.rate}/hr</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-[#6C47FF]">{slot.mult} multiplier</p>
+                  {slot.peak && <Badge className="bg-[#6C47FF] text-white text-[7px] font-black uppercase px-1 py-0 border-none">Peak</Badge>}
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ backgroundColor: slot.color }} />
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-white border-none rounded-[24px] shadow-sm p-8 flex flex-col justify-between">
               <div className="space-y-2">
                 <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Expected Weekly Earnings</p>
-                <h3 className="text-3xl font-black text-[#6C47FF]">₹{Math.round((morningRate * 4 + afternoonRate * 4 + eveningRate * 4 + nightRate * 3) * 7)}</h3>
-                <p className="text-[10px] text-[#64748B] leading-relaxed">Derived from your Income DNA earning pattern across projected working hours.</p>
+                <h3 className="text-5xl font-black text-[#6C47FF]">₹{Math.round((morningRate * 4 + afternoonRate * 4 + eveningRate * 4 + nightRate * 3) * 7)}</h3>
+                <p className="text-[11px] text-[#64748B] leading-relaxed mt-4 max-w-sm">Derived from your Income DNA earning pattern across projected working hours.</p>
               </div>
-              <div className="mt-4 pt-4 border-t border-[#E8E6FF] space-y-4">
+              <div className="mt-8 pt-8 border-t border-[#E8E6FF] flex items-center justify-between">
                 <div>
-                  <p className="text-[9px] font-bold text-[#64748B] uppercase tracking-tighter mb-1">Recommended Plan</p>
-                  <p className="text-lg font-bold text-[#F59E0B]">Pro Shield</p>
+                  <p className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-tighter mb-1">Recommended Plan</p>
+                  <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
                 </div>
-                <Button variant="outline" className="w-full border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl h-11 transition-all text-sm">Upgrade Plan</Button>
+                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl h-12 px-8 transition-all text-sm">Upgrade Plan</Button>
               </div>
             </Card>
 
-            <Card className="col-span-3 bg-white border-none rounded-[24px] shadow-sm p-5">
-              <h3 className="text-sm font-bold text-[#1A1A2E] mb-4">Peak Earning Hours (24-Hour Profile)</h3>
-              <div className="h-[200px] w-full">
+            <Card className="bg-white border-none rounded-[24px] shadow-sm p-8">
+              <h3 className="text-sm font-bold text-[#1A1A2E] mb-6">Peak Earning Hours (24-Hour Profile)</h3>
+              <div className="h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
@@ -496,7 +518,7 @@ export default function WorkerDashboard() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-              <div className="mt-4 flex justify-center gap-6">
+              <div className="mt-6 flex justify-center gap-8">
                 <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#6C47FF]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Evening peak</span></div>
                 <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#F59E0B]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Lunch peak</span></div>
                 <div className="flex items-center gap-2"><div className="h-0.5 w-3 border-t border-dashed border-[#94A3B8]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Active hours</span></div>
