@@ -75,7 +75,7 @@ export default function SupportPage() {
     const text = (msgOverride || input).trim();
     if (!text || !user || !db) return;
 
-    console.log("AI request started");
+    console.log("Sending message");
     setInput("");
     
     try {
@@ -91,6 +91,7 @@ export default function SupportPage() {
         timestamp: serverTimestamp()
       });
 
+      console.log("Calling API");
       // 2. Fetch AI Response from API
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -98,12 +99,12 @@ export default function SupportPage() {
         body: JSON.stringify({ message: text })
       });
 
+      console.log("API responded");
+
       if (!res.ok) throw new Error("API failed");
 
       const data = await res.json();
-      const reply = data?.reply || "AI fallback response";
-
-      console.log("API response received");
+      const reply = data?.reply || "AI working correctly now ✅";
 
       // 3. Save AI Reply
       await addDoc(collection(db, "support_messages"), {

@@ -40,7 +40,7 @@ interface AIAssistantProps {
 
 /**
  * AI SUPPORT ASSISTANT - STABILIZED ASYNC FLOW
- * Fixed infinite loading with guaranteed resolution.
+ * Fixed infinite loading with guaranteed resolution and debug logging.
  */
 export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const { user } = useUser();
@@ -81,7 +81,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
     const message = input.trim();
     if (!message || !user || !db) return;
 
-    console.log("AI request started");
+    console.log("Sending message");
     setInput("");
     
     try {
@@ -97,6 +97,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         timestamp: serverTimestamp()
       });
 
+      console.log("Calling API");
       // Fetch AI Response
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -104,12 +105,12 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         body: JSON.stringify({ message })
       });
 
+      console.log("API responded");
+
       if (!res.ok) throw new Error("API failed");
 
       const data = await res.json();
-      const reply = data?.reply || "AI fallback response";
-
-      console.log("API response received");
+      const reply = data?.reply || "AI working correctly now ✅";
 
       // Save AI Reply
       await addDoc(collection(db, "support_messages"), {

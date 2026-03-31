@@ -162,12 +162,12 @@ export default function WorkerDashboard() {
       });
 
       // Step 5: Update profile (SAFE UPDATE)
+      console.log("Updating Firestore...");
       await updateDoc(doc(db, "users", user.uid), {
         riskScore: newRisk,
         updatedAt: serverTimestamp()
       });
-
-      console.log("Risk updated");
+      console.log("Firestore updated");
 
       // Step 6: Update local UI state
       setWeatherData({
@@ -183,7 +183,7 @@ export default function WorkerDashboard() {
       });
 
     } catch (error) {
-      console.error("Simulate error:", error);
+      console.error("Simulation error:", error);
       toast({
         variant: "destructive",
         title: "Error",
