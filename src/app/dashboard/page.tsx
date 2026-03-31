@@ -420,6 +420,29 @@ export default function WorkerDashboard() {
                 )}
               </div>
             </div>
+
+            {/* AI Insights Section */}
+            <div className="mt-2 space-y-2 border-t border-b border-[#f0f2f9] py-3">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest flex items-center gap-1.5">
+                  📊 Prediction:
+                </span>
+                <span className="text-[10px] font-bold text-[#1A1A2E] mt-0.5">
+                  {weatherData.rainfall > 50 ? "Heavy rain expected for next few hours" : "Stable atmospheric conditions predicted"}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest flex items-center gap-1.5">
+                  ⚡ System Action:
+                </span>
+                <div className="flex flex-col mt-0.5">
+                  <span className="text-[10px] font-bold text-[#6C47FF]">
+                    {premiumIncrease > 0 ? "Premium increased automatically" : "No premium change (Standard Rate)" }
+                  </span>
+                  <span className="text-[9px] font-medium text-[#64748B]">Claim monitoring active • Automated verification enabled</span>
+                </div>
+              </div>
+            </div>
             
             <div className="space-y-3 mt-4">
               <div className="space-y-1">
