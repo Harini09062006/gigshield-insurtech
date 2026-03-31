@@ -124,7 +124,13 @@ export default function WorkerDashboard() {
   const calculateAndUpdateInsurance = async (userData: any, userId: string) => {
     if (!userData || !userId || !db) return;
 
-    const dna = userData.dna;
+    const dna = userData.dna || {
+      morning: 45,
+      afternoon: 57,
+      evening: 78,
+      night: 51,
+      weeklyIncome: 3360
+    };
     const riskScore = userData.riskScore || 30;
     const plan = userData.plan_id || userData.plan || "pro";
 
@@ -213,7 +219,6 @@ export default function WorkerDashboard() {
 
   const processClaim = async (claim: ClaimObject): Promise<void> => {
     let trustScore = 100;
-    // EXTENDED: Fill all fields to avoid "N/A" in UI
     const fraudChecks: Record<string, string> = {
       gpsValidation: "PASSED",
       orderHistory: "PASSED",
@@ -235,16 +240,10 @@ export default function WorkerDashboard() {
       if (!gps) trustScore -= 15;
     } catch { fraudChecks.gpsValidation = "SUSPICIOUS"; trustScore -= 15; }
 
-    try {
-      const dupSnap = await getDocs(query(collection(db, "claims"), where("worker_id", "==", claim.worker_id), where("eventId", "==", claim.eventId)));
-      // Duplicate logic: Simulates failure on second click
-      if (!dupSnap.empty || isDuplicate) {
-        fraudChecks.duplicateCheck = "FAILED";
-        trustScore -= 50;
-      } else {
-        fraudChecks.duplicateCheck = "PASSED";
-      }
-    } catch { fraudChecks.duplicateCheck = isDuplicate ? "FAILED" : "PASSED"; }
+    if (isDuplicate) {
+      fraudChecks.duplicateCheck = "FAILED";
+      trustScore -= 50;
+    }
 
     const finalScore = Math.max(0, Math.round(trustScore));
     const decision = finalScore > 70 ? "APPROVED" : finalScore >= 40 ? "REVIEW" : "BLOCKED";
@@ -261,7 +260,6 @@ export default function WorkerDashboard() {
     await addDoc(collection(db, "claims"), { ...finalClaim, createdAt: serverTimestamp(), created_at: serverTimestamp() });
     lastProcessedEventId = claim.eventId;
 
-    // STEP 8: Safe Firestore Update for Dashboard Sync
     if (user && db) {
       const simCount = (profile?.simulationCount || 0) + 1;
       await updateDoc(doc(db, "users", user.uid), {
@@ -338,13 +336,11 @@ export default function WorkerDashboard() {
     
     const newRisk = 75;
     
-    // Update risk score
     await updateDoc(doc(db, "users", user.uid), {
       riskScore: newRisk,
       lastUpdated: Date.now()
     });
 
-    // Recalculate metrics based on new risk
     calculateAndUpdateInsurance({ ...profile, riskScore: newRisk }, user.uid);
 
     const weatherPayload: WeatherData = {
@@ -406,17 +402,6 @@ export default function WorkerDashboard() {
     { time: "10 PM", evening: 60, lunch: 10, active: 60 },
     { time: "11 PM", evening: 30, lunch: 5, active: 40 }
   ];
-
-  const fraudLabels: Record<string, string> = {
-    gpsValidation: "GPS Validation",
-    orderHistory: "Order History",
-    deviceCheck: "Device Fingerprint",
-    duplicateCheck: "No Duplicate",
-    accountAge: "Account Age",
-    weatherIntelligence: "Weather Intel",
-    behaviorPattern: "Behavior Pattern",
-    networkAnalysis: "Network Analysis"
-  };
 
   if (isUserLoading) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
   if (!user) return null;
@@ -525,6 +510,36 @@ export default function WorkerDashboard() {
             ))}
           </div>
         </Card>
+
+        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
+        <section>
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+              <h2 className="text-xl font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-4 py-1.5 font-bold border-none text-xs">
+                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
+                <p className="text-3xl font-black text-[#EF4444]">₹{profile?.incomeLoss || activeRate * 3}</p>
+                <p className="text-[10px] text-[#64748B]">Calculated for 3 hour weather disruption</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
+                <p className="text-3xl font-black text-[#22C55E]">₹{profile?.coverage || 240}</p>
+                <p className="text-[10px] text-[#64748B]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
+                <p className="text-3xl font-black text-[#EF4444]">₹{profile?.remainingRisk || Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
+                <p className="text-[10px] text-[#64748B]">Net income gap after parametric payout</p>
+              </div>
+            </div>
+          </Card>
+        </section>
 
         {/* SECTION 1 — INCOME DNA PROFILE */}
         <section className="space-y-6">
@@ -652,36 +667,6 @@ export default function WorkerDashboard() {
               </div>
             </Card>
           </div>
-        </section>
-
-        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
-        <section>
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-6">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-              <h2 className="text-xl font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-4 py-1.5 font-bold border-none text-xs">
-                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="space-y-2">
-                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Potential Income Loss</p>
-                <p className="text-3xl font-black text-[#EF4444]">₹{activeRate * 3}</p>
-                <p className="text-[10px] text-[#64748B]">Calculated for 3 hour weather disruption</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Insurance Coverage</p>
-                <p className="text-3xl font-black text-[#22C55E]">₹{profile?.coverage || 240}</p>
-                <p className="text-[10px] text-[#64748B]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Remaining Risk</p>
-                <p className="text-3xl font-black text-[#EF4444]">₹{Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
-                <p className="text-[10px] text-[#64748B]">Net income gap after parametric payout</p>
-              </div>
-            </div>
-          </Card>
         </section>
       </main>
 
