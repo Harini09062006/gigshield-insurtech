@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useMemo } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, limit, orderBy } from "firebase/firestore";
+import { collection, query, where, limit } from "firebase/firestore";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Calendar, Loader2, Zap, AlertCircle, XCircle } from "lucide-react";
@@ -17,12 +16,11 @@ export default function WorkerClaims() {
     // ✅ Safety check
     if (!db || !user?.uid) return null;
 
-    // Filter by worker_id and sort by createdAt
-    // NOTE: This query requires a composite index: claims (worker_id ASC, createdAt DESC)
+    // Filter by worker_id
+    // Removed orderBy("createdAt") to prevent Index requirement failure
     return query(
       collection(db, "claims"),
       where("worker_id", "==", user.uid),
-      orderBy("createdAt", "desc"),
       limit(50)
     );
   }, [db, user?.uid]);
@@ -31,7 +29,7 @@ export default function WorkerClaims() {
 
   const claims = useMemo(() => {
     if (!rawClaims) return [];
-    // Secondary client-side sort as fallback for items with pending server timestamps
+    // Client-side sort as workaround for Missing Index
     return [...rawClaims].sort((a, b) => {
       const timeA = a.createdAt?.seconds || a.created_at?.seconds || 0;
       const timeB = b.createdAt?.seconds || b.created_at?.seconds || 0;
@@ -58,7 +56,7 @@ export default function WorkerClaims() {
         <div>
           <h2 className="text-xl font-bold text-heading">Access Denied</h2>
           <p className="text-body max-w-xs mx-auto mt-2">
-            Unable to load claims. Please ensure you have an active policy and the required database indexes are built.
+            Unable to load claims. Please ensure you have an active policy.
           </p>
         </div>
       </div>

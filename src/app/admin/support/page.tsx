@@ -15,8 +15,7 @@ import {
   serverTimestamp, 
   getDoc, 
   addDoc, 
-  onSnapshot,
-  orderBy
+  onSnapshot
 } from "firebase/firestore";
 import { 
   Shield, 
@@ -94,20 +93,21 @@ export default function AdminSupportPortal() {
   }, [db, isAdmin]);
 
   // 3. REAL-TIME MESSAGES FOR SELECTED WORKER
+  // Removed orderBy to prevent Missing Index error
   useEffect(() => {
     if (!selectedIssue?.userId || !db) return;
     
     const q = query(
       collection(db, "chats"),
-      where("userId", "==", selectedIssue.userId),
-      orderBy("createdAt")
+      where("userId", "==", selectedIssue.userId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })).sort((a: any, b: any) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      
       setMessages(msgs);
     });
 

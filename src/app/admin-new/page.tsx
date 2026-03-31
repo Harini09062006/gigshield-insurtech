@@ -33,8 +33,7 @@ import {
   serverTimestamp, 
   limit,
   addDoc,
-  onSnapshot,
-  orderBy
+  onSnapshot
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -65,12 +64,12 @@ export default function AdminNewPage() {
     return query(collection(db, "claims"), limit(100));
   }, [db, isAuthReady]);
 
-  // Standardized Chat History Listener (MANDATORY ORDERING)
+  // Standardized Chat History Listener
+  // Removed orderBy to prevent Missing Index error
   const chatsQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
     return query(
       collection(db, "chats"), 
-      orderBy("createdAt"),
       limit(1000)
     );
   }, [db, isAuthReady]);

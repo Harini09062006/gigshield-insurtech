@@ -28,8 +28,7 @@ import {
   addDoc, 
   serverTimestamp, 
   doc, 
-  onSnapshot,
-  orderBy
+  onSnapshot
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -60,20 +59,21 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const { data: profile } = useDoc(profileRef);
 
   // CHATBOT REAL-TIME LISTENER (MANDATORY)
+  // Removed orderBy to prevent Missing Index error
   useEffect(() => {
     if (!db || !user?.uid) return;
 
     const q = query(
       collection(db, "chats"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt")
+      where("userId", "==", user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })).sort((a: any, b: any) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      
       setMessages(msgs);
     });
 
