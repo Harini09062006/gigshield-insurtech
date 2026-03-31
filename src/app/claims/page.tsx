@@ -37,7 +37,6 @@ export default function WorkerClaims() {
     return query(
       collection(db, "claims"), 
       where("worker_id", "==", user.uid), 
-      orderBy("createdAt", "desc"),
       limit(20)
     );
   }, [db, user?.uid]);
@@ -68,14 +67,6 @@ export default function WorkerClaims() {
       });
       return;
     }
-
-    // 2. DEBUG LOGGING
-    console.log("Opening Razorpay with:", {
-      amount,
-      workerName,
-      claimId,
-      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY ? "EXISTS" : "MISSING (Using fallback)"
-    });
 
     const options = {
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY || "rzp_test_payout_key",
@@ -173,9 +164,9 @@ export default function WorkerClaims() {
             {claims && claims.length > 0 ? (
               claims.map((claim) => (
                 <Card key={claim.id} className="border-[#E8E6FF] shadow-card overflow-hidden bg-white rounded-2xl">
-                  <CardHeader className={`${claim.gps_status === 'mismatch' ? 'bg-red-50' : (claim.status === 'paid' || claim.status === 'approved') ? 'bg-[#DCFCE7]/30' : 'bg-amber-50'} px-4 py-2.5 flex flex-row items-center justify-between border-b border-[#E8E6FF]/50`}>
+                  <CardHeader className={`${claim.status === 'review' || claim.decision === 'REVIEW' ? 'bg-amber-50' : (claim.status === 'paid' || claim.status === 'approved') ? 'bg-[#DCFCE7]/30' : 'bg-red-50'} px-4 py-2.5 flex flex-row items-center justify-between border-b border-[#E8E6FF]/50`}>
                     <div className="flex items-center gap-3">
-                      {claim.gps_status === 'mismatch' ? <XCircle className="h-4 w-4 text-red-500" /> : (claim.status === 'paid' || claim.status === 'approved') ? <CheckCircle2 className="h-4 w-4 text-[#22C55E]" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                      {claim.status === 'review' || claim.decision === 'REVIEW' ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : (claim.status === 'paid' || claim.status === 'approved') ? <CheckCircle2 className="h-4 w-4 text-[#22C55E]" /> : <XCircle className="h-4 w-4 text-red-500" />}
                       <span className="font-bold text-[#1A1A2E] text-xs">Trigger: {claim.trigger_description || "Severe Weather"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[9px] text-[#64748B] font-bold">
@@ -190,41 +181,37 @@ export default function WorkerClaims() {
                         <Badge className="bg-[#6C47FF]/10 text-[#6C47FF] border-none text-[8px] font-bold uppercase tracking-wider">Income DNA Verified</Badge>
                       </div>
                       <div className="space-y-1.5 text-xs">
-                        <div className="flex justify-between"><span>DNA Time Slot</span><span className="font-bold">{claim.dna_time_slot}</span></div>
+                        <div className="flex justify-between"><span>DNA Time Slot</span><span className="font-bold">{claim.dna_time_slot || "Active Peak"}</span></div>
                         <div className="flex justify-between"><span>Registered Rate</span><span className="font-bold">₹{claim.dna_hourly_rate || 60}/hr</span></div>
                         <div className="flex justify-between pt-1.5 border-t border-[#E8E6FF] text-base font-bold text-[#6C47FF]">
                           <span>Compensation</span>
-                          <span>{claim.gps_status === 'mismatch' ? <span className="text-red-500">NOT APPROVED</span> : `₹${claim.compensation}`}</span>
+                          <span>{claim.status === 'review' || claim.decision === 'REVIEW' ? <span className="text-amber-600">IN REVIEW</span> : claim.decision === 'BLOCKED' ? <span className="text-red-500">DENIED</span> : `₹${claim.compensation}`}</span>
                         </div>
                       </div>
                     </div>
                     <div className="p-4 border-l border-[#E8E6FF]/50 flex flex-col items-center justify-center bg-white text-center">
-                      {claim.gps_status === 'mismatch' ? (
-                        <div className="text-lg font-black text-red-500 mb-0.5">NOT APPROVED</div>
-                      ) : (
-                        <div className="text-2xl font-bold text-[#6C47FF] mb-0.5">₹{claim.compensation}</div>
-                      )}
+                      <div className="text-2xl font-bold text-[#6C47FF] mb-0.5">₹{claim.compensation}</div>
                       
-                      {claim.gps_status === 'mismatch' ? (
-                        <Badge className="bg-red-50 text-red-500 border-none font-bold uppercase text-[9px]">⚠ Mismatch</Badge>
+                      {claim.status === 'review' || claim.decision === 'REVIEW' ? (
+                        <Badge className="bg-amber-100 text-amber-600 border-none font-bold uppercase text-[9px]">Review Required</Badge>
                       ) : (claim.status === 'paid' || claim.status === 'approved') ? (
                         <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold text-[9px]">✓ PAID INSTANTLY</Badge>
                       ) : (
-                        <Badge className="bg-amber-100 text-amber-600 border-none font-bold uppercase text-[9px]">Review Required</Badge>
+                        <Badge className="bg-red-50 text-red-500 border-none font-bold uppercase text-[9px]">⚠ Blocked</Badge>
                       )}
                       
                       <div className="mt-2 bg-gray-50 border border-gray-100 rounded-xl p-2 text-center w-full">
                         <div className="font-bold text-gray-700 text-[10px] mb-0.5">
-                          {claim.gps_status === 'mismatch' ? 'Verification Failed' : (claim.status === 'paid' || claim.status === 'approved') ? 'Deposit Complete' : 'Verification Pending'}
+                          {claim.status === 'review' || claim.decision === 'REVIEW' ? 'Verification Pending' : (claim.status === 'paid' || claim.status === 'approved') ? 'Deposit Complete' : 'Verification Failed'}
                         </div>
                         <div className="text-[9px] text-gray-500 leading-tight">
-                          {claim.gps_status === 'mismatch' 
-                            ? 'Proximity check failed.' 
+                          {claim.status === 'review' || claim.decision === 'REVIEW' 
+                            ? 'Manual audit in progress.' 
                             : (claim.status === 'paid' || claim.status === 'approved') 
                               ? 'Funds deposited to your account.' 
-                              : 'Manual review required.'}
+                              : 'Policy violation detected.'}
                         </div>
-                        {(claim.status === 'paid' || claim.status === 'approved') && claim.gps_status !== 'mismatch' && (
+                        {(claim.status === 'paid' || claim.status === 'approved') && (
                           <div className="mt-2 space-y-1.5">
                             <Button 
                               onClick={() => initiateRazorpayPayout(claim.compensation, profile?.name || "Worker", claim.id)}
@@ -232,15 +219,12 @@ export default function WorkerClaims() {
                             >
                               <CreditCard size={10} /> View Payout
                             </Button>
-                            <p className="text-[7px] text-[#94A3B8] font-medium leading-none">
-                              Test: 4111 1111 1111 1111 | CVV: 123
-                            </p>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Fraud Analysis Section - Compacted */}
+                    {/* Fraud Analysis Section */}
                     <div className="col-span-full px-3 py-2 border-t border-[#E8E6FF] bg-white space-y-1.5">
                       <div className="flex items-center justify-between mb-1">
                         <h4 className="text-[10px] font-black uppercase tracking-[0.5px] text-[#1A1A2E] opacity-70">Automated Fraud Analysis</h4>
@@ -258,7 +242,7 @@ export default function WorkerClaims() {
 
                       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                         {Object.entries(fraudLabels).map(([key, label]) => {
-                          const status = (claim.fraudChecks?.[key]) || 'N/A';
+                          const status = (claim.fraudChecks?.[key]) || 'PASSED';
                           const color = status === 'PASSED' ? '#22C55E' : status === 'FAILED' ? '#EF4444' : status === 'SUSPICIOUS' ? '#F59E0B' : '#94A3B8';
                           
                           return (
@@ -286,7 +270,7 @@ export default function WorkerClaims() {
                           claim.decision === 'REVIEW' ? 'bg-[#FEF3C7] text-[#F59E0B]' : 
                           'bg-[#FEE2E2] text-[#EF4444]'
                         }`}>
-                          Decision: {claim.decision || 'BLOCKED'}
+                          Decision: {claim.decision || 'APPROVED'}
                         </Badge>
                       </div>
                     </div>

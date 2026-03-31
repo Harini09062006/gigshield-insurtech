@@ -78,8 +78,6 @@ export default function WorkerDashboard() {
   const { toast } = useToast();
 
   const [simulating, setSimulating] = useState(false);
-  const [simulateCount, setSimulateCount] = useState(0);
-  const [fraudChecks, setFraudChecks] = useState<any>(null);
   const [notif, setNotif] = useState<any>(null);
   
   const [weatherData, setWeatherData] = useState({
@@ -122,6 +120,17 @@ export default function WorkerDashboard() {
     return { incomeLoss, coverage, remainingRisk, premium, riskScore: riskScoreValue };
   }, [profile]);
 
+  const getAllPassedChecks = () => ({
+    gpsValidation: "PASSED",
+    deviceCheck: "PASSED",
+    accountAge: "PASSED",
+    behaviorPattern: "PASSED",
+    orderHistory: "PASSED",
+    duplicateCheck: "PASSED",
+    weatherIntelligence: "PASSED",
+    networkAnalysis: "PASSED"
+  });
+
   const handleSimulateWeather = async () => {
     if (!user?.uid || !db) return;
     
@@ -135,7 +144,6 @@ export default function WorkerDashboard() {
       
       const currentCount = userData?.simulationCount || 0;
       const newCount = currentCount + 1;
-      setSimulateCount(newCount);
 
       const isFirst = newCount === 1;
       
@@ -172,22 +180,12 @@ export default function WorkerDashboard() {
       const claimStatus = isFirst ? "paid" : "review";
       const decision = isFirst ? "APPROVED" : "REVIEW";
       
-      // Control "Simulate Severe Weather" behavior as requested:
-      // First click → ALL checks PASS
-      // Second click → DUPLICATE FAIL → REVIEW REQUIRED
+      // ✅ FULL OBJECT TO REMOVE N/A
       const fraudResults = {
-        gpsValidation: "PASSED",
-        deviceFingerprint: "PASSED",
-        accountAge: "PASSED",
-        behaviorPattern: "PASSED",
-        orderHistory: "PASSED",
-        duplicateCheck: isFirst ? "PASSED" : "FAILED",
-        weatherIntel: "PASSED",
-        networkAnalysis: "PASSED"
+        ...getAllPassedChecks(),
+        duplicateCheck: isFirst ? "PASSED" : "FAILED"
       };
       
-      setFraudChecks(fraudResults);
-
       // Create claim in Firebase
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
@@ -196,7 +194,7 @@ export default function WorkerDashboard() {
         trigger_description: isFirst 
           ? `Severe Rainfall (${severeRainfall}mm) Simulated` 
           : `Duplicate Simulation Trigger (${severeRainfall}mm)`,
-        timeSlot: timeSlot,
+        dna_time_slot: timeSlot,
         dna_hourly_rate: Math.round(baseRate * multiplier),
         compensation: Math.round(compensation),
         status: claimStatus,
