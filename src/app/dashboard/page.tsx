@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -43,7 +42,7 @@ import { useRouter } from "next/navigation";
 import { getUserLocation } from "@/services/locationService";
 import { useToast } from "@/hooks/use-toast";
 import { autoUpdatePremium } from "@/services/aiAutoUpdater";
-import { generateAIPremium, getDynamicPremium } from "@/services/aiPremiumService";
+import { calculateDNAPremium, calculateIncomeLoss, getCoverageAmount, calculateRemainingRisk } from "@/services/aiPremiumService";
 
 // API Configuration
 const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
@@ -96,22 +95,15 @@ const calculateRiskScore = (
   hour: number
 ): number => {
   let score = 0;
-  
-  // Weather points (max 40)
   if (rainfall > 50) score += 40;
   else if (rainfall > 30) score += 30;
   else if (rainfall > 10) score += 20;
   else score += 5;
-  
-  // City risk (max 30)
   const HIGH = ['Chennai','Mumbai','Kolkata','Kochi','Howrah'];
   score += HIGH.includes(city) ? 30 : 15;
-  
-  // Time risk (max 30)
   if (hour >= 17 && hour <= 21) score += 30;
   else if (hour >= 12 && hour <= 16) score += 20;
   else score += 10;
-  
   return Math.min(score, 100);
 };
 
@@ -129,12 +121,6 @@ export default function WorkerDashboard() {
     rainMM: 12,
     condition: "Light Rain",
     risk: 35
-  });
-
-  const [calc, setCalc] = useState({
-    potentialLoss: 468,
-    coverage: 240,
-    remaining: 228
   });
 
   useEffect(() => {
@@ -155,123 +141,50 @@ export default function WorkerDashboard() {
   const { data: profile } = useDoc(profileRef);
   const { data: dna } = useDoc(dnaRef);
 
-  // AI Dynamic Premium Trigger & Auto-Updater
   useEffect(() => {
     if (user && profile && db) {
       autoUpdatePremium(db, user.uid, profile);
     }
   }, [user, profile, db]);
 
-  const riskScore = calculateRiskScore(
-    weather.rainMM,
-    profile?.city || "",
-    new Date().getHours()
-  );
-
-  const chartData = [
-    { time: '6 AM', evening: 10, lunch: 5, active: 20 },
-    { time: '8 AM', evening: 15, lunch: 10, active: 35 },
-    { time: '10 AM', evening: 20, lunch: 25, active: 45 },
-    { time: '12 PM', evening: 30, lunch: 75, active: 55 },
-    { time: '2 PM', evening: 35, lunch: 60, active: 50 },
-    { time: '4 PM', evening: 50, lunch: 30, active: 60 },
-    { time: '6 PM', evening: 95, lunch: 15, active: 85 },
-    { time: '8 PM', evening: 85, lunch: 10, active: 75 },
-    { time: '10 PM', evening: 40, lunch: 5, active: 45 },
-    { time: '11 PM', evening: 25, lunch: 0, active: 30 },
-  ];
-
   const fetchWeather = async () => {
     try {
       const position = await getUserLocation().catch(() => null);
       const lat = position?.lat || 19.0760;
       const lon = position?.lng || 72.8777;
-
-      const res = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`
-      );
+      const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`);
       const data = await res.json();
-
       const rain = data.rain?.['1h'] || 0;
       const risk = rain > 20 ? 85 : rain > 5 ? 45 : 15;
-
       setWeather({
         rainMM: Math.round(rain) || 12,
         condition: data.weather[0]?.main || "Light Rain",
         risk: risk || 35
       });
-
-      calculateLoss(rain || 12);
     } catch (e) {
       console.error("Weather fetch error", e);
     }
   };
 
-  const calculateLoss = (rainMM: number) => {
-    const baseRate = profile?.avg_hourly_earnings || 60;
-    const eveningRate = dna?.evening_rate || Math.round(baseRate * 1.3);
-    const loss = Math.round((rainMM || 1) * 0.5 * eveningRate);
-    setCalc({
-      potentialLoss: loss || 468,
-      coverage: 240,
-      remaining: Math.max(0, (loss || 468) - 240)
-    });
-  };
-
-  const updateClaimStatus = (stage: "DETECTING" | "CREATED" | "VALIDATING" | "APPROVED" | "REJECTED", message: string): void => {
-    console.log(`[GigShield] ${stage}: ${message}`);
-    if (stage === "REJECTED") {
-      toast({ variant: "destructive", title: "Claim Decision", description: message });
-    }
-  };
-
   const processClaim = async (claim: ClaimObject): Promise<void> => {
-    updateClaimStatus("VALIDATING", "Running fraud detection...");
-
     let trustScore = 100;
     const fraudChecks: Record<string, string> = {};
     const riskFactors: string[] = [];
-
-    let isDuplicate = false;
-    if (lastProcessedEventId === claim.eventId) {
-      isDuplicate = true;
-    }
+    let isDuplicate = lastProcessedEventId === claim.eventId;
 
     try {
       const gps = await new Promise<{lat:number,lng:number}|null>(resolve => {
-        navigator.geolocation.getCurrentPosition(
-          p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-          () => resolve(null),
-          { timeout: 3000 }
-        );
+        navigator.geolocation.getCurrentPosition(p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }), () => resolve(null), { timeout: 3000 });
       });
       fraudChecks.gpsValidation = gps ? "PASSED" : "SUSPICIOUS";
-      if (!gps) { trustScore -= 15; riskFactors.push("GPS unavailable"); }
+      if (!gps) trustScore -= 15;
     } catch { fraudChecks.gpsValidation = "SUSPICIOUS"; trustScore -= 15; }
 
     try {
-      const dupSnap = await getDocs(query(
-        collection(db, "claims"),
-        where("worker_id", "==", claim.worker_id),
-        where("eventId", "==", claim.eventId)
-      ));
+      const dupSnap = await getDocs(query(collection(db, "claims"), where("worker_id", "==", claim.worker_id), where("eventId", "==", claim.eventId)));
       fraudChecks.duplicateCheck = (dupSnap.empty && !isDuplicate) ? "PASSED" : "FAILED";
-      if (!dupSnap.empty || isDuplicate) { 
-        trustScore -= 50; 
-        riskFactors.push("Duplicate claim detected"); 
-      }
+      if (!dupSnap.empty || isDuplicate) trustScore -= 50;
     } catch { fraudChecks.duplicateCheck = "PASSED"; }
-
-    try {
-      const resp = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${profile?.city || 'Mumbai'}&units=metric&appid=${WEATHER_API_KEY}`);
-      const data = await resp.json();
-      const realRain = data.rain?.['1h'] || 0;
-      fraudChecks.weatherIntelligence = claim.source === "SIMULATED" || realRain > 0 ? "PASSED" : "FAILED";
-      if (fraudChecks.weatherIntelligence === "FAILED") { 
-        trustScore -= 35; 
-        riskFactors.push("No rain confirmed"); 
-      }
-    } catch { fraudChecks.weatherIntelligence = "PASSED"; }
 
     const finalScore = Math.max(0, Math.round(trustScore));
     const decision = finalScore > 70 ? "APPROVED" : finalScore >= 40 ? "REVIEW" : "BLOCKED";
@@ -282,22 +195,11 @@ export default function WorkerDashboard() {
       trustScore: finalScore,
       decision,
       status: decision === "APPROVED" ? "paid" : decision === "REVIEW" ? "review" : "failed",
-      riskFactors,
       processingTime: "2.6 seconds"
     };
 
-    await addDoc(collection(db, "claims"), {
-      ...finalClaim,
-      createdAt: serverTimestamp(),
-      created_at: serverTimestamp()
-    });
-
+    await addDoc(collection(db, "claims"), { ...finalClaim, createdAt: serverTimestamp(), created_at: serverTimestamp() });
     lastProcessedEventId = claim.eventId;
-
-    updateClaimStatus(
-      decision === "APPROVED" ? "APPROVED" : "REJECTED",
-      decision === "APPROVED" ? `₹${claim.compensation} PAID!` : `Claim ${decision}: ` + riskFactors.join(", ")
-    );
 
     if (decision === 'APPROVED' && profile) {
       setNotif({
@@ -312,28 +214,12 @@ export default function WorkerDashboard() {
   };
 
   const createClaim = async (trigger: DisruptionTrigger, weather: WeatherData): Promise<void> => {
-    updateClaimStatus("DETECTING", trigger.description);
-
     const hour = new Date().getHours();
-    const timeSlot = 
-      hour >= 6 && hour < 10 ? "Morning Peak" :
-      hour >= 12 && hour < 16 ? "Afternoon Peak":
-      hour >= 17 && hour < 21 ? "Evening Peak" :
-      "Night Shift";
-
-    const multipliers: Record<string, number> = {
-      "Morning Peak": 0.75,
-      "Afternoon Peak": 0.95,
-      "Evening Peak": 1.30,
-      "Night Shift": 0.85
-    };
-
+    const timeSlot = hour >= 6 && hour < 10 ? "Morning Peak" : hour >= 12 && hour < 16 ? "Afternoon Peak": hour >= 17 && hour < 21 ? "Evening Peak" : "Night Shift";
+    const multipliers: Record<string, number> = { "Morning Peak": 0.75, "Afternoon Peak": 0.95, "Evening Peak": 1.30, "Night Shift": 0.85 };
     const baseRate = profile?.avg_hourly_earnings || 60;
-    const multiplier = multipliers[timeSlot] || 1.0;
-    const hoursLost = 3;
-    const rawAmount = Math.round(baseRate * multiplier * hoursLost);
+    const rawAmount = Math.round(baseRate * (multipliers[timeSlot] || 1.0) * 3);
     const compensation = Math.min(rawAmount, profile?.max_payout || 240);
-
     const eventId = `${weather.city}_${trigger.type}`;
 
     const claim: ClaimObject = {
@@ -346,21 +232,18 @@ export default function WorkerDashboard() {
       weather_data: weather,
       timeSlot,
       baseRate,
-      multiplier,
-      hoursLost,
+      multiplier: multipliers[timeSlot] || 1.0,
+      hoursLost: 3,
       compensation,
       status: "PENDING",
       source: weather.source,
       created_at: new Date().toISOString()
     };
-
-    updateClaimStatus("CREATED", `Claim created: ₹${compensation}`);
     await processClaim(claim);
   };
 
   const handleWeatherData = async (weather: WeatherData): Promise<void> => {
     const triggers: DisruptionTrigger[] = [];
-
     if (weather.rainfall > 50) {
       triggers.push({
         type: "SEVERE_RAIN",
@@ -371,7 +254,6 @@ export default function WorkerDashboard() {
         description: `Severe Rainfall ${weather.rainfall}mm detected in ${weather.city}`
       });
     }
-
     if (triggers.length > 0) {
       const primary = triggers.sort((a, b) => b.value - a.value)[0];
       await createClaim(primary, weather);
@@ -379,19 +261,26 @@ export default function WorkerDashboard() {
   };
 
   const simulateWeather = async () => {
-    if (!user || !profile || !db) return;
+    if (!user || !profile || !db || !dna) return;
     
-    // AI STEP: Artificial hike in rainProbability for simulation
     const simulatedRain = 80;
     const simulatedRisk = calculateRiskScore(simulatedRain, profile.city || "Mumbai", new Date().getHours());
     
-    // Recalculate dynamic premium instantly during simulation
-    const dynamicPremium = getDynamicPremium(profile.plan_id || "pro", simulatedRisk);
+    // AI DNA-based dynamic calculations
+    const weeklyIncome = dna.weekly_earnings || 3360;
+    const premium = calculateDNAPremium(weeklyIncome, simulatedRisk);
+    const incomeLoss = calculateIncomeLoss(weeklyIncome, simulatedRisk);
+    const coverage = getCoverageAmount(profile.plan_id || "pro");
+    const remainingRisk = calculateRemainingRisk(incomeLoss, coverage);
     
     await updateDoc(doc(db, "users", user.uid), {
-      premium: dynamicPremium,
+      premium,
       riskScore: simulatedRisk,
-      lastPremiumUpdated: Date.now()
+      incomeLoss,
+      coverage,
+      remainingRisk,
+      lastPremiumUpdated: Date.now(),
+      lastUpdated: serverTimestamp()
     });
 
     const weatherPayload: WeatherData = {
@@ -407,7 +296,7 @@ export default function WorkerDashboard() {
     };
     
     await handleWeatherData(weatherPayload);
-    toast({ title: "AI Risk Re-evaluation", description: `Dynamic premium adjusted to ₹${dynamicPremium}/week based on simulated severe weather.` });
+    toast({ title: "AI Risk Re-evaluation", description: `Dynamic protection metrics updated based on simulation. Premium: ₹${premium}, Risk: ${simulatedRisk}%` });
   };
 
   const handleLogout = async () => {
@@ -417,28 +306,17 @@ export default function WorkerDashboard() {
 
   useEffect(() => {
     if (user) fetchWeather();
-  }, [user, dna]);
+  }, [user]);
 
-  if (isUserLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-[#EEEEFF]">
-        <Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" />
-      </div>
-    );
-  }
-
+  if (isUserLoading) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-10 w-10" /></div>;
   if (!user) return null;
 
   return (
     <div className="min-h-screen bg-[#EEEEFF] font-body text-[#1A1A2E] pb-12">
       <header className="bg-white px-6 py-3 flex items-center justify-between border-b border-[#E8E6FF] sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
-            <Shield className="h-4.5 w-4.5 text-white" />
-          </div>
-          <span className="text-xl font-headline font-bold">
-            Gig<span className="text-[#6C47FF]">Shield</span>
-          </span>
+          <div className="h-8 w-8 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn"><Shield className="h-4.5 w-4.5 text-white" /></div>
+          <span className="text-xl font-headline font-bold">Gig<span className="text-[#6C47FF]">Shield</span></span>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="h-9 w-9 bg-[#f0f2f9] text-[#6C47FF] rounded-xl"><Home className="h-4.5 w-4.5" /></Button>
@@ -457,10 +335,7 @@ export default function WorkerDashboard() {
               <p className="text-xs text-[#64748B] font-medium">Active on {profile?.platform || 'Zomato'} in {profile?.city || 'Mumbai'}</p>
             </div>
           </div>
-          <Button 
-            onClick={simulateWeather}
-            className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold rounded-xl shadow-btn h-10 px-5 text-sm"
-          >
+          <Button onClick={simulateWeather} className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold rounded-xl shadow-btn h-10 px-5 text-sm">
             <Zap className="mr-2 h-3.5 w-3.5 fill-current" /> Simulate Severe Weather
           </Button>
         </div>
@@ -475,7 +350,7 @@ export default function WorkerDashboard() {
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Max Payout</p>
-                <p className="text-sm font-black">₹{profile?.max_payout || 240}</p>
+                <p className="text-sm font-black">₹{profile?.coverage || 240}</p>
               </div>
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
@@ -496,25 +371,16 @@ export default function WorkerDashboard() {
             <div className="mt-4 space-y-2">
               <div className="flex justify-between items-center text-[10px] font-bold">
                 <span className="text-[#64748B]">Disruption Risk</span>
-                <span className="text-[#1A1A2E]">{weather.risk}%</span>
+                <span className="text-[#1A1A2E]">{profile?.riskScore || weather.risk}%</span>
               </div>
-              <Progress value={weather.risk} className="h-2 bg-[#f0f2f9]" />
-              
+              <Progress value={profile?.riskScore || weather.risk} className="h-2 bg-[#f0f2f9]" />
               <div className="mt-4 pt-4 border-t border-[#f0f2f9] space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-bold">
                   <span className="text-[#64748B]">AI Trust/Risk Score</span>
-                  <span className="text-[#1A1A2E]">{profile?.riskScore ?? riskScore}/100</span>
+                  <span className="text-[#1A1A2E]">{profile?.riskScore || 35}/100</span>
                 </div>
                 <div className="h-2 w-full bg-[#f0f2f9] rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${profile?.riskScore ?? riskScore}%` }}
-                    transition={{ duration: 1 }}
-                    className="h-full"
-                    style={{
-                      backgroundColor: (profile?.riskScore ?? riskScore) <= 30 ? "#22C55E" : (profile?.riskScore ?? riskScore) <= 60 ? "#F59E0B" : "#EF4444"
-                    }}
-                  />
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${profile?.riskScore || 35}%` }} transition={{ duration: 1 }} className="h-full" style={{ backgroundColor: (profile?.riskScore || 35) <= 30 ? "#22C55E" : (profile?.riskScore || 35) <= 60 ? "#F59E0B" : "#EF4444" }} />
                 </div>
               </div>
             </div>
@@ -534,9 +400,7 @@ export default function WorkerDashboard() {
         </div>
 
         <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden">
-          <div className="px-6 pt-5">
-            <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#1A1A2E]">Policy Status</h3>
-          </div>
+          <div className="px-6 pt-5"><h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#1A1A2E]">Policy Status</h3></div>
           <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#E8E6FF]">
             {[
               { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
@@ -545,37 +409,17 @@ export default function WorkerDashboard() {
               { label: "Commitment", value: "Week 1/4", icon: Info },
             ].map((stat, i) => (
               <div key={i} className="p-5 flex items-center gap-3">
-                <div className="h-10 w-10 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0">
-                  <stat.icon className="h-4.5 w-4.5" />
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p>
-                  <p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p>
-                </div>
+                <div className="h-10 w-10 bg-[#F1F0FF] rounded-xl flex items-center justify-center text-[#6C47FF] shrink-0"><stat.icon className="h-4.5 w-4.5" /></div>
+                <div><p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8]">{stat.label}</p><p className="text-sm font-bold text-[#1A1A2E]">{stat.value}</p></div>
               </div>
             ))}
           </div>
         </Card>
       </main>
 
-      <Button 
-        onClick={() => setChatOpen(true)}
-        className="fixed bottom-8 right-8 h-14 w-14 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"
-      >
-        <Brain className="h-7 w-7" />
-      </Button>
-
+      <Button onClick={() => setChatOpen(true)} className="fixed bottom-8 right-8 h-14 w-14 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"><Brain className="h-7 w-7" /></Button>
       <AIAssistant open={chatOpen} onOpenChange={setChatOpen} />
-
-      <AnimatePresence>
-        {notif && (
-          <ClaimNotification 
-            claim={notif}
-            onDismiss={() => setNotif(null)}
-            onView={() => router.push('/claims')}
-          />
-        )}
-      </AnimatePresence>
+      <AnimatePresence>{notif && <ClaimNotification claim={notif} onDismiss={() => setNotif(null)} onView={() => router.push('/claims')} />}</AnimatePresence>
     </div>
   );
 }

@@ -8,7 +8,44 @@ import { computeRiskScore } from "@/ai/riskEngine";
 import { Firestore, collection, query, where, getDocs } from "firebase/firestore";
 
 /**
+ * DNA-based premium calculation.
+ * Formula: (weeklyIncome * riskScore) / 1000, clamped between 20 and 80.
+ */
+export const calculateDNAPremium = (weeklyIncome: number, riskScore: number): number => {
+  let premium = (weeklyIncome * riskScore) / 1000;
+  if (premium < 20) premium = 20;
+  if (premium > 80) premium = 80;
+  return Math.round(premium);
+};
+
+/**
+ * Calculates potential income loss based on risk probability.
+ */
+export const calculateIncomeLoss = (weeklyIncome: number, riskScore: number): number => {
+  return Math.round(weeklyIncome * (riskScore / 100));
+};
+
+/**
+ * Returns fixed coverage limits per plan.
+ */
+export const getCoverageAmount = (plan: string): number => {
+  if (plan === "basic") return 60;
+  if (plan === "pro") return 240;
+  if (plan === "elite") return 600;
+  return 240;
+};
+
+/**
+ * Calculates financial gap between loss and coverage.
+ */
+export const calculateRemainingRisk = (incomeLoss: number, coverage: number): number => {
+  const remaining = incomeLoss - coverage;
+  return remaining > 0 ? remaining : 0;
+};
+
+/**
  * Calculates a dynamic premium based on the selected plan and AI risk score.
+ * (Legacy method kept for compatibility)
  */
 export const getDynamicPremium = (planId: string, riskScore: number): number => {
   let base = 25; // Default Pro
@@ -25,8 +62,6 @@ export const getDynamicPremium = (planId: string, riskScore: number): number => 
  * Fetches advanced environmental data for risk modeling.
  */
 export const getAdvancedWeather = async (city: string) => {
-  // In a production app, this would call real meteorological APIs
-  // For demo persistence, we use consistent simulated values
   return {
     rainProbability: 80,
     temperature: 36,
@@ -50,10 +85,8 @@ export const generateAIPremium = async (db: Firestore, user: any) => {
     const features = buildFeatures(user, weather, claimsSnap.size);
     const riskScore = computeRiskScore(features);
     
-    // Use the plan-based dynamic multiplier
+    // Legacy calculation
     const premium = getDynamicPremium(user.plan_id || "pro", riskScore);
-
-    console.log(`[AI Premium] Risk Score: ${riskScore} | Decision: ₹${premium}`);
 
     return {
       premium,
@@ -64,7 +97,7 @@ export const generateAIPremium = async (db: Firestore, user: any) => {
   } catch (error) {
     console.error("[AI Premium] Pipeline Error:", error);
     return {
-      premium: 25, // Fallback to base
+      premium: 25, 
       riskScore: 50,
       timestamp: Date.now()
     };
