@@ -1,31 +1,31 @@
+
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, Home, LogOut, Shield, Brain, User as UserIcon, MessageSquare } from "lucide-react";
+import { Send, Loader2, Home, LogOut, Shield, Brain, User as UserIcon, MessageSquare, Clock, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useUser,
   useAuth,
   useFirestore,
-  useDoc,
-  useCollection,
-  useMemoFirebase
+  useDoc
 } from "@/firebase";
 import {
   doc,
   collection,
   query,
   where,
-  limit,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot,
+  orderBy
 } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 export default function SupportPage() {
   const { user, isUserLoading } = useUser();
@@ -35,35 +35,32 @@ export default function SupportPage() {
   
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const profileRef = useMemoFirebase(
-    () => (db && user ? doc(db, "users", user.uid) : null),
-    [db, user?.uid]
-  );
+  const profileRef = doc(db, "users", user?.uid || "anonymous");
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
-  // FETCH MESSAGES
-  const messagesQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null;
-    return query(
-      collection(db, "support_messages"),
+  // FETCH MESSAGES REAL-TIME
+  useEffect(() => {
+    if (!db || !user?.uid) return;
+
+    const q = query(
+      collection(db, "chats"),
       where("userId", "==", user.uid),
-      limit(50)
+      orderBy("createdAt", "asc")
     );
-  }, [db, user?.uid]);
 
-  const { data: rawMessages } = useCollection(messagesQuery);
-
-  const messages = useMemo(() => {
-    if (!rawMessages) return [];
-    return [...rawMessages].sort((a, b) => {
-      const tA = a.timestamp?.seconds || 0;
-      const tB = b.timestamp?.seconds || 0;
-      return tA - tB;
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setMessages(msgs);
     });
-  }, [rawMessages]);
+
+    return () => unsubscribe();
+  }, [db, user?.uid]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -71,64 +68,67 @@ export default function SupportPage() {
     }
   }, [messages, loading]);
 
+  const isPaymentIssue = (msg: string) => {
+    const keywords = ["payment", "salary", "not paid", "money", "transaction", "upi", "refund", "earnings"];
+    return keywords.some(k => msg.toLowerCase().includes(k));
+  };
+
   const handleSend = async (msgOverride?: string) => {
     const text = (msgOverride || input).trim();
     if (!text || !user || !db) return;
 
-    console.log("Sending message");
     setInput("");
     
     try {
       setLoading(true);
+      const isEscalation = isPaymentIssue(text);
 
       // 1. Save User Message
-      await addDoc(collection(db, "support_messages"), {
+      await addDoc(collection(db, "chats"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
-        text,
+        workerCity: profile?.city || "Unknown",
+        workerPlan: profile?.plan_id || "pro",
+        message: text,
         sender: "user",
-        status: "open",
-        timestamp: serverTimestamp()
+        type: isEscalation ? "payment_issue" : "normal",
+        status: isEscalation ? "pending_admin" : "ai_handled",
+        createdAt: serverTimestamp()
       });
 
-      console.log("Calling API");
-      // 2. Fetch AI Response from API
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
-      });
+      // 2. AI response if not escalation
+      if (!isEscalation) {
+        const res = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text })
+        });
 
-      console.log("API responded");
-
-      if (!res.ok) throw new Error("API failed");
-
-      const data = await res.json();
-      const reply = data?.reply || "AI working correctly now ✅";
-
-      // 3. Save AI Reply
-      await addDoc(collection(db, "support_messages"), {
-        userId: user.uid,
-        userName: "GigShield Assistant",
-        text: reply,
-        sender: "bot",
-        status: "resolved",
-        timestamp: serverTimestamp()
-      });
+        if (res.ok) {
+          const data = await res.json();
+          await addDoc(collection(db, "chats"), {
+            userId: user.uid,
+            message: data?.reply || "I'm here to help!",
+            sender: "ai",
+            type: "normal",
+            status: "resolved",
+            createdAt: serverTimestamp()
+          });
+        }
+      } else {
+        await addDoc(collection(db, "chats"), {
+          userId: user.uid,
+          message: "Payment issue detected. Escalating to support team for manual review.",
+          sender: "ai",
+          type: "payment_issue",
+          status: "escalated",
+          createdAt: serverTimestamp()
+        });
+      }
 
     } catch (e: any) {
       console.error("AI error:", e);
-      
-      await addDoc(collection(db, "support_messages"), {
-        userId: user.uid,
-        userName: "GigShield Assistant",
-        text: "Server error. Please try again.",
-        sender: "bot",
-        status: "error",
-        timestamp: serverTimestamp()
-      });
     } finally {
-      // 🔥 ALWAYS STOP LOADING
       setLoading(false);
     }
   };
@@ -151,7 +151,7 @@ export default function SupportPage() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-[#1A1A2E] leading-none">Support Portal</h1>
-            <p className="text-[10px] text-[#22C55E] font-black uppercase tracking-widest mt-1">AI Assistant Online</p>
+            <p className="text-[10px] text-[#22C55E] font-black uppercase tracking-widest mt-1">Hybrid AI + Live Support</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -160,18 +160,8 @@ export default function SupportPage() {
         </div>
       </header>
 
-      {activeTicketId && (
-        <div className="bg-[#6C47FF] text-white px-6 py-2 flex items-center justify-between text-xs font-bold animate-in slide-in-from-top">
-          <div className="flex items-center gap-2">
-            <MessageSquare size={14} />
-            <span>🎫 Ticket #{activeTicketId} • Status: Open 🟡</span>
-          </div>
-          <span className="animate-pulse">Agent joining...</span>
-        </div>
-      )}
-
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 max-w-4xl mx-auto w-full custom-scrollbar">
-        {messages?.length === 0 && (
+        {messages.length === 0 && (
           <div className="flex flex-col items-center py-20 opacity-40 text-center space-y-4">
             <Brain size={48} className="text-[#6C47FF]" />
             <p className="text-sm font-bold max-w-xs">Say "Hi" to start your protection audit.</p>
@@ -179,7 +169,7 @@ export default function SupportPage() {
         )}
         
         <AnimatePresence initial={false}>
-          {messages?.map((m, i) => (
+          {messages.map((m, i) => (
             <motion.div 
               key={m.id || i}
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -193,16 +183,25 @@ export default function SupportPage() {
                 }`}>
                   {m.sender === "user" ? <UserIcon size={14} /> : (m.sender === 'admin' ? <Shield size={14} /> : <Brain size={14} />)}
                 </div>
-                <div className={`p-4 rounded-2xl text-sm font-medium shadow-sm whitespace-pre-wrap ${
+                <div className={`p-4 rounded-2xl text-sm font-medium shadow-sm whitespace-pre-wrap relative ${
                   m.sender === "user" 
                     ? "bg-[#6C47FF] text-white rounded-tr-none" 
                     : m.sender === 'admin' ? "bg-[#4C35B5] text-white rounded-tl-none" : "bg-white text-[#1A1A2E] rounded-tl-none border border-[#E8E6FF]"
                 }`}>
                   {m.sender === 'admin' && <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-1">🛡️ Support Agent</p>}
-                  <p className="leading-relaxed">{m.text}</p>
-                  <p className={`text-[9px] mt-2 font-black uppercase tracking-tighter opacity-60 ${m.sender === 'user' ? 'text-white' : 'text-[#64748B]'}`}>
-                    {m.sender} • {m.timestamp?.seconds ? format(new Date(m.timestamp.seconds * 1000), "HH:mm") : 'Syncing...'}
-                  </p>
+                  <p className="leading-relaxed">{m.message}</p>
+                  
+                  <div className="flex items-center justify-between mt-2 gap-4">
+                    <p className={`text-[9px] font-black uppercase tracking-tighter opacity-60 ${m.sender === 'user' ? 'text-white' : 'text-[#64748B]'}`}>
+                      {m.sender} • {m.createdAt?.seconds ? format(new Date(m.createdAt.seconds * 1000), "HH:mm") : 'Syncing...'}
+                    </p>
+                    {m.type === 'payment_issue' && (
+                      <div className={`text-[7px] font-black uppercase flex items-center gap-1 ${m.status === 'resolved' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                        {m.status === 'resolved' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                        {m.status?.replace('_', ' ')}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -223,11 +222,9 @@ export default function SupportPage() {
           <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
             {[
               { label: "🌧️ Rain Risk?", val: "What is my rain risk today?" },
-              { label: "💰 Earnings?", val: "Show my earnings info" },
+              { label: "💰 Payment Help", val: "Issue with my payment" },
               { label: "🛡️ My Plan", val: "Tell me about my plan" },
-              { label: "📋 Claims", val: "Show my claim history" },
-              { label: "🆘 SOS Help", val: "Emergency SOS" },
-              { label: "👤 Talk to Human", val: "I want to talk to a human agent" }
+              { label: "📋 Claims", val: "Show my claim history" }
             ].map((btn, i) => (
               <button 
                 key={i} 

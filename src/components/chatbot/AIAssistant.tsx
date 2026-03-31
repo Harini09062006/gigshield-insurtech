@@ -19,8 +19,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   useFirestore, 
   useUser, 
-  useCollection, 
-  useMemoFirebase,
   useDoc
 } from "@/firebase";
 import { 
@@ -31,7 +29,8 @@ import {
   serverTimestamp, 
   doc, 
   limit,
-  updateDoc
+  onSnapshot,
+  orderBy
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -45,34 +44,39 @@ interface AIAssistantProps {
 
 /**
  * HYBRID AI SUPPORT ASSISTANT
- * Detects payment issues and escalates to human admins in real-time.
+ * Detects payment issues and escalates to human admins in real-time using 'chats' collection.
  */
 export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const { user } = useUser();
   const db = useFirestore();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const profileRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user?.uid]);
+  const profileRef = doc(db, "users", user?.uid || "anonymous");
   const { data: profile } = useDoc(profileRef);
 
-  // REAL-TIME SYNC: Listen to all support messages for this user
-  const messagesQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null;
-    return query(
-      collection(db, "support_messages"),
+  // REAL-TIME SYNC: Listen to all 'chats' for this user
+  useEffect(() => {
+    if (!db || !user?.uid) return;
+
+    const q = query(
+      collection(db, "chats"),
       where("userId", "==", user.uid),
-      limit(100)
+      orderBy("createdAt", "asc")
     );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setMessages(msgs);
+    });
+
+    return () => unsubscribe();
   }, [db, user?.uid]);
-
-  const { data: rawMessages } = useCollection(messagesQuery);
-
-  const messages = React.useMemo(() => {
-    if (!rawMessages) return [];
-    return [...rawMessages].sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
-  }, [rawMessages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -97,57 +101,46 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
       const isEscalation = isPaymentIssue(text);
 
       // 1. Save User Message
-      await addDoc(collection(db, "support_messages"), {
+      await addDoc(collection(db, "chats"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
-        text,
+        workerCity: profile?.city || "Unknown",
+        workerPlan: profile?.plan_id || "pro",
+        message: text,
         sender: "user",
         type: isEscalation ? "payment_issue" : "normal",
         status: isEscalation ? "pending_admin" : "ai_handled",
-        timestamp: serverTimestamp()
+        createdAt: serverTimestamp()
       });
 
-      // 2. Handle Escalation vs AI
-      if (isEscalation) {
-        // Create an admin ticket if it doesn't exist
-        await addDoc(collection(db, "support_tickets"), {
-          workerId: user.uid,
-          workerName: profile?.name || "Worker",
-          workerCity: profile?.city || "Unknown",
-          workerPlan: profile?.plan_id || "pro",
-          issue: text,
-          status: "open",
-          ticketId: `GS-${Math.floor(100000 + Math.random() * 900000)}`,
-          createdAt: serverTimestamp()
-        });
-
-        // Bot responds about escalation
-        await addDoc(collection(db, "support_messages"), {
-          userId: user.uid,
-          userName: "GigShield Assistant",
-          text: "I've detected this is a payment-related issue. Your query has been forwarded to our Admin Support team for priority review. Please stay online.",
-          sender: "bot",
-          status: "escalated",
-          timestamp: serverTimestamp()
-        });
-      } else {
-        // Call standard AI API
+      // 2. Handle AI if not escalated
+      if (!isEscalation) {
         const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: text })
         });
 
-        if (!res.ok) throw new Error("API failed");
-        const data = await res.json();
-
-        await addDoc(collection(db, "support_messages"), {
+        if (res.ok) {
+          const data = await res.json();
+          await addDoc(collection(db, "chats"), {
+            userId: user.uid,
+            message: data?.reply || "I'm here to help!",
+            sender: "ai",
+            type: "normal",
+            status: "resolved",
+            createdAt: serverTimestamp()
+          });
+        }
+      } else {
+        // Automatic bot confirmation for escalation
+        await addDoc(collection(db, "chats"), {
           userId: user.uid,
-          userName: "GigShield Assistant",
-          text: data?.reply || "I'm here to help!",
-          sender: "bot",
-          status: "resolved",
-          timestamp: serverTimestamp()
+          message: "I've forwarded your payment issue to our support team. An admin will respond here shortly.",
+          sender: "ai",
+          type: "payment_issue",
+          status: "escalated",
+          createdAt: serverTimestamp()
         });
       }
       
@@ -220,11 +213,11 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
                           <Shield size={8} /> Admin Support
                         </Badge>
                       )}
-                      <p className="text-sm font-medium leading-relaxed">{m.text}</p>
+                      <p className="text-sm font-medium leading-relaxed">{m.message}</p>
                       
                       <div className="flex items-center justify-between mt-2 gap-4">
                         <div className={`text-[8px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2 ${m.sender === 'user' ? 'text-white' : 'text-[#64748B]'}`}>
-                          {m.sender} • {m.timestamp?.seconds ? format(new Date(m.timestamp.seconds * 1000), "HH:mm") : 'Syncing...'}
+                          {m.sender} • {m.createdAt?.seconds ? format(new Date(m.createdAt.seconds * 1000), "HH:mm") : 'Syncing...'}
                         </div>
                         {m.type === 'payment_issue' && (
                           <div className={`text-[7px] font-black uppercase flex items-center gap-1 ${m.status === 'resolved' ? 'text-emerald-500' : 'text-amber-500'}`}>

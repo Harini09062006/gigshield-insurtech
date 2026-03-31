@@ -1,11 +1,9 @@
 
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { 
   useFirestore, 
-  useCollection, 
-  useMemoFirebase, 
   useUser, 
   useAuth 
 } from "@/firebase";
@@ -20,12 +18,11 @@ import {
   addDoc, 
   limit, 
   onSnapshot,
-  getDocs
+  orderBy
 } from "firebase/firestore";
 import { 
   Shield, 
   LayoutDashboard, 
-  Users, 
   LogOut, 
   Loader2, 
   Headphones, 
@@ -33,9 +30,7 @@ import {
   MessageSquare, 
   CheckCircle2, 
   User, 
-  Lock,
   Search,
-  ChevronRight,
   Clock,
   Brain,
   AlertTriangle
@@ -55,8 +50,9 @@ export default function AdminSupportPortal() {
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [selectedIssue, setSelectedIssue] = useState<any>(null);
   const [replyText, setReplyText] = useState("");
+  const [issues, setIssues] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -75,85 +71,91 @@ export default function AdminSupportPortal() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 2. REAL-TIME TICKET QUEUE (Focus on Open/Pending Admin)
-  const ticketsQuery = useMemoFirebase(() => {
-    if (!db || !isAdmin) return null;
-    return query(
-      collection(db, "support_tickets"),
-      where("status", "!=", "resolved"),
-      limit(50)
+  // 2. REAL-TIME ESCALATION QUEUE
+  useEffect(() => {
+    if (!db || !isAdmin) return;
+
+    const q = query(
+      collection(db, "chats"),
+      where("type", "==", "payment_issue"),
+      where("status", "==", "pending_admin")
     );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // Deduplicate by userId to show unique conversations
+      const uniqueIssues = Array.from(new Map(data.map(item => [item.userId, item])).values());
+      setIssues(uniqueIssues);
+    });
+
+    return () => unsubscribe();
   }, [db, isAdmin]);
 
-  const { data: tickets, isLoading: isTicketsLoading } = useCollection(ticketsQuery);
-
-  // 3. REAL-TIME MESSAGES FOR SELECTED TICKET
+  // 3. REAL-TIME MESSAGES FOR SELECTED WORKER
   useEffect(() => {
-    if (!selectedTicket || !db) return;
+    if (!selectedIssue || !db) return;
+    
     const q = query(
-      collection(db, "support_messages"),
-      where("userId", "==", selectedTicket.workerId),
-      limit(100)
+      collection(db, "chats"),
+      where("userId", "==", selectedIssue.userId),
+      orderBy("createdAt", "asc")
     );
+
     const unsubscribe = onSnapshot(q, (snap) => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setMessages(msgs.sort((a: any, b: any) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0)));
+      setMessages(msgs);
     });
+
     return () => unsubscribe();
-  }, [selectedTicket, db]);
+  }, [selectedIssue, db]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
   const handleSendReply = async () => {
-    if (!replyText.trim() || !selectedTicket || !db) return;
+    if (!replyText.trim() || !selectedIssue || !db) return;
     const text = replyText;
     setReplyText("");
 
     try {
-      // 1. Add Admin Message
-      await addDoc(collection(db, "support_messages"), {
-        userId: selectedTicket.workerId,
-        text,
+      // 1. Add Admin Message to 'chats'
+      await addDoc(collection(db, "chats"), {
+        userId: selectedIssue.userId,
+        message: text,
         sender: "admin",
-        senderName: "GigShield Support",
-        status: "in_progress",
-        timestamp: serverTimestamp()
+        type: "payment_issue",
+        status: "resolved",
+        createdAt: serverTimestamp()
       });
 
-      // 2. Mark existing escalated user messages as 'resolved' (or in_progress)
-      const escalatedMsgsQuery = query(
-        collection(db, "support_messages"),
-        where("userId", "==", selectedTicket.workerId),
+      // 2. Update status of the original pending message(s)
+      const q = query(
+        collection(db, "chats"),
+        where("userId", "==", selectedIssue.userId),
         where("status", "==", "pending_admin")
       );
-      const escalatedMsgs = await getDocs(escalatedMsgsQuery);
-      escalatedMsgs.forEach(async (m) => {
-        await updateDoc(doc(db, "support_messages", m.id), { status: "resolved" });
+      const pendingSnaps = onSnapshot(q, (snapshot) => {
+        snapshot.docs.forEach(async (d) => {
+          await updateDoc(doc(db, "chats", d.id), { status: "resolved" });
+        });
       });
+      // Small delay then unsubscribe listener used for one-time update
+      setTimeout(() => pendingSnaps(), 1000);
 
-      // 3. Update Ticket
-      const ticketRef = doc(db, "support_tickets", selectedTicket.id);
-      await updateDoc(ticketRef, {
-        status: "in_progress",
-        lastMessage: text,
-        unreadByWorker: true,
-        unreadByAdmin: false,
-        lastReplyAt: serverTimestamp()
-      });
     } catch (e) {
       console.error("Admin reply error:", e);
     }
   };
 
-  const resolveTicket = async (ticket: any) => {
+  const markResolved = async (issue: any) => {
     try {
-      await updateDoc(doc(db, "support_tickets", ticket.id), {
-        status: "resolved",
-        resolvedAt: serverTimestamp()
-      });
-      if (selectedTicket?.id === ticket.id) setSelectedTicket(null);
+      await updateDoc(doc(db, "chats", issue.id), { status: "resolved" });
+      if (selectedIssue?.userId === issue.userId) setSelectedIssue(null);
     } catch (e) {
       console.error("Resolve error:", e);
     }
@@ -174,39 +176,37 @@ export default function AdminSupportPortal() {
           <div className="space-y-4">
             <div className="flex items-center justify-between text-xs font-bold text-[#64748B] uppercase tracking-widest">
               <span>Active Escalations</span>
-              <Badge className="bg-[#6C47FF] text-white border-none">{tickets?.length || 0}</Badge>
+              <Badge className="bg-[#6C47FF] text-white border-none">{issues.length}</Badge>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94A3B8]" />
-              <Input placeholder="Search tickets..." className="pl-10 h-10 rounded-xl bg-[#F8F9FF] border-[#E8E6FF]" />
+              <Input placeholder="Search issues..." className="pl-10 h-10 rounded-xl bg-[#F8F9FF] border-[#E8E6FF]" />
             </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {isTicketsLoading ? (
-            <div className="p-10 text-center"><Loader2 className="animate-spin mx-auto text-[#6C47FF] opacity-40" /></div>
-          ) : tickets?.length === 0 ? (
+          {issues.length === 0 ? (
             <div className="p-10 text-center opacity-40"><MessageSquare size={48} className="mx-auto mb-2" /><p className="text-sm font-bold">No active escalations</p></div>
           ) : (
-            tickets?.map((t: any) => (
+            issues.map((t: any) => (
               <button 
                 key={t.id} 
-                onClick={() => setSelectedTicket(t)}
-                className={`w-full p-5 border-b border-[#E8E6FF] text-left transition-all hover:bg-[#F8F9FF] ${selectedTicket?.id === t.id ? 'bg-[#EDE9FF] border-l-4 border-l-[#6C47FF]' : ''}`}
+                onClick={() => setSelectedIssue(t)}
+                className={`w-full p-5 border-b border-[#E8E6FF] text-left transition-all hover:bg-[#F8F9FF] ${selectedIssue?.userId === t.userId ? 'bg-[#EDE9FF] border-l-4 border-l-[#6C47FF]' : ''}`}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <Badge className={`text-[8px] font-black uppercase border-none ${t.status === 'open' ? 'bg-[#EF4444]' : 'bg-[#F59E0B]'}`}>
-                    {t.status}
+                  <Badge className="text-[8px] font-black uppercase border-none bg-[#EF4444]">
+                    PENDING
                   </Badge>
-                  <span className="text-[10px] font-bold text-[#94A3B8]">{format(t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000) : new Date(), "HH:mm")}</span>
+                  <span className="text-[10px] font-bold text-[#94A3B8]">{t.createdAt?.seconds ? format(new Date(t.createdAt.seconds * 1000), "HH:mm") : 'Syncing...'}</span>
                 </div>
                 <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-bold text-sm">#{t.ticketId}</h4>
-                  {t.issue.toLowerCase().includes('payment') && <AlertTriangle size={12} className="text-amber-500" />}
+                  <h4 className="font-bold text-sm">{t.userName}</h4>
+                  <AlertTriangle size={12} className="text-amber-500" />
                 </div>
-                <p className="text-xs font-medium text-[#64748B] truncate mb-3">{t.workerName} • {t.workerCity}</p>
-                <p className="text-[11px] italic text-[#64748B] line-clamp-1">"{t.issue}"</p>
+                <p className="text-xs font-medium text-[#64748B] truncate mb-3">{t.workerCity} • {t.workerPlan?.toUpperCase()}</p>
+                <p className="text-[11px] italic text-[#64748B] line-clamp-1">"{t.message}"</p>
               </button>
             ))
           )}
@@ -220,25 +220,25 @@ export default function AdminSupportPortal() {
 
       {/* ACTIVE CHAT WINDOW */}
       <main className="flex-1 flex flex-col bg-white">
-        {selectedTicket ? (
+        {selectedIssue ? (
           <>
             <header className="px-8 py-4 bg-white border-b border-[#E8E6FF] flex justify-between items-center shadow-sm">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 bg-[#6C47FF] rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-btn">
-                  {selectedTicket.workerName[0]}
+                  {selectedIssue.userName[0]}
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold">{selectedTicket.workerName}</h3>
+                  <h3 className="text-lg font-bold">{selectedIssue.userName}</h3>
                   <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-[#64748B]">
                     <span className="flex items-center gap-1"><Clock size={12} /> Active Escalation</span>
                     <span className="text-[#6C47FF]">•</span>
-                    <span>Plan: {selectedTicket.workerPlan.toUpperCase()}</span>
+                    <span>Plan: {selectedIssue.workerPlan?.toUpperCase()}</span>
                   </div>
                 </div>
               </div>
               <Button 
                 variant="outline" 
-                onClick={() => resolveTicket(selectedTicket)}
+                onClick={() => markResolved(selectedIssue)}
                 className="text-[#22C55E] border-[#22C55E] hover:bg-[#DCFCE7] font-black gap-2 h-11 px-6 rounded-xl transition-all active:scale-95"
               >
                 <CheckCircle2 size={18} /> Mark Resolved
@@ -261,9 +261,9 @@ export default function AdminSupportPortal() {
                     }`}>
                       {m.sender === 'admin' && <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-1">🛡️ Support Agent (You)</p>}
                       {m.status === 'pending_admin' && <Badge className="bg-red-500 text-white border-none text-[7px] mb-2 font-black uppercase">Escalated</Badge>}
-                      <p className="leading-relaxed">{m.text}</p>
+                      <p className="leading-relaxed">{m.message}</p>
                       <div className="text-[9px] mt-2 font-black uppercase opacity-60">
-                        {m.sender} • {m.timestamp?.seconds ? format(new Date(m.timestamp.seconds * 1000), "HH:mm") : 'Syncing...'}
+                        {m.sender} • {m.createdAt?.seconds ? format(new Date(m.createdAt.seconds * 1000), "HH:mm") : 'Syncing...'}
                       </div>
                     </div>
                   </div>
