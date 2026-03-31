@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -28,11 +27,13 @@ import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebas
 import { 
   collection, 
   query, 
+  where,
   updateDoc, 
   doc, 
   serverTimestamp, 
   limit,
-  addDoc
+  addDoc,
+  onSnapshot
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -52,7 +53,7 @@ export default function AdminNewPage() {
 
   const isAuthReady = !isUserLoading && !!user;
 
-  // Firestore Subscriptions - Removed orderBy to prevent index errors
+  // Firestore Subscriptions
   const usersQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
     return query(collection(db, "users"), limit(100));
@@ -63,14 +64,15 @@ export default function AdminNewPage() {
     return query(collection(db, "claims"), limit(100));
   }, [db, isAuthReady]);
 
-  const messagesQuery = useMemoFirebase(() => {
+  // Use 'chats' collection for consistency across the platform (Step 4 implementation)
+  const chatsQuery = useMemoFirebase(() => {
     if (!db || !isAuthReady) return null;
-    return query(collection(db, "support_messages"), limit(500));
+    return query(collection(db, "chats"), limit(1000));
   }, [db, isAuthReady]);
 
   const { data: rawUsers, isLoading: loadingUsers } = useCollection(usersQuery);
   const { data: rawClaims, isLoading: loadingClaims } = useCollection(claimsQuery);
-  const { data: rawMessages, isLoading: loadingMessages } = useCollection(messagesQuery);
+  const { data: rawMessages, isLoading: loadingMessages } = useCollection(chatsQuery);
 
   // In-memory sorting to replace Firestore orderBy
   const realUsers = useMemo(() => {
@@ -103,28 +105,28 @@ export default function AdminNewPage() {
   const threads = useMemo(() => {
     if (!rawMessages) return [];
     const groups = new Map<string, any>();
-    // Sort messages locally by timestamp descending
-    const sortedMsgs = [...rawMessages].sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+    // Sort messages locally by timestamp descending to find latest status
+    const sortedMsgs = [...rawMessages].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     
     sortedMsgs.forEach(msg => {
       if (!groups.has(msg.userId)) {
         groups.set(msg.userId, {
           userId: msg.userId,
           userName: userMap.get(msg.userId)?.name || msg.userName || "Worker",
-          lastMessage: msg.text,
+          lastMessage: msg.message || msg.text,
           status: msg.status || 'open',
-          timestamp: msg.timestamp,
+          timestamp: msg.createdAt,
         });
       }
     });
-    return Array.from(groups.values());
-  }, [rawMessages, userMap]);
+    return Array.from(groups.values()).filter(t => t.status !== 'resolved' || activeChatUserId === t.userId);
+  }, [rawMessages, userMap, activeChatUserId]);
 
   const activeChatMessages = useMemo(() => {
     if (!rawMessages || !activeChatUserId) return [];
     return rawMessages
       .filter(m => m.userId === activeChatUserId)
-      .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+      .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
   }, [rawMessages, activeChatUserId]);
 
   const updateClaimStatus = async (id: string, status: string) => {
@@ -144,14 +146,22 @@ export default function AdminNewPage() {
     const text = replyText;
     setReplyText("");
     try {
-      await addDoc(collection(db, "support_messages"), {
+      // (Step 2 implementation)
+      await addDoc(collection(db, "chats"), {
         userId: activeChatUserId,
         userName: userMap.get(activeChatUserId)?.name || "Worker",
-        text,
+        message: text,
         sender: "admin",
-        status: "in-progress",
-        timestamp: serverTimestamp()
+        type: "payment_issue",
+        status: "resolved",
+        createdAt: serverTimestamp()
       });
+
+      // Update user pending messages to resolved
+      const userPendingMsgs = activeChatMessages.filter(m => m.status === 'pending_admin');
+      for (const m of userPendingMsgs) {
+        await updateDoc(doc(db, "chats", m.id), { status: "resolved" });
+      }
     } catch (e) {
       console.error("[Admin] Send reply failed:", e);
     }
@@ -160,7 +170,7 @@ export default function AdminNewPage() {
   const resolveThread = async () => {
     if (!activeChatUserId || !db || !rawMessages) return;
     const threadMsgs = rawMessages.filter(m => m.userId === activeChatUserId && m.status !== 'resolved');
-    const promises = threadMsgs.map(m => updateDoc(doc(db, "support_messages", m.id), { status: "resolved" }));
+    const promises = threadMsgs.map(m => updateDoc(doc(db, "chats", m.id), { status: "resolved" }));
     await Promise.all(promises);
     setActiveChatUserId(null);
   };
@@ -366,7 +376,7 @@ export default function AdminNewPage() {
                       {activeChatMessages.map((m, i) => (
                         <div key={i} className={`flex ${m.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
                           <div className={`max-w-[70%] p-3 rounded-2xl text-sm ${m.sender === 'admin' ? 'bg-[#6C47FF] text-white rounded-tr-none' : 'bg-[#F1F0FF] text-[#1A1A2E] rounded-tl-none'}`}>
-                            <p>{m.text}</p>
+                            <p>{m.message || m.text}</p>
                             <span className="text-[8px] mt-1 block opacity-60 uppercase font-black">{m.sender}</span>
                           </div>
                         </div>

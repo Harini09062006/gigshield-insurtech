@@ -55,7 +55,11 @@ export default function AdminSupportPortal() {
 
   // In-memory sort to avoid Firestore index requirement
   const messages = useMemo(() => {
-    return [...rawMessages].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+    return [...rawMessages].sort((a, b) => {
+      const timeA = a.createdAt?.seconds || 0;
+      const timeB = b.createdAt?.seconds || 0;
+      return timeA - timeB;
+    });
   }, [rawMessages]);
 
   // 1. AUTH & ROLE CHECK
@@ -73,7 +77,7 @@ export default function AdminSupportPortal() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 2. REAL-TIME ESCALATION QUEUE
+  // 2. REAL-TIME ESCALATION QUEUE (Step 1 implementation)
   useEffect(() => {
     if (!db || !isAdmin) return;
 
@@ -89,7 +93,7 @@ export default function AdminSupportPortal() {
         ...doc.data()
       }));
       
-      // Deduplicate by userId to show unique conversations
+      // Deduplicate by userId to show unique conversations in the sidebar
       const uniqueIssues = Array.from(new Map(data.map(item => [item.userId, item])).values());
       setIssues(uniqueIssues);
     });
@@ -99,21 +103,23 @@ export default function AdminSupportPortal() {
 
   // 3. REAL-TIME MESSAGES FOR SELECTED WORKER
   useEffect(() => {
-    if (!selectedIssue || !db) return;
+    if (!selectedIssue?.userId || !db) return;
     
-    // Removed orderBy to prevent Index Error
     const q = query(
       collection(db, "chats"),
       where("userId", "==", selectedIssue.userId)
     );
 
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
       setMessages(msgs);
     });
 
     return () => unsubscribe();
-  }, [selectedIssue, db]);
+  }, [selectedIssue?.userId, db]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -125,7 +131,7 @@ export default function AdminSupportPortal() {
     setReplyText("");
 
     try {
-      // 1. Add Admin Message to 'chats'
+      // 1. Add Admin Message to 'chats' (Step 2 implementation)
       await addDoc(collection(db, "chats"), {
         userId: selectedIssue.userId,
         message: text,
@@ -135,19 +141,11 @@ export default function AdminSupportPortal() {
         createdAt: serverTimestamp()
       });
 
-      // 2. Update status of the original pending message(s)
-      const q = query(
-        collection(db, "chats"),
-        where("userId", "==", selectedIssue.userId),
-        where("status", "==", "pending_admin")
-      );
-      const pendingSnaps = onSnapshot(q, (snapshot) => {
-        snapshot.docs.forEach(async (d) => {
-          await updateDoc(doc(db, "chats", d.id), { status: "resolved" });
-        });
-      });
-      // Small delay then unsubscribe listener used for one-time update
-      setTimeout(() => pendingSnaps(), 1000);
+      // 2. Proactively update all pending messages for this user to 'resolved'
+      const pendingMessages = rawMessages.filter(m => m.status === 'pending_admin');
+      for (const msg of pendingMessages) {
+        await updateDoc(doc(db, "chats", msg.id), { status: "resolved" });
+      }
 
     } catch (e) {
       console.error("Admin reply error:", e);
@@ -156,7 +154,20 @@ export default function AdminSupportPortal() {
 
   const markResolved = async (issue: any) => {
     try {
-      await updateDoc(doc(db, "chats", issue.id), { status: "resolved" });
+      // Update the specific issue status
+      const userPendingQuery = query(
+        collection(db, "chats"),
+        where("userId", "==", issue.userId),
+        where("status", "==", "pending_admin")
+      );
+      
+      const unsubscribe = onSnapshot(userPendingQuery, (snapshot) => {
+        snapshot.docs.forEach(async (d) => {
+          await updateDoc(doc(db, "chats", d.id), { status: "resolved" });
+        });
+        unsubscribe(); // One-time update
+      });
+
       if (selectedIssue?.userId === issue.userId) setSelectedIssue(null);
     } catch (e) {
       console.error("Resolve error:", e);
@@ -204,7 +215,7 @@ export default function AdminSupportPortal() {
                   <span className="text-[10px] font-bold text-[#94A3B8]">{t.createdAt?.seconds ? format(new Date(t.createdAt.seconds * 1000), "HH:mm") : 'Syncing...'}</span>
                 </div>
                 <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-bold text-sm">{t.userName}</h4>
+                  <h4 className="font-bold text-sm">{t.userName || "Worker"}</h4>
                   <AlertTriangle size={12} className="text-amber-500" />
                 </div>
                 <p className="text-xs font-medium text-[#64748B] truncate mb-3">{t.workerCity} • {t.workerPlan?.toUpperCase()}</p>
@@ -227,14 +238,14 @@ export default function AdminSupportPortal() {
             <header className="px-8 py-4 bg-white border-b border-[#E8E6FF] flex justify-between items-center shadow-sm">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 bg-[#6C47FF] rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-btn">
-                  {selectedIssue.userName[0]}
+                  {selectedIssue.userName?.[0] || "W"}
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold">{selectedIssue.userName}</h3>
+                  <h3 className="text-lg font-bold">{selectedIssue.userName || "Worker"}</h3>
                   <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-[#64748B]">
                     <span className="flex items-center gap-1"><Clock size={12} /> Active Escalation</span>
                     <span className="text-[#6C47FF]">•</span>
-                    <span>Plan: {selectedIssue.workerPlan?.toUpperCase()}</span>
+                    <span>Plan: {selectedIssue.workerPlan?.toUpperCase() || "PRO"}</span>
                   </div>
                 </div>
               </div>

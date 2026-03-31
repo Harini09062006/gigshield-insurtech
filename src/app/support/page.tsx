@@ -44,16 +44,20 @@ export default function SupportPage() {
   );
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
-  // In-memory sort to avoid Firestore index requirement
+  // In-memory sort to avoid Firestore index requirement (Step 3 & 4 implementation)
   const messages = useMemo(() => {
-    return [...rawMessages].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+    return [...rawMessages].sort((a, b) => {
+      const timeA = a.createdAt?.seconds || 0;
+      const timeB = b.createdAt?.seconds || 0;
+      return timeA - timeB;
+    });
   }, [rawMessages]);
 
-  // FETCH MESSAGES REAL-TIME
+  // FETCH MESSAGES REAL-TIME (Step 3 implementation)
   useEffect(() => {
     if (!db || !user?.uid) return;
 
-    // Removed orderBy to prevent Index Error
+    // Listen to ALL messages for this user in the 'chats' collection
     const q = query(
       collection(db, "chats"),
       where("userId", "==", user.uid)
@@ -85,14 +89,13 @@ export default function SupportPage() {
     const text = (msgOverride || input).trim();
     if (!text || !user || !db) return;
 
-    console.log("Sending message");
     setInput("");
     
     try {
       setLoading(true);
       const isEscalation = isPaymentIssue(text);
 
-      // 1. Save User Message
+      // 1. Save User Message to 'chats'
       await addDoc(collection(db, "chats"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
@@ -107,7 +110,6 @@ export default function SupportPage() {
 
       // 2. AI response if not escalation
       if (!isEscalation) {
-        console.log("Calling API");
         const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -115,7 +117,6 @@ export default function SupportPage() {
         });
 
         if (res.ok) {
-          console.log("API responded");
           const data = await res.json();
           await addDoc(collection(db, "chats"), {
             userId: user.uid,
@@ -127,9 +128,10 @@ export default function SupportPage() {
           });
         }
       } else {
+        // Confirmation message for escalation
         await addDoc(collection(db, "chats"), {
           userId: user.uid,
-          message: "Payment issue detected. Escalating to support team for manual review.",
+          message: "Payment issue detected. Your issue has been forwarded to admin. Please wait for response.",
           sender: "ai",
           type: "payment_issue",
           status: "escalated",
@@ -138,7 +140,7 @@ export default function SupportPage() {
       }
 
     } catch (e: any) {
-      console.error("AI error:", e);
+      console.error("Chat error:", e);
     } finally {
       setLoading(false);
     }

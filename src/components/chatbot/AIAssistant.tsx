@@ -61,14 +61,17 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
 
   // In-memory sort to avoid Firestore index requirement
   const messages = useMemo(() => {
-    return [...rawMessages].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+    return [...rawMessages].sort((a, b) => {
+      const timeA = a.createdAt?.seconds || 0;
+      const timeB = b.createdAt?.seconds || 0;
+      return timeA - timeB;
+    });
   }, [rawMessages]);
 
-  // REAL-TIME SYNC: Listen to all 'chats' for this user
+  // REAL-TIME SYNC: Listen to all 'chats' for this user (Step 3 implementation)
   useEffect(() => {
     if (!db || !user?.uid) return;
 
-    // Removed orderBy to prevent Index Error
     const q = query(
       collection(db, "chats"),
       where("userId", "==", user.uid)
@@ -100,7 +103,6 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
     const text = input.trim();
     if (!text || !user || !db) return;
 
-    console.log("Sending message");
     setInput("");
     
     try {
@@ -108,7 +110,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
 
       const isEscalation = isPaymentIssue(text);
 
-      // 1. Save User Message
+      // 1. Save User Message to 'chats'
       await addDoc(collection(db, "chats"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
@@ -123,7 +125,6 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
 
       // 2. Handle AI if not escalated
       if (!isEscalation) {
-        console.log("Calling API");
         const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -131,7 +132,6 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         });
 
         if (res.ok) {
-          console.log("API responded");
           const data = await res.json();
           await addDoc(collection(db, "chats"), {
             userId: user.uid,
@@ -143,10 +143,10 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
           });
         }
       } else {
-        // Automatic bot confirmation for escalation
+        // Confirmation message for escalation
         await addDoc(collection(db, "chats"), {
           userId: user.uid,
-          message: "I've forwarded your payment issue to our support team. An admin will respond here shortly.",
+          message: "Payment issue detected. Your issue has been forwarded to our support team for priority review. Please wait here for a response.",
           sender: "ai",
           type: "payment_issue",
           status: "escalated",
@@ -174,7 +174,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         <header className="px-6 py-4 bg-white border-b border-[#E8E6FF] flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3 max-w-4xl mx-auto w-full">
             <div className="h-10 w-10 bg-[#6C47FF] rounded-xl flex items-center justify-center shadow-btn">
-              <Shield className="text-white h-6 w-6" />
+              <Shield className="h-6 w-6 text-white" />
             </div>
             <div className="flex-1">
               <h1 className="text-lg font-bold text-[#1A1A2E] leading-none">Support Center</h1>
@@ -213,7 +213,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
                       m.sender === 'admin' ? "bg-amber-500 text-white" :
                       "bg-white border border-[#E8E6FF] text-[#6C47FF]"
                     }`}>
-                      {m.sender === "user" ? <User size={14} /> : (m.sender === 'admin' ? <Headphones size={14} /> : <Bot size={14} />)}
+                      {m.sender === "user" ? <User size={14} /> : (m.sender === 'admin' ? <Shield size={14} /> : <Bot size={14} />)}
                     </div>
                     <div className={`p-3 rounded-2xl shadow-card transition-all relative ${
                       m.sender === "user" ? "bg-[#6C47FF] text-white rounded-tr-none" : "bg-white text-[#1A1A2E] rounded-tl-none border border-[#E8E6FF]"
