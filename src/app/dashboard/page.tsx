@@ -141,6 +141,57 @@ export default function WorkerDashboard() {
   const { data: profile } = useDoc(profileRef);
   const { data: dna } = useDoc(dnaRef);
 
+  // NEW: Calculation logic to ensure dashboard values are always correct
+  const calculateAndUpdateInsurance = async (currentProfile: any, currentDna: any) => {
+    if (!currentProfile || !user?.uid || !db) return;
+
+    const weeklyIncome = currentDna?.weekly_earnings || currentDna?.weeklyIncome || 3360;
+    const riskScore = currentProfile.riskScore || 30;
+    const plan = currentProfile.plan_id || currentProfile.plan || "pro";
+
+    // PREMIUM
+    let premium = (weeklyIncome * riskScore) / 1000;
+    premium = Math.max(20, Math.min(80, premium));
+    premium = Math.round(premium);
+
+    // INCOME LOSS
+    const incomeLoss = Math.round(weeklyIncome * (riskScore / 100));
+
+    // COVERAGE
+    const coverage =
+      plan === "basic" ? 60 :
+      plan === "pro" ? 240 :
+      600;
+
+    // REMAINING RISK
+    const remainingRisk = Math.max(0, incomeLoss - coverage);
+
+    console.log("CALCULATED VALUES:", {
+      premium,
+      incomeLoss,
+      coverage,
+      remainingRisk
+    });
+
+    // SAFE FIRESTORE UPDATE (DO NOT OVERWRITE)
+    await updateDoc(doc(db, "users", user.uid), {
+      premium,
+      incomeLoss,
+      coverage,
+      remainingRisk,
+      lastUpdated: Date.now()
+    });
+  };
+
+  useEffect(() => {
+    if (user && profile && dna && db) {
+      // Trigger update if fields are missing or periodically
+      if (profile.premium === undefined || profile.incomeLoss === undefined || profile.coverage === undefined) {
+        calculateAndUpdateInsurance(profile, dna);
+      }
+    }
+  }, [user, profile, dna, db]);
+
   useEffect(() => {
     if (user && profile && db) {
       autoUpdatePremium(db, user.uid, profile);
@@ -263,25 +314,17 @@ export default function WorkerDashboard() {
   const simulateWeather = async () => {
     if (!user || !profile || !db || !dna) return;
     
+    // NEW: Align with requested newRisk = 75 for demo
     const simulatedRain = 80;
-    const simulatedRisk = calculateRiskScore(simulatedRain, profile.city || "Mumbai", new Date().getHours());
+    const newRisk = 75;
     
-    // AI DNA-based dynamic calculations
-    const weeklyIncome = dna.weekly_earnings || 3360;
-    const premium = calculateDNAPremium(weeklyIncome, simulatedRisk);
-    const incomeLoss = calculateIncomeLoss(weeklyIncome, simulatedRisk);
-    const coverage = getCoverageAmount(profile.plan_id || "pro");
-    const remainingRisk = calculateRemainingRisk(incomeLoss, coverage);
-    
+    // Update risk score and trigger combined calculation logic
     await updateDoc(doc(db, "users", user.uid), {
-      premium,
-      riskScore: simulatedRisk,
-      incomeLoss,
-      coverage,
-      remainingRisk,
-      lastPremiumUpdated: Date.now(),
-      lastUpdated: serverTimestamp()
+      riskScore: newRisk,
+      lastUpdated: Date.now()
     });
+
+    await calculateAndUpdateInsurance({ ...profile, riskScore: newRisk }, dna);
 
     const weatherPayload: WeatherData = {
       rainfall: simulatedRain,
@@ -296,7 +339,7 @@ export default function WorkerDashboard() {
     };
     
     await handleWeatherData(weatherPayload);
-    toast({ title: "AI Risk Re-evaluation", description: `Dynamic protection metrics updated based on simulation. Premium: ₹${premium}, Risk: ${simulatedRisk}%` });
+    toast({ title: "AI Risk Re-evaluation", description: `Dynamic protection metrics updated based on simulation. Risk: ${newRisk}%` });
   };
 
   const handleLogout = async () => {
@@ -350,11 +393,11 @@ export default function WorkerDashboard() {
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Max Payout</p>
-                <p className="text-sm font-black">₹{profile?.coverage || 240}</p>
+                <p className="text-sm font-black">₹{profile?.coverage || 0}</p>
               </div>
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
-                <p className="text-base font-black">₹{profile?.premium || 25}</p>
+                <p className="text-base font-black">₹{profile?.premium || 0}</p>
               </div>
             </div>
           </Card>
@@ -405,7 +448,7 @@ export default function WorkerDashboard() {
             {[
               { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
               { label: "Next Renewal", value: "25 Mar", icon: RefreshCcw },
-              { label: "Renewal Amount", value: `₹${profile?.premium || 25}`, icon: IndianRupee },
+              { label: "Renewal Amount", value: `₹${profile?.premium || 0}`, icon: IndianRupee },
               { label: "Commitment", value: "Week 1/4", icon: Info },
             ].map((stat, i) => (
               <div key={i} className="p-5 flex items-center gap-3">

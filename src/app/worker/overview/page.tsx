@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, query, limit, where, orderBy } from "firebase/firestore";
+import { doc, collection, query, limit, where, orderBy, updateDoc } from "firebase/firestore";
 import { Shield, Zap, AlertCircle, ChevronRight, Map as MapIcon, Brain } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { format } from "date-fns";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 
 export default function WorkerOverview() {
@@ -36,6 +36,42 @@ export default function WorkerOverview() {
   }, [db, user?.uid]);
 
   const { data: rawClaims } = useCollection(claimsQuery);
+
+  // NEW: Intelligent calculation sync for the overview page
+  const calculateAndUpdateInsurance = async (currentProfile: any, currentDna: any) => {
+    if (!currentProfile || !user?.uid || !db) return;
+
+    const weeklyIncome = currentDna?.weekly_earnings || currentDna?.weeklyIncome || 3360;
+    const riskScore = currentProfile.riskScore || 30;
+    const plan = currentProfile.plan_id || currentProfile.plan || "pro";
+
+    // Calculation Logic as requested
+    let premium = (weeklyIncome * riskScore) / 1000;
+    premium = Math.max(20, Math.min(80, premium));
+    premium = Math.round(premium);
+
+    const incomeLoss = Math.round(weeklyIncome * (riskScore / 100));
+    const coverage = plan === "basic" ? 60 : plan === "pro" ? 240 : 600;
+    const remainingRisk = Math.max(0, incomeLoss - coverage);
+
+    console.log("OVERVIEW CALCULATED VALUES:", { premium, incomeLoss, coverage, remainingRisk });
+
+    await updateDoc(doc(db, "users", user.uid), {
+      premium,
+      incomeLoss,
+      coverage,
+      remainingRisk,
+      lastUpdated: Date.now()
+    });
+  };
+
+  useEffect(() => {
+    if (user && profile && dna && db) {
+      if (profile.premium === undefined || profile.incomeLoss === undefined) {
+        calculateAndUpdateInsurance(profile, dna);
+      }
+    }
+  }, [user, profile, dna, db]);
 
   const claims = useMemo(() => {
     if (!rawClaims) return null;
@@ -96,11 +132,11 @@ export default function WorkerOverview() {
                 <div className="grid grid-cols-2 gap-2 mt-4">
                   <div className="bg-white/10 p-2 rounded-lg">
                     <p className="text-[10px] uppercase opacity-60">Coverage</p>
-                    <p className="text-sm font-bold">₹{profile?.coverage || 240}</p>
+                    <p className="text-sm font-bold">₹{profile?.coverage || 0}</p>
                   </div>
                   <div className="bg-white/10 p-2 rounded-lg">
                     <p className="text-[10px] uppercase opacity-60">Premium</p>
-                    <p className="text-sm font-bold">₹{profile?.premium || 25}</p>
+                    <p className="text-sm font-bold">₹{profile?.premium || 0}</p>
                   </div>
                 </div>
               </CardContent>
@@ -156,12 +192,12 @@ export default function WorkerOverview() {
           <CardContent className="grid gap-6 md:grid-cols-3 pt-4">
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Potential Income Loss</p>
-              <p className="text-2xl font-bold text-danger">₹{profile?.incomeLoss || Math.round(currentDnaRate * 6)}</p>
+              <p className="text-2xl font-bold text-danger">₹{profile?.incomeLoss || 0}</p>
               <p className="text-[10px] text-body">AI-calculated based on current risk profile</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs font-bold text-body uppercase">Insurance Coverage</p>
-              <p className="text-2xl font-bold text-success">₹{profile?.coverage || 240}</p>
+              <p className="text-2xl font-bold text-success">₹{profile?.coverage || 0}</p>
               <p className="text-[10px] text-body">Capped by {profile?.plan_id ? profile.plan_id.toUpperCase() : "PRO"} limit</p>
             </div>
             <div className="space-y-1">
