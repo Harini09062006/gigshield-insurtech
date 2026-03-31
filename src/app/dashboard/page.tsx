@@ -70,6 +70,20 @@ const calculateRiskScore = (
   return Math.min(score, 100)
 }
 
+/**
+ * Calculates the dynamic premium breakdown based on specific rules.
+ */
+const calculatePremiumBreakdown = (workerCity: string, rainfall: number, basePremium: number) => {
+  const locationCharge = workerCity === "Chennai" ? 3 : 0;
+  const weatherCharge = rainfall > 50 ? 2 : 0;
+  return {
+    basePremium,
+    locationCharge,
+    weatherCharge,
+    finalPremium: basePremium + locationCharge + weatherCharge
+  };
+};
+
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -105,6 +119,13 @@ export default function WorkerDashboard() {
     new Date().getHours()
   );
 
+  const breakdown = React.useMemo(() => {
+    if (!profile) return { basePremium: 25, locationCharge: 0, weatherCharge: 0, finalPremium: 25 };
+    const plan = profile.plan_id ?? "pro";
+    const baseVal = plan === "basic" ? 10 : plan === "elite" ? 50 : 25;
+    return calculatePremiumBreakdown(profile.city || "", weatherData.rainfall, baseVal);
+  }, [profile, weatherData.rainfall]);
+
   const metrics = React.useMemo(() => {
     if (!profile) return { incomeLoss: 0, coverage: 0, remainingRisk: 0, premium: 0, riskScore: 35 };
 
@@ -114,11 +135,13 @@ export default function WorkerDashboard() {
     
     const incomeLoss = Math.round((baseRate * 1.3) * 3 * (riskScoreValue / 100));
     const coverage = plan === "basic" ? 60 : plan === "pro" ? 240 : 600;
-    const premium = plan === "basic" ? 10 : plan === "pro" ? 25 : 50;
+    
+    // Use the dynamic finalPremium from breakdown
+    const premium = breakdown.finalPremium;
     const remainingRisk = Math.max(0, incomeLoss - coverage);
 
     return { incomeLoss, coverage, remainingRisk, premium, riskScore: riskScoreValue };
-  }, [profile]);
+  }, [profile, breakdown.finalPremium]);
 
   const getAllPassedChecks = () => ({
     gpsValidation: "PASSED",
@@ -330,6 +353,17 @@ export default function WorkerDashboard() {
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
                 <p className="text-base font-black">₹{metrics.premium}</p>
+                
+                {/* Premium Breakdown Section */}
+                <div className="mt-2 pt-2 border-t border-white/10 text-[8px] font-medium leading-relaxed opacity-90">
+                  <div className="flex justify-between"><span>Base Premium:</span> <span>₹{breakdown.basePremium}</span></div>
+                  <div className="flex justify-between"><span>Chennai Zone:</span> <span>+₹{breakdown.locationCharge}</span></div>
+                  <div className="flex justify-between"><span>Rain Forecast:</span> <span>+₹{breakdown.weatherCharge}</span></div>
+                  <div className="border-t border-white/20 mt-1 pt-1 flex justify-between font-bold">
+                    <span>Your Premium:</span>
+                    <span>₹{breakdown.finalPremium} ✅</span>
+                  </div>
+                </div>
               </div>
             </div>
           </Card>
@@ -393,7 +427,7 @@ export default function WorkerDashboard() {
                 <h2 className="text-2xl font-black text-[#1A1A2E]">Week 1 of 4</h2>
                 <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[9px]">Renewal ON</Badge>
               </div>
-              <p className="text-[11px] font-bold text-[#64748B] italic mt-3">Next Renewal: 25 Mar</p>
+              <p className="text-11px font-bold text-[#64748B] italic mt-3">Next Renewal: 25 Mar</p>
             </div>
           </Card>
         </div>

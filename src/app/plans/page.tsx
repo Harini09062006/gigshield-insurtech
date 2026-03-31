@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from "react";
@@ -9,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUser, useFirestore } from "@/firebase";
-import { doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { generateAIPremium } from "@/services/aiPremiumService";
+import { getCityRainfall } from "@/services/weatherService";
 
 const PLANS = [
   {
@@ -167,23 +167,40 @@ export default function PlansPage() {
       const plan = PLANS.find(p => p.id === selectedPlan);
       const avgEarnings = Number(hourlyEarnings);
       
+      // Fetch current worker profile to get city
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+      const profile = userSnap.data();
+      const city = profile?.city || "Mumbai";
+
+      // Calculate Dynamic Premium Breakdown
+      const currentRain = await getCityRainfall(city);
+      const baseVal = plan?.price || 25;
+      const locationCharge = city === "Chennai" ? 3 : 0;
+      const weatherCharge = currentRain > 50 ? 2 : 0;
+      const finalPremium = baseVal + locationCharge + weatherCharge;
+
       // Initialize AI Dynamic Premium with initial risk audit
       const aiResult = await generateAIPremium(db, { 
         id: user.uid, 
-        city: 'Mumbai',
+        city: city,
         plan_id: selectedPlan 
       });
 
-      // Update plan details with AI-driven dynamic pricing
+      // Update plan details with AI-driven dynamic pricing and breakdown audit
       await updateDoc(doc(db, "users", user.uid), {
         plan_id: selectedPlan,
         avg_hourly_earnings: avgEarnings,
         plan_activated_at: serverTimestamp(),
         auto_renew: true,
         commitment_weeks: 4,
-        premium: aiResult.premium,
+        premium: finalPremium, // Use the breakdown total as primary premium
         riskScore: aiResult.riskScore,
-        lastPremiumUpdated: Date.now()
+        lastPremiumUpdated: Date.now(),
+        // Breakdown Audit Fields
+        basePremium: baseVal,
+        locationCharge,
+        weatherCharge,
+        finalPremium
       });
 
       const dna = calculateIncomeDNA(avgEarnings);
@@ -206,7 +223,10 @@ export default function PlansPage() {
         updated_at: serverTimestamp()
       });
 
-      toast({ title: "Protection Activated", description: `You are now covered by ${plan?.name}. AI-adjusted premium: ₹${aiResult.premium}/week.` });
+      toast({ 
+        title: "Protection Activated", 
+        description: `You are now covered by ${plan?.name}. Dynamic premium: ₹${finalPremium}/week.` 
+      });
       
       router.push("/dashboard");
     } catch (error: any) {
