@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth, useDoc } from "@/firebase";
-import { collection, query, where, orderBy, limit, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, limit, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Calendar, Zap, Home, FileText, Map as MapIcon, LogOut, Shield, AlertCircle, Loader2, AlertTriangle, XCircle, CreditCard } from "lucide-react";
+import { CheckCircle2, Calendar, Home, FileText, Map as MapIcon, LogOut, Shield, AlertCircle, Loader2, AlertTriangle, XCircle, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -57,13 +57,12 @@ export default function WorkerClaims() {
     workerName: string,
     claimId: string
   ) => {
-    // 1. SAFETY CHECK: Ensure Razorpay SDK is loaded
     if (!(window as any).Razorpay) {
-      console.error("Razorpay SDK not loaded. Check script tag in layout.");
+      console.error("Razorpay SDK not loaded.");
       toast({
         variant: "destructive",
         title: "Payment Error",
-        description: "Payment service is currently unavailable. Please refresh."
+        description: "Payment service is currently unavailable."
       });
       return;
     }
@@ -83,9 +82,7 @@ export default function WorkerClaims() {
         });
         toast({
           title: "✅ Payment Successful!",
-          description: 
-            `₹${amount} credited! ` +
-            `ID: ${response.razorpay_payment_id}`
+          description: `₹${amount} credited!`
         });
       },
       prefill: { name: workerName },
@@ -145,15 +142,7 @@ export default function WorkerClaims() {
           <p className="text-[#64748B] text-xs mt-0.5">Review your parametric payout history and automated verification status</p>
         </header>
 
-        {error ? (
-          <div className="py-16 text-center border-2 border-dashed border-[#EF4444]/30 rounded-2xl bg-white/50 space-y-3">
-            <AlertCircle className="h-10 w-10 text-[#EF4444] mx-auto" />
-            <h3 className="text-base font-bold text-[#1A1A2E]">Access Denied</h3>
-            <p className="text-[#64748B] text-xs max-w-xs mx-auto">
-              Unable to load claims. Please ensure your account is properly registered.
-            </p>
-          </div>
-        ) : isLoading ? (
+        {isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map(i => (
               <div key={i} className="h-32 bg-white/50 rounded-2xl animate-pulse border border-[#E8E6FF]" />
@@ -171,7 +160,7 @@ export default function WorkerClaims() {
                     </div>
                     <div className="flex items-center gap-2 text-[9px] text-[#64748B] font-bold">
                       <Calendar className="h-3.5 w-3.5" />
-                      {claim.createdAt?.seconds ? format(new Date(claim.createdAt.seconds * 1000), "dd MMM, HH:mm") : claim.created_at?.seconds ? format(new Date(claim.created_at.seconds * 1000), "dd MMM, HH:mm") : "Just now"}
+                      {claim.createdAt?.seconds ? format(new Date(claim.createdAt.seconds * 1000), "dd MMM, HH:mm") : "Just now"}
                     </div>
                   </CardHeader>
                   <CardContent className="p-0 grid md:grid-cols-[1fr,220px]">
@@ -203,13 +192,6 @@ export default function WorkerClaims() {
                       <div className="mt-2 bg-gray-50 border border-gray-100 rounded-xl p-2 text-center w-full">
                         <div className="font-bold text-gray-700 text-[10px] mb-0.5">
                           {claim.status === 'review' || claim.decision === 'REVIEW' ? 'Verification Pending' : (claim.status === 'paid' || claim.status === 'approved') ? 'Deposit Complete' : 'Verification Failed'}
-                        </div>
-                        <div className="text-[9px] text-gray-500 leading-tight">
-                          {claim.status === 'review' || claim.decision === 'REVIEW' 
-                            ? 'Manual audit in progress.' 
-                            : (claim.status === 'paid' || claim.status === 'approved') 
-                              ? 'Funds deposited to your account.' 
-                              : 'Policy violation detected.'}
                         </div>
                         {(claim.status === 'paid' || claim.status === 'approved') && (
                           <div className="mt-2 space-y-1.5">

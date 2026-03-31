@@ -53,7 +53,7 @@ const calculateRiskScore = (
   if (rainfall > 50) score += 40
   else if (rainfall > 30) score += 30
   else if (rainfall > 10) score += 20
-  else score += 5
+  else score = 5
   
   // City risk (max 30)
   const HIGH = [
@@ -178,9 +178,9 @@ export default function WorkerDashboard() {
       const compensation = Math.min(rawAmount, maxPayout);
       
       const claimStatus = isFirst ? "paid" : "review";
-      const decision = isFirst ? "APPROVED" : "REVIEW";
+      const payoutStatus = isFirst ? "PAID" : "PENDING";
+      const decision = isFirst ? "APPROVED" : "REVIEW_REQUIRED";
       
-      // ✅ FULL OBJECT TO REMOVE N/A
       const fraudResults = {
         ...getAllPassedChecks(),
         duplicateCheck: isFirst ? "PASSED" : "FAILED"
@@ -198,7 +198,8 @@ export default function WorkerDashboard() {
         dna_hourly_rate: Math.round(baseRate * multiplier),
         compensation: Math.round(compensation),
         status: claimStatus,
-        decision: decision,
+        payoutStatus: payoutStatus,
+        decision: isFirst ? "APPROVED" : "REVIEW",
         fraudChecks: fraudResults,
         trustScore: isFirst ? 95 : 45,
         weather: {
@@ -214,7 +215,9 @@ export default function WorkerDashboard() {
         simulationCount: newCount,
         riskScore: newRisk,
         fraudChecks: fraudResults,
-        claimStatus: decision,
+        claimStatus: claimStatus,
+        payoutStatus: payoutStatus,
+        decision: decision,
         lastSimulation: Date.now(),
         updatedAt: serverTimestamp()
       });
