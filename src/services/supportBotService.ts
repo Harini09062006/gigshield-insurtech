@@ -46,46 +46,62 @@ const RESPONSES = {
  * @param userName Optional name to personalize greetings.
  */
 export function getBotResponse(input: string, userName?: string): BotResult {
-  const text = input.toLowerCase();
-  let category: keyof typeof RESPONSES = 'FALLBACK';
-  let needsEscalation = false;
+  try {
+    const text = (input || "").toLowerCase();
+    let category: keyof typeof RESPONSES = 'FALLBACK';
+    let needsEscalation = false;
 
-  // 1. Check for Greetings
-  if (text.match(/\b(hi|hello|hey|greetings|good morning|good afternoon|good evening)\b/)) {
-    category = 'GREETING';
-  } 
-  // 2. Check for DNA/Earnings
-  else if (text.match(/\b(dna|earnings|peak|multiplier|income|working hours)\b/)) {
-    category = 'DNA';
-  }
-  // 3. Check for Weather Queries
-  else if (text.match(/\b(rain|weather|forecast|storm|flood|pollution|aqi|risk|heat)\b/)) {
-    category = 'WEATHER';
-  } 
-  // 4. Check for Payment/Claim Issues (Triggers Escalation)
-  else if (text.match(/\b(payment|claim|money|payout|not received|issue|error|failed|rejected|delayed|refund)\b/)) {
-    category = 'PAYMENT_CLAIM';
-    needsEscalation = true;
-  } 
-  // 5. Check for General Help
-  else if (text.match(/\b(help|support|assist|info|how to|manual|guide)\b/)) {
-    category = 'HELP';
-  }
+    // 1. Check for Greetings
+    if (text.match(/\b(hi|hello|hey|greetings|good morning|good afternoon|good evening)\b/)) {
+      category = 'GREETING';
+    } 
+    // 2. Check for DNA/Earnings
+    else if (text.match(/\b(dna|earnings|peak|multiplier|income|working hours)\b/)) {
+      category = 'DNA';
+    }
+    // 3. Check for Weather Queries
+    else if (text.match(/\b(rain|weather|forecast|storm|flood|pollution|aqi|risk|heat)\b/)) {
+      category = 'WEATHER';
+    } 
+    // 4. Check for Payment/Claim Issues (Triggers Escalation)
+    else if (text.match(/\b(payment|claim|money|payout|not received|issue|error|failed|rejected|delayed|refund)\b/)) {
+      category = 'PAYMENT_CLAIM';
+      needsEscalation = true;
+    } 
+    // 5. Check for General Help
+    else if (text.match(/\b(help|support|assist|info|how to|manual|guide)\b/)) {
+      category = 'HELP';
+    }
 
-  const responses = RESPONSES[category];
-  let response = responses[Math.floor(Math.random() * responses.length)];
-  
-  // Replace placeholders
-  if (category === 'FALLBACK') {
-    response = response.replace('{{input}}', input);
-  }
+    const responses = RESPONSES[category];
+    let response = responses[Math.floor(Math.random() * responses.length)];
+    
+    // Replace placeholders
+    if (category === 'FALLBACK') {
+      response = response.replace('{{input}}', input || "this");
+    }
 
-  if (userName && category === 'GREETING') {
-    response = response.replace('there', userName.split(' ')[0]);
-  }
+    if (userName && category === 'GREETING') {
+      response = response.replace('there', userName.split(' ')[0]);
+    }
 
-  return {
-    botResponse: response,
-    needsEscalation
-  };
+    // Final safety check
+    if (!response) {
+      return {
+        botResponse: "I'm listening. How can I help you with GigShield?",
+        needsEscalation: false
+      };
+    }
+
+    return {
+      botResponse: response,
+      needsEscalation
+    };
+  } catch (error) {
+    console.error("[Bot Service] Logic error:", error);
+    return {
+      botResponse: "I encountered a small hiccup. What were we talking about?",
+      needsEscalation: false
+    };
+  }
 }

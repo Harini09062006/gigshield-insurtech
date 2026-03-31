@@ -79,26 +79,31 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
     const text = input.trim();
     if (!text || !user || !db) return;
 
+    console.log("[AI Assistant] User message:", text);
     setInput("");
     
-    // 3. FIRESTORE WRITE: Store User Message / Support Ticket
-    // Includes requested fields: userId, message, timestamp, status
-    await addDoc(collection(db, "support_messages"), {
-      userId: user.uid,
-      userName: profile?.name || "Worker",
-      text, // Internal UI field
-      message: text, // Requested field
-      sender: "user",
-      status: "pending", // Initial status for admin visibility
-      timestamp: serverTimestamp()
-    });
+    try {
+      // 3. FIRESTORE WRITE: Store User Message
+      await addDoc(collection(db, "support_messages"), {
+        userId: user.uid,
+        userName: profile?.name || "Worker",
+        text,
+        message: text,
+        sender: "user",
+        status: "pending",
+        timestamp: serverTimestamp()
+      });
 
-    // 4. BOT INTELLIGENCE & AUTO-ESCALATION
-    setIsBotThinking(true);
-    setTimeout(async () => {
-      const { botResponse, needsEscalation } = getBotResponse(text, profile?.name);
+      // 4. BOT INTELLIGENCE & AUTO-ESCALATION
+      setIsBotThinking(true);
       
-      // Save Bot Response / Escalation Notification
+      // Artificial delay for realism
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const { botResponse, needsEscalation } = getBotResponse(text, profile?.name);
+      console.log("[AI Assistant] Bot reply:", botResponse);
+
+      // Save Bot Response
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
@@ -109,8 +114,21 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         timestamp: serverTimestamp()
       });
       
+    } catch (error) {
+      console.error("[AI Assistant] Message error:", error);
+      // Fallback response on failure
+      await addDoc(collection(db, "support_messages"), {
+        userId: user.uid,
+        userName: "GigShield Assistant",
+        text: "I'm having trouble connecting right now. Let me find an admin to help you.",
+        message: "Connection failed fallback",
+        sender: "bot",
+        status: "pending",
+        timestamp: serverTimestamp()
+      });
+    } finally {
       setIsBotThinking(false);
-    }, 800);
+    }
   };
 
   // Determine if a human admin has engaged or if issue is escalated
@@ -214,6 +232,7 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
 
         <style jsx global>{`
           .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background: #D4CCFF; border-radius: 10px; }
           .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6C47FF; }
         `}</style>
