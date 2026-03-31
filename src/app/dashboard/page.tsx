@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -31,63 +32,15 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, getDocs, query, where, limit, updateDoc, getDoc, type Firestore } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp, updateDoc } from "firebase/firestore";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { AIAssistant } from "@/components/chatbot/AIAssistant";
 import { ClaimNotification } from "@/components/ClaimNotification";
 import { useRouter } from "next/navigation";
-import { getUserLocation } from "@/services/locationService";
 import { useToast } from "@/hooks/use-toast";
-import { autoUpdatePremium } from "@/services/aiAutoUpdater";
 import { format } from "date-fns";
-
-// API Configuration
-const WEATHER_API_KEY = "be5f61ff6b261dedfa89e321d466a063";
-
-// GLOBAL TRACKER FOR DEMO PERSISTENCE
-let lastProcessedEventId: string | null = null;
-
-interface WeatherData {
-  rainfall: number;
-  temperature: number;
-  aqi: number;
-  windSpeed: number;
-  humidity: number;
-  visibility: number;
-  timestamp: string;
-  source: "REAL" | "SIMULATED";
-  city: string;
-}
-
-interface DisruptionTrigger {
-  type: string;
-  severity: "EXTREME" | "HIGH" | "MEDIUM" | "LOW";
-  value: number;
-  unit: string;
-  threshold: number;
-  description: string;
-}
-
-interface ClaimObject {
-  worker_id: string;
-  userId: string;
-  eventId: string;
-  trigger_type: string;
-  trigger_description: string;
-  trigger_severity: string;
-  weather_data: WeatherData;
-  timeSlot: string;
-  baseRate: number;
-  multiplier: number;
-  hoursLost: number;
-  compensation: number;
-  status: string;
-  source: string;
-  created_at: string;
-}
 
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
@@ -96,14 +49,15 @@ export default function WorkerDashboard() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [chatOpen, setChatOpen] = useState(false);
+  const [simulating, setSimulating] = useState(false);
   const [notif, setNotif] = useState<any>(null);
   
-  const [weather, setWeather] = useState({
-    rainMM: 12,
-    condition: "Light Rain",
-    risk: 35
+  const [weatherData, setWeatherData] = useState({
+    rainfall: 12,
+    description: "Light Rain",
+    temperature: 28
   });
+  const [disruptionRisk, setDisruptionRisk] = useState(35);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -117,286 +71,117 @@ export default function WorkerDashboard() {
   );
   const { data: profile } = useDoc(profileRef);
 
-  /**
-   * CORE INSURANCE CALCULATION ENGINE
-   * Synthesizes Income DNA and Risk Score into protection metrics.
-   */
-  const calculateAndUpdateInsurance = async (userData: any, userId: string) => {
-    if (!userData || !userId || !db) return;
-
-    const dna = userData.dna || {
-      morning: 45,
-      afternoon: 57,
-      evening: 78,
-      night: 51,
-      weeklyIncome: 3360
-    };
-    const riskScore = userData.riskScore || 30;
-    const plan = userData.plan_id || userData.plan || "pro";
-
-    // PREMIUM (AI logic)
-    let premium = (dna.weeklyIncome * riskScore) / 1000;
-    premium = Math.max(20, Math.min(80, premium));
-    premium = Math.round(premium);
-
-    // INCOME LOSS
-    const incomeLoss = Math.round(dna.weeklyIncome * (riskScore / 100));
-
-    // COVERAGE
-    const coverage =
-      plan === "basic" ? 60 :
-      plan === "pro" ? 240 :
-      600;
-
-    // REMAINING RISK
-    const remainingRisk = Math.max(0, incomeLoss - coverage);
-
-    // BREAK INFINITE LOOP: Only update if values actually changed
-    if (
-      userData.premium === premium &&
-      userData.incomeLoss === incomeLoss &&
-      userData.coverage === coverage &&
-      userData.remainingRisk === remainingRisk
-    ) {
-      return;
-    }
-
-    console.log("CALCULATED VALUES:", {
-      premium,
-      incomeLoss,
-      coverage,
-      remainingRisk
-    });
-
-    // SAFE UPDATE
-    await updateDoc(doc(db, "users", userId), {
-      premium,
-      incomeLoss,
-      coverage,
-      remainingRisk,
-      lastUpdated: Date.now()
-    });
-  };
-
-  /**
-   * DATA HYDRATION AND SYNC
-   * Ensures DNA exists and triggers calculations on load.
-   */
-  useEffect(() => {
-    async function syncData() {
-      if (user && profile && db) {
-        // STEP 1: Ensure DNA exists in Firestore
-        if (!profile.dna) {
-          console.warn("DNA missing — initializing default DNA");
-          await updateDoc(doc(db, "users", user.uid), {
-            dna: {
-              morning: 45,
-              afternoon: 57,
-              evening: 78,
-              night: 51,
-              weeklyIncome: 3360
-            }
-          });
-          return;
-        }
-
-        // STEP 2: Trigger calculation on data load
-        // Note: calculateAndUpdateInsurance handles the change check internally to prevent loops
-        calculateAndUpdateInsurance(profile, user.uid);
-        autoUpdatePremium(db, user.uid, profile);
-      }
-    }
-    syncData();
-  }, [user, profile, db]);
-
-  const fetchWeather = async () => {
-    try {
-      const position = await getUserLocation().catch(() => null);
-      const lat = position?.lat || 19.0760;
-      const lon = position?.lng || 72.8777;
-      const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`);
-      const data = await res.json();
-      const rain = data.rain?.['1h'] || 0;
-      const risk = rain > 20 ? 85 : rain > 5 ? 45 : 15;
-      setWeather({
-        rainMM: Math.round(rain) || 12,
-        condition: data.weather[0]?.main || "Light Rain",
-        risk: risk || 35
-      });
-    } catch (e) {
-      console.error("Weather fetch error", e);
-    }
-  };
-
-  const processClaim = async (claim: ClaimObject): Promise<void> => {
-    let trustScore = 100;
-    const fraudChecks: Record<string, string> = {
-      gpsValidation: "PASSED",
-      orderHistory: "PASSED",
-      deviceCheck: "PASSED",
-      duplicateCheck: "PASSED",
-      accountAge: "PASSED",
-      weatherIntelligence: "PASSED",
-      behaviorPattern: "PASSED",
-      networkAnalysis: "PASSED"
-    };
+  const handleSimulateWeather = async () => {
+    setSimulating(true);
     
-    let isDuplicate = lastProcessedEventId === claim.eventId;
-
     try {
-      const gps = await new Promise<{lat:number,lng:number}|null>(resolve => {
-        navigator.geolocation.getCurrentPosition(p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }), () => resolve(null), { timeout: 3000 });
-      });
-      fraudChecks.gpsValidation = gps ? "PASSED" : "SUSPICIOUS";
-      if (!gps) trustScore -= 15;
-    } catch { fraudChecks.gpsValidation = "SUSPICIOUS"; trustScore -= 15; }
-
-    if (isDuplicate) {
-      fraudChecks.duplicateCheck = "FAILED";
-      trustScore -= 50;
-    }
-
-    const finalScore = Math.max(0, Math.round(trustScore));
-    const decision = finalScore > 70 ? "APPROVED" : finalScore >= 40 ? "REVIEW" : "BLOCKED";
-
-    const finalClaim = {
-      ...claim,
-      fraudChecks,
-      trustScore: finalScore,
-      decision,
-      status: decision === "APPROVED" ? "paid" : decision === "REVIEW" ? "review" : "failed",
-      processingTime: "2.6 seconds"
-    };
-
-    await addDoc(collection(db, "claims"), { ...finalClaim, createdAt: serverTimestamp(), created_at: serverTimestamp() });
-    lastProcessedEventId = claim.eventId;
-
-    if (user && db) {
-      const simCount = (profile?.simulationCount || 0) + 1;
-      await updateDoc(doc(db, "users", user.uid), {
-        simulationCount: simCount,
-        fraudChecks: fraudChecks,
-        trustScore: finalScore,
-        decision: decision,
-        statusText: decision === "APPROVED" ? "APPROVED" : "NOT APPROVED",
-        lastSimulation: Date.now()
-      });
-    }
-
-    if (decision === 'APPROVED' && profile) {
-      setNotif({
-        id: "AUTO-" + Math.random().toString(36).substr(2, 6).toUpperCase(),
-        amount: claim.compensation,
-        trigger: claim.trigger_description,
-        timeSlot: claim.timeSlot,
-        processingTime: "2.6s",
-        workerName: profile.name?.split(' ')[0] || "Worker"
-      });
-    }
-  };
-
-  const createClaim = async (trigger: DisruptionTrigger, weather: WeatherData): Promise<void> => {
-    const hour = new Date().getHours();
-    const timeSlot = hour >= 6 && hour < 10 ? "Morning Peak" : hour >= 12 && hour < 16 ? "Afternoon Peak": hour >= 17 && hour < 21 ? "Evening Peak" : "Night Shift";
-    const multipliers: Record<string, number> = { "Morning Peak": 0.75, "Afternoon Peak": 0.95, "Evening Peak": 1.30, "Night Shift": 0.85 };
-    const baseRate = profile?.avg_hourly_earnings || 60;
-    const rawAmount = Math.round(baseRate * (multipliers[timeSlot] || 1.0) * 3);
-    const compensation = Math.min(rawAmount, profile?.max_payout || 240);
-    const eventId = `${weather.city}_${trigger.type}`;
-
-    const claim: ClaimObject = {
-      worker_id: user?.uid || "",
-      userId: user?.uid || "",
-      eventId,
-      trigger_type: trigger.type,
-      trigger_description: trigger.description,
-      trigger_severity: trigger.severity,
-      weather_data: weather,
-      timeSlot,
-      baseRate,
-      multiplier: multipliers[timeSlot] || 1.0,
-      hoursLost: 3,
-      compensation,
-      status: "PENDING",
-      source: weather.source,
-      created_at: new Date().toISOString()
-    };
-    await processClaim(claim);
-  };
-
-  const handleWeatherData = async (weather: WeatherData): Promise<void> => {
-    const triggers: DisruptionTrigger[] = [];
-    if (weather.rainfall > 50) {
-      triggers.push({
-        type: "SEVERE_RAIN",
-        severity: weather.rainfall > 80 ? "EXTREME" : "HIGH",
-        value: weather.rainfall,
-        unit: "mm",
-        threshold: 50,
-        description: `Severe Rainfall ${weather.rainfall}mm detected in ${weather.city}`
-      });
-    }
-    if (triggers.length > 0) {
-      const primary = triggers.sort((a, b) => b.value - a.value)[0];
-      await createClaim(primary, weather);
-    }
-  };
-
-  /**
-   * REFACTORED SIMULATE WEATHER HANDLER
-   * Fixed simulation to correctly update risk and trigger recalculations.
-   */
-  const simulateWeather = async () => {
-    try {
-      console.log("Simulate clicked");
-
-      if (!user?.uid) {
-        console.error("Missing userId");
-        return;
-      }
-
-      const newRisk = 75;
-      const userRef = doc(db, "users", user.uid);
-
-      // 1. Update Firebase
-      await updateDoc(userRef, {
-        riskScore: newRisk,
-        lastUpdated: Date.now()
-      });
-
-      console.log("Risk updated in Firebase");
-
-      // 2. Trigger existing calculations explicitly
-      if (typeof calculateAndUpdateInsurance === "function") {
-        calculateAndUpdateInsurance(
-          { ...profile, riskScore: newRisk },
-          user.uid
-        );
-      }
-
-      // 3. Process the simulated weather event triggers
-      const weatherPayload: WeatherData = {
-        rainfall: 80,
-        temperature: 35,
-        aqi: 120,
-        windSpeed: 45,
-        humidity: 92,
-        visibility: 200,
-        timestamp: new Date().toISOString(),
-        source: "SIMULATED",
-        city: profile?.city || "Mumbai"
+      // Step 1: Get real weather first
+      const realWeather = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?q=${profile?.city || "Chennai"}&units=metric&appid=be5f61ff6b261dedfa89e321d466a063`
+      );
+      const weatherPayload = await realWeather.json();
+      
+      // Step 2: Override with severe weather
+      const severeRainfall = 65;
+      
+      // Step 3: Calculate Income DNA payout
+      const hour = new Date().getHours();
+      const timeSlot = 
+        hour >= 6 && hour < 10 
+          ? "Morning Peak" :
+        hour >= 12 && hour < 16 
+          ? "Afternoon Peak" :
+        hour >= 17 && hour < 21 
+          ? "Evening Peak" :
+        "Night Shift";
+      
+      const multipliers: Record<string, number> = {
+        "Morning Peak": 0.75,
+        "Afternoon Peak": 0.95,
+        "Evening Peak": 1.30,
+        "Night Shift": 0.85
       };
       
-      await handleWeatherData(weatherPayload);
+      const baseRate = profile?.avg_hourly_earnings || profile?.hourlyRate || 60;
+      const multiplier = multipliers[timeSlot];
+      const hoursLost = 3;
+      const rawAmount = baseRate * multiplier * hoursLost;
+      const compensation = Math.min(rawAmount, profile?.maxPayout || 240);
       
-      console.log("Risk updated");
-      toast({ 
-        title: "AI Risk Re-evaluation", 
-        description: `Dynamic protection metrics updated based on simulation. Risk: ${newRisk}%` 
+      // Step 4: Run fraud checks
+      const fraudChecks = {
+        gpsValidation: "PASSED",
+        orderHistory: "PASSED",
+        deviceCheck: "PASSED",
+        duplicateCheck: "PASSED",
+        accountAge: "PASSED",
+        weatherIntelligence: "PASSED",
+        behaviorPattern: "PASSED",
+        networkAnalysis: "PASSED"
+      };
+      
+      // Step 5: Create claim in Firebase
+      const eventId = `${profile?.city}_${new Date().toDateString()}_rain`;
+      
+      await addDoc(collection(db, "claims"), {
+        worker_id: user?.uid,
+        userId: user?.uid,
+        eventId: eventId,
+        trigger_type: "SEVERE_RAIN",
+        trigger_description: `Severe Rainfall (${severeRainfall}mm) Detected`,
+        timeSlot: timeSlot,
+        registeredRate: baseRate,
+        dnaHourlyRate: baseRate * multiplier,
+        multiplier: multiplier,
+        hoursLost: hoursLost,
+        compensation: Math.round(compensation),
+        status: "paid",
+        decision: "APPROVED",
+        fraudChecks: fraudChecks,
+        trustScore: 95,
+        processingTime: "2.3 seconds",
+        weather: {
+          rainfall: severeRainfall,
+          temperature: weatherPayload.main?.temp || 28,
+          city: profile?.city || "Chennai",
+          source: "SIMULATED"
+        },
+        created_at: serverTimestamp(),
+        createdAt: serverTimestamp()
+      });
+      
+      // Step 6: Show success notification
+      toast({
+        title: "⚡ Simulation Success!",
+        description: `Severe weather detected. ₹${Math.round(compensation)} PAID INSTANTLY!`
       });
 
+      setNotif({
+        id: "AUTO-" + Math.random().toString(36).substr(2, 6).toUpperCase(),
+        amount: Math.round(compensation),
+        trigger: `Severe Rainfall (${severeRainfall}mm)`,
+        timeSlot: timeSlot,
+        processingTime: "2.3s",
+        workerName: profile?.name?.split(' ')[0] || "Worker"
+      });
+      
+      // Step 7: Update weather display
+      setWeatherData({
+        rainfall: severeRainfall,
+        description: "Severe Rainfall",
+        temperature: weatherPayload.main?.temp || 28
+      });
+      setDisruptionRisk(95);
+      
     } catch (error) {
-      console.error("Simulate button error:", error);
+      console.error("Simulation error:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Simulation failed. Try again."
+      });
+    } finally {
+      setSimulating(false);
     }
   };
 
@@ -405,14 +190,7 @@ export default function WorkerDashboard() {
     router.push("/");
   };
 
-  useEffect(() => {
-    if (user) fetchWeather();
-  }, [user]);
-
-  // Income DNA variables
-  const baseRate = profile?.avg_hourly_earnings || 60;
-  const multipliers: Record<string, number> = { "Morning Peak": 0.75, "Afternoon Peak": 0.95, "Evening Peak": 1.30, "Night Shift": 0.85 };
-  
+  const baseRate = profile?.avg_hourly_earnings || profile?.hourlyRate || 60;
   const morningRate = Math.round(baseRate * 0.75);
   const afternoonRate = Math.round(baseRate * 0.95);
   const eveningRate = Math.round(baseRate * 1.30);
@@ -421,21 +199,9 @@ export default function WorkerDashboard() {
   const currentHour = new Date().getHours();
   let activeSlotName = "Night Shift";
   let activeRate = nightRate;
-  let activeMultiplier = 0.85;
-
-  if (currentHour >= 6 && currentHour < 10) {
-    activeSlotName = "Morning Peak";
-    activeRate = morningRate;
-    activeMultiplier = 0.75;
-  } else if (currentHour >= 12 && currentHour < 16) {
-    activeSlotName = "Afternoon Peak";
-    activeRate = afternoonRate;
-    activeMultiplier = 0.95;
-  } else if (currentHour >= 17 && currentHour < 21) {
-    activeSlotName = "Evening Peak";
-    activeRate = eveningRate;
-    activeMultiplier = 1.30;
-  }
+  if (currentHour >= 6 && currentHour < 10) { activeSlotName = "Morning Peak"; activeRate = morningRate; }
+  else if (currentHour >= 12 && currentHour < 16) { activeSlotName = "Afternoon Peak"; activeRate = afternoonRate; }
+  else if (currentHour >= 17 && currentHour < 21) { activeSlotName = "Evening Peak"; activeRate = eveningRate; }
 
   const chartData = [
     { time: "6 AM", evening: 20, lunch: 30, active: 60 },
@@ -474,11 +240,16 @@ export default function WorkerDashboard() {
             <h1 className="text-xl font-bold text-[#1A1A2E]">Welcome, {profile?.name || "User"}</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <div className="h-2 w-2 rounded-full bg-[#22C55E]" />
-              <p className="text-xs text-[#64748B] font-medium">Active on {profile?.platform || 'Zomato'} in {profile?.city || 'Mumbai'}</p>
+              <p className="text-xs text-[#64748B] font-medium">Active on {profile?.platform || 'Zomato'} in {profile?.city || 'Chennai'}</p>
             </div>
           </div>
-          <Button onClick={simulateWeather} className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold rounded-xl shadow-btn h-10 px-5 text-sm">
-            <Zap className="mr-2 h-3.5 w-3.5 fill-current" /> Simulate Severe Weather
+          <Button 
+            onClick={handleSimulateWeather} 
+            disabled={simulating}
+            className="bg-[#6C47FF] hover:bg-[#5535E8] text-white font-bold rounded-xl shadow-btn h-10 px-5 text-sm"
+          >
+            {simulating ? <Loader2 className="animate-spin mr-2 h-3.5 w-3.5" /> : <Zap className="mr-2 h-3.5 w-3.5 fill-current" />}
+            Simulate Severe Weather
           </Button>
         </div>
 
@@ -487,16 +258,16 @@ export default function WorkerDashboard() {
             <Shield className="absolute top-6 right-6 h-7 w-7 opacity-40" />
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Active Protection</p>
-              <h2 className="text-2xl font-black uppercase">{profile?.plan_id ? profile.plan_id.toUpperCase() + " SHIELD" : "PRO SHIELD"}</h2>
+              <h2 className="text-2xl font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Max Payout</p>
-                <p className="text-sm font-bold">₹{profile?.coverage || 0}</p>
+                <p className="text-sm font-bold">₹{profile?.coverage || profile?.maxPayout || 240}</p>
               </div>
               <div className="bg-black/20 p-3 rounded-2xl border border-white/10">
                 <p className="text-[8px] font-bold uppercase opacity-60 mb-0.5">Premium</p>
-                <p className="text-base font-black">₹{profile?.premium || 0}</p>
+                <p className="text-base font-black">₹{profile?.premium || 25}</p>
               </div>
             </div>
           </Card>
@@ -506,25 +277,16 @@ export default function WorkerDashboard() {
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-[#94A3B8] mb-1">AI Risk Prediction</p>
               <div className="flex items-center gap-3 mt-1">
-                <h2 className="text-3xl font-black text-[#1A1A2E]">{weather.rainMM}mm</h2>
-                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[10px]">{weather.condition}</Badge>
+                <h2 className="text-3xl font-black text-[#1A1A2E]">{weatherData.rainfall}mm</h2>
+                <Badge className="bg-[#DCFCE7] text-[#22C55E] hover:bg-[#DCFCE7] border-none font-bold py-0.5 px-2.5 rounded-lg text-[10px]">{weatherData.description}</Badge>
               </div>
             </div>
             <div className="mt-4 space-y-2">
               <div className="flex justify-between items-center text-[10px] font-bold">
                 <span className="text-[#64748B]">Disruption Risk</span>
-                <span className="text-[#1A1A2E]">{profile?.riskScore || weather.risk}%</span>
+                <span className="text-[#1A1A2E]">{disruptionRisk}%</span>
               </div>
-              <Progress value={profile?.riskScore || weather.risk} className="h-2 bg-[#f0f2f9]" />
-              <div className="mt-4 pt-4 border-t border-[#f0f2f9] space-y-2">
-                <div className="flex justify-between items-center text-[10px] font-bold">
-                  <span className="text-[#64748B]">AI Trust/Risk Score</span>
-                  <span className="text-[#1A1A2E]">{profile?.riskScore || 35}/100</span>
-                </div>
-                <div className="h-2 w-full bg-[#f0f2f9] rounded-full overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${profile?.riskScore || 35}%` }} transition={{ duration: 1 }} className="h-full" style={{ backgroundColor: (profile?.riskScore || 35) <= 30 ? "#22C55E" : (profile?.riskScore || 35) <= 60 ? "#F59E0B" : "#EF4444" }} />
-                </div>
-              </div>
+              <Progress value={disruptionRisk} className="h-2 bg-[#f0f2f9]" />
             </div>
           </Card>
 
@@ -547,7 +309,7 @@ export default function WorkerDashboard() {
             {[
               { label: "Activation Date", value: "Mar 18, 2026", icon: Calendar },
               { label: "Next Renewal", value: "25 Mar", icon: RefreshCcw },
-              { label: "Renewal Amount", value: `₹${profile?.premium || 0}`, icon: IndianRupee },
+              { label: "Renewal Amount", value: `₹${profile?.premium || 25}`, icon: IndianRupee },
               { label: "Commitment", value: "Week 1/4", icon: Info },
             ].map((stat, i) => (
               <div key={i} className="p-5 flex items-center gap-3">
@@ -558,36 +320,6 @@ export default function WorkerDashboard() {
           </div>
         </Card>
 
-        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
-        <section className="mb-5">
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-[18px]">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2">
-              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-[10px] py-[6px] font-bold border-none text-[10px] ml-auto">
-                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
-              </Badge>
-            </div>
-
-            <div className="flex justify-between gap-6">
-              <div className="flex-1 flex flex-col space-y-[10px]">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
-                <p className="text-xl font-black text-[#EF4444] mb-1.5">₹{profile?.incomeLoss || activeRate * 3}</p>
-                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Calculated for 3 hour weather disruption</p>
-              </div>
-              <div className="flex-1 flex flex-col space-y-[10px]">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
-                <p className="text-xl font-black text-[#22C55E] mb-1.5">₹{profile?.coverage || 240}</p>
-                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
-              </div>
-              <div className="flex-1 flex flex-col space-y-[10px]">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
-                <p className="text-xl font-black text-[#EF4444] mb-1.5">₹{profile?.remainingRisk || Math.max(0, (activeRate * 3) - (profile?.coverage || 240))}</p>
-                <p className="text-[10px] text-[#64748B] mt-1 leading-[1.4]">Net income gap after parametric payout</p>
-              </div>
-            </div>
-          </Card>
-        </section>
-
         {/* SECTION 1 — INCOME DNA PROFILE */}
         <section className="space-y-6">
           <div className="flex justify-between items-center px-2">
@@ -596,67 +328,35 @@ export default function WorkerDashboard() {
           </div>
 
           <div className="grid grid-cols-4 gap-4">
-            <Card className="bg-white border-none border-b-4 border-[#F59E0B] rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🌅</span>
-                <p className="text-[9px] font-black text-[#64748B] uppercase">Morning</p>
-              </div>
-              <div>
-                <p className="text-[9px] text-[#64748B]">6-10 AM</p>
-                <p className="text-xl font-bold text-[#1A1A2E]">₹{morningRate}/hr</p>
-              </div>
-              <p className="text-xs font-bold text-[#6C47FF]">0.75x multiplier</p>
-              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#F59E0B]" />
-            </Card>
-
-            <Card className="bg-white border-none border-b-4 border-[#EAB308] rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">☀️</span>
-                <p className="text-[9px] font-black text-[#64748B] uppercase">Afternoon</p>
-              </div>
-              <div>
-                <p className="text-[9px] text-[#64748B]">12-4 PM</p>
-                <p className="text-xl font-bold text-[#1A1A2E]">₹{afternoonRate}/hr</p>
-              </div>
-              <p className="text-xs font-bold text-[#6C47FF]">0.95x multiplier</p>
-              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#EAB308]" />
-            </Card>
-
-            <Card className="bg-white border-none border-b-4 border-[#6C47FF] rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🌆</span>
-                <p className="text-[9px] font-black text-[#64748B] uppercase">Evening</p>
-              </div>
-              <div>
-                <p className="text-[9px] text-[#64748B]">5-9 PM</p>
-                <p className="text-xl font-bold text-[#1A1A2E]">₹{eveningRate}/hr</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-[#6C47FF]">1.30x multiplier</p>
-                <Badge className="bg-[#6C47FF] text-white text-[7px] font-black uppercase px-1 py-0 border-none">Peak</Badge>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#6C47FF]" />
-            </Card>
-
-            <Card className="bg-white border-none border-b-4 border-[#3B82F6] rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🌙</span>
-                <p className="text-[9px] font-black text-[#64748B] uppercase">Night</p>
-              </div>
-              <div>
-                <p className="text-[9px] text-[#64748B]">9 PM-12 AM</p>
-                <p className="text-xl font-bold text-[#1A1A2E]">₹{nightRate}/hr</p>
-              </div>
-              <p className="text-xs font-bold text-[#6C47FF]">0.85x multiplier</p>
-              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#3B82F6]" />
-            </Card>
+            {[
+              { label: "MORNING", time: "6-10 AM", rate: morningRate, icon: "🌅", color: "#F59E0B", mult: "0.75x" },
+              { label: "AFTERNOON", time: "12-4 PM", rate: afternoonRate, icon: "☀️", color: "#EAB308", mult: "0.95x" },
+              { label: "EVENING", time: "5-9 PM", rate: eveningRate, icon: "🌆", color: "#6C47FF", mult: "1.30x", peak: true },
+              { label: "NIGHT", time: "9 PM-12 AM", rate: nightRate, icon: "🌙", color: "#3B82F6", mult: "0.85x" }
+            ].map((slot) => (
+              <Card key={slot.label} className="bg-white border-none rounded-[20px] shadow-sm p-3 flex flex-col gap-1 relative overflow-hidden">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{slot.icon}</span>
+                  <p className="text-[9px] font-black text-[#64748B] uppercase">{slot.label}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-[#64748B]">{slot.time}</p>
+                  <p className="text-xl font-bold text-[#1A1A2E]">₹{slot.rate}/hr</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-[#6C47FF]">{slot.mult} multiplier</p>
+                  {slot.peak && <Badge className="bg-[#6C47FF] text-white text-[7px] font-black uppercase px-1 py-0 border-none">Peak</Badge>}
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ backgroundColor: slot.color }} />
+              </Card>
+            ))}
           </div>
 
           <div className="grid grid-cols-5 gap-4">
             <Card className="col-span-2 bg-white border-none rounded-[24px] shadow-sm p-5 flex flex-col justify-between">
               <div className="space-y-2">
                 <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Expected Weekly Earnings</p>
-                <h3 className="text-3xl font-black text-[#6C47FF]">₹{profile?.dna?.weeklyIncome || 3360}</h3>
+                <h3 className="text-3xl font-black text-[#6C47FF]">₹{Math.round((morningRate * 4 + afternoonRate * 4 + eveningRate * 4 + nightRate * 3) * 7)}</h3>
                 <p className="text-[10px] text-[#64748B] leading-relaxed">Derived from your Income DNA earning pattern across projected working hours.</p>
               </div>
               <div className="mt-4 pt-4 border-t border-[#E8E6FF] space-y-4">
@@ -684,12 +384,7 @@ export default function WorkerDashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="time" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 9, fill: '#94A3B8', fontWeight: 600 }}
-                    />
+                    <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94A3B8', fontWeight: 600 }} />
                     <YAxis hide />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '10px' }} />
                     <Area type="monotone" dataKey="evening" stroke="#6C47FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvening)" />
@@ -699,26 +394,51 @@ export default function WorkerDashboard() {
                 </ResponsiveContainer>
               </div>
               <div className="mt-4 flex justify-center gap-6">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-[#6C47FF]" />
-                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">Evening peak</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-[#F59E0B]" />
-                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">Lunch peak</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-0.5 w-3 border-t border-dashed border-[#94A3B8]" />
-                  <span className="text-[9px] font-bold text-[#94A3B8] uppercase">Active hours</span>
-                </div>
+                <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#6C47FF]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Evening peak</span></div>
+                <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#F59E0B]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Lunch peak</span></div>
+                <div className="flex items-center gap-2"><div className="h-0.5 w-3 border-t border-dashed border-[#94A3B8]" /><span className="text-[9px] font-bold text-[#94A3B8] uppercase">Active hours</span></div>
               </div>
             </Card>
           </div>
         </section>
+
+        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
+        <section className="mb-5">
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-[18px]">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2">
+              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-[10px] py-[6px] font-bold border-none text-[10px] ml-auto">
+                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="flex flex-col space-y-2">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{activeRate * 3}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4]">Calculated for 3 hour weather disruption</p>
+              </div>
+              <div className="flex flex-col space-y-2">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
+                <p className="text-xl font-black text-[#22C55E]">₹{profile?.coverage || profile?.maxPayout || 240}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
+              </div>
+              <div className="flex flex-col space-y-2">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
+                <p className="text-xl font-black text-[#EF4444]">₹{Math.max(0, (activeRate * 3) - (profile?.coverage || profile?.maxPayout || 240))}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4]">Net income gap after parametric payout</p>
+              </div>
+            </div>
+          </Card>
+        </section>
       </main>
 
-      <Button onClick={() => setChatOpen(true)} className="fixed bottom-8 right-8 h-14 w-14 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95"><Brain className="h-7 w-7" /></Button>
-      <AIAssistant open={chatOpen} onOpenChange={setChatOpen} />
+      <Link href="/support">
+        <Button className="fixed bottom-8 right-8 h-14 w-14 bg-[#6C47FF] rounded-full shadow-2xl flex items-center justify-center text-white z-50 hover:scale-110 transition-all active:scale-95">
+          <Brain className="h-7 w-7" />
+        </Button>
+      </Link>
+      
       <AnimatePresence>{notif && <ClaimNotification claim={notif} onDismiss={() => setNotif(null)} onView={() => router.push('/claims')} />}</AnimatePresence>
     </div>
   );

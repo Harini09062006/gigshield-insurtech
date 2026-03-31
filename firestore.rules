@@ -10,11 +10,28 @@ service cloud.firestore {
 
     // Specific rules for claims to support ordered queries with filtering
     match /claims/{claimId} {
+      allow list: if request.auth != null;
+      allow get: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
       allow read: if request.auth != null && (
         resource.data.worker_id == request.auth.uid || 
         resource.data.userId == request.auth.uid
       );
-      allow write: if request.auth != null;
+    }
+
+    match /support_messages/{id} {
+      allow list: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+    }
+
+    match /support_tickets/{id} {
+      allow list: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
     }
 
     // 🔓 FULLY OPEN RULES FOR OTHER COLLECTIONS DURING PROTOTYPE DEVELOPMENT
