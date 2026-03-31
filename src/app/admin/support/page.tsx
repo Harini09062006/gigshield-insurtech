@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { 
   useFirestore, 
   useUser, 
@@ -16,9 +15,7 @@ import {
   serverTimestamp, 
   getDoc, 
   addDoc, 
-  limit, 
-  onSnapshot,
-  orderBy
+  onSnapshot
 } from "firebase/firestore";
 import { 
   Shield, 
@@ -53,8 +50,13 @@ export default function AdminSupportPortal() {
   const [selectedIssue, setSelectedIssue] = useState<any>(null);
   const [replyText, setReplyText] = useState("");
   const [issues, setIssues] = useState<any[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [rawMessages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // In-memory sort to avoid Firestore index requirement
+  const messages = useMemo(() => {
+    return [...rawMessages].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  }, [rawMessages]);
 
   // 1. AUTH & ROLE CHECK
   useEffect(() => {
@@ -99,10 +101,10 @@ export default function AdminSupportPortal() {
   useEffect(() => {
     if (!selectedIssue || !db) return;
     
+    // Removed orderBy to prevent Index Error
     const q = query(
       collection(db, "chats"),
-      where("userId", "==", selectedIssue.userId),
-      orderBy("createdAt", "asc")
+      where("userId", "==", selectedIssue.userId)
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {

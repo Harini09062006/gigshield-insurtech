@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Loader2, Home, LogOut, Shield, Brain, User as UserIcon, MessageSquare, Clock, CheckCircle2 } from "lucide-react";
@@ -19,8 +18,7 @@ import {
   where,
   addDoc,
   serverTimestamp,
-  onSnapshot,
-  orderBy
+  onSnapshot
 } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -35,20 +33,25 @@ export default function SupportPage() {
   
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [rawMessages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const profileRef = doc(db, "users", user?.uid || "anonymous");
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
+  // In-memory sort to avoid Firestore index requirement
+  const messages = useMemo(() => {
+    return [...rawMessages].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  }, [rawMessages]);
+
   // FETCH MESSAGES REAL-TIME
   useEffect(() => {
     if (!db || !user?.uid) return;
 
+    // Removed orderBy to prevent Index Error
     const q = query(
       collection(db, "chats"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "asc")
+      where("userId", "==", user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
