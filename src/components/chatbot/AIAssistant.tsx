@@ -30,7 +30,6 @@ import {
   doc, 
   limit 
 } from "firebase/firestore";
-import { getBotResponse } from "@/services/supportBotService";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,55 +74,66 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
     }
   }, [messages, isBotThinking]);
 
+  /**
+   * STABILIZED MESSAGE HANDLER
+   * Ensures AI always responds and loading state is cleared.
+   */
   const handleSend = async () => {
-    const text = input.trim();
-    if (!text || !user || !db) return;
+    const message = input.trim();
+    if (!message || !user || !db) return;
 
-    console.log("[AI Assistant] User message:", text);
     setInput("");
     
     try {
-      // 3. FIRESTORE WRITE: Store User Message
+      setIsBotThinking(true);
+
+      // 1. Save User Message to Firestore (updates UI via listener)
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
-        text,
-        message: text,
+        text: message,
         sender: "user",
         status: "pending",
         timestamp: serverTimestamp()
       });
 
-      // 4. BOT INTELLIGENCE & AUTO-ESCALATION
-      setIsBotThinking(true);
-      
-      // Artificial delay for realism
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const { botResponse, needsEscalation } = getBotResponse(text, profile?.name);
-      console.log("[AI Assistant] Bot reply:", botResponse);
+      // 2. Fetch AI Response from stabilized API
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ message })
+      });
 
-      // Save Bot Response
+      if (!res.ok) {
+        throw new Error("AI API request failed");
+      }
+
+      const data = await res.json();
+      console.log("API response:", data);
+
+      const reply = data?.reply || data?.text || "I'm currently recalibrating. Please try asking again in a moment.";
+
+      // 3. Save AI Reply to Firestore
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
-        text: botResponse,
-        message: botResponse,
+        text: reply,
         sender: "bot",
-        status: needsEscalation ? "pending" : "resolved",
+        status: "resolved",
         timestamp: serverTimestamp()
       });
       
-    } catch (error) {
-      console.error("[AI Assistant] Message error:", error);
-      // Fallback response on failure
+    } catch (err) {
+      console.error("AI ERROR:", err);
+      // Save error message to chat history
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: "GigShield Assistant",
-        text: "I'm having trouble connecting right now. Let me find an admin to help you.",
-        message: "Connection failed fallback",
+        text: "I encountered a connection issue. If this persists, I'll alert a human admin to help you.",
         sender: "bot",
-        status: "pending",
+        status: "error",
         timestamp: serverTimestamp()
       });
     } finally {

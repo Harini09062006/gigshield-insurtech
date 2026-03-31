@@ -26,7 +26,6 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { getBotResponse } from "@/services/supportBotService";
 import { format } from "date-fns";
 
 export default function SupportPage() {
@@ -62,41 +61,70 @@ export default function SupportPage() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, loading]);
 
+  /**
+   * REFACTORED SEND HANDLER
+   * Synchronizes API calls with Firestore persistence.
+   */
   const handleSend = async () => {
-    const text = input.trim();
-    if (!text || !user || !db) return;
+    const message = input.trim();
+    if (!message || !user || !db) return;
 
     setLoading(true);
     setInput("");
 
     try {
-      // 1. Save User Message
+      // 1. Save User Message to Firestore
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
-        text,
+        text: message,
         sender: "user",
         status: "open",
         timestamp: serverTimestamp()
       });
 
-      // 2. Get Smart Bot Response
-      const { botResponse, needsEscalation } = getBotResponse(text, profile?.name);
+      // 2. Fetch AI response via route handler
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ message })
+      });
 
-      // 3. Save Bot Response
+      if (!res.ok) {
+        throw new Error("Failed to connect to AI engine");
+      }
+
+      const data = await res.json();
+      console.log("API response:", data);
+
+      const reply = data?.reply || data?.text || "I'm having trouble thinking clearly. Could you try again?";
+
+      // 3. Save AI Response to Firestore
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
-        userName: "GigShield Bot",
-        text: botResponse,
+        userName: "GigShield Assistant",
+        text: reply,
         sender: "bot",
-        status: needsEscalation ? "open" : "resolved",
+        status: "resolved",
         timestamp: serverTimestamp()
       });
 
     } catch (e) {
-      toast({ variant: "destructive", title: "Message Failed", description: "Connection issue. Try again." });
+      console.error("SUPPORT AI ERROR:", e);
+      toast({ variant: "destructive", title: "Message Failed", description: "Connection issue. Bot is unavailable." });
+      
+      await addDoc(collection(db, "support_messages"), {
+        userId: user.uid,
+        userName: "GigShield Assistant",
+        text: "I experienced a temporary disconnect. Please try again or wait for an admin.",
+        sender: "bot",
+        status: "error",
+        timestamp: serverTimestamp()
+      });
     } finally {
       setLoading(false);
     }
@@ -156,13 +184,21 @@ export default function SupportPage() {
                 }`}>
                   <p className="leading-relaxed">{m.text}</p>
                   <p className={`text-[9px] mt-2 font-black uppercase tracking-tighter opacity-60 ${m.sender === 'user' ? 'text-white' : 'text-[#64748B]'}`}>
-                    {m.sender} • {m.timestamp?.seconds ? format(new Date(m.timestamp.seconds * 1000), "HH:mm") : 'Sending...'}
+                    {m.sender} • {m.timestamp?.seconds ? format(new Date(m.timestamp.seconds * 1000), "HH:mm") : 'Syncing...'}
                   </p>
                 </div>
               </div>
             </motion.div>
           ))}
         </AnimatePresence>
+        {loading && (
+          <div className="flex gap-3 items-center opacity-60">
+            <div className="h-8 w-8 rounded-full bg-white border border-[#E8E6FF] flex items-center justify-center text-[#6C47FF]"><Brain size={14} className="animate-pulse" /></div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[#6C47FF] flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" /> Thinking...
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="p-6 bg-white border-t border-[#E8E6FF] shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
