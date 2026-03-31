@@ -32,7 +32,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, updateDoc } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp, updateDoc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -71,20 +71,53 @@ export default function WorkerDashboard() {
   );
   const { data: profile } = useDoc(profileRef);
 
+  /**
+   * RE-CALCULATE AND UPDATE INSURANCE
+   * Externalized for cross-trigger support.
+   */
+  const calculateAndUpdateInsurance = async (userData: any, userId: string) => {
+    if (!userData || !userId || !db) return;
+
+    const riskScore = userData.riskScore || 30;
+    const plan = userData.plan_id || userData.plan || "pro";
+    const baseRate = userData.avg_hourly_earnings || 60;
+
+    const incomeLoss = Math.round(baseRate * 3 * (riskScore / 100));
+    const coverage = plan === "elite" ? 600 : plan === "pro" ? 240 : 60;
+    const remainingRisk = Math.max(0, incomeLoss - coverage);
+
+    if (
+      userData.incomeLoss === incomeLoss &&
+      userData.coverage === coverage &&
+      userData.remainingRisk === remainingRisk
+    ) return;
+
+    await updateDoc(doc(db, "users", userId), {
+      incomeLoss,
+      coverage,
+      remainingRisk,
+      updatedAt: serverTimestamp()
+    });
+  };
+
   const handleSimulateWeather = async () => {
+    if (!user || !db) return;
+    
+    console.log("Before Simulation:", profile);
     setSimulating(true);
     
     try {
-      // Step 1: Get real weather first
+      // Step 1: Get real baseline weather
       const realWeather = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?q=${profile?.city || "Chennai"}&units=metric&appid=be5f61ff6b261dedfa89e321d466a063`
       );
       const weatherPayload = await realWeather.json();
       
-      // Step 2: Override with severe weather
+      // Step 2: Severe scenario variables
       const severeRainfall = 65;
+      const newRisk = 95;
       
-      // Step 3: Calculate Income DNA payout
+      // Step 3: DNA Calculation
       const hour = new Date().getHours();
       const timeSlot = 
         hour >= 6 && hour < 10 
@@ -108,24 +141,12 @@ export default function WorkerDashboard() {
       const rawAmount = baseRate * multiplier * hoursLost;
       const compensation = Math.min(rawAmount, profile?.maxPayout || 240);
       
-      // Step 4: Run fraud checks
-      const fraudChecks = {
-        gpsValidation: "PASSED",
-        orderHistory: "PASSED",
-        deviceCheck: "PASSED",
-        duplicateCheck: "PASSED",
-        accountAge: "PASSED",
-        weatherIntelligence: "PASSED",
-        behaviorPattern: "PASSED",
-        networkAnalysis: "PASSED"
-      };
-      
-      // Step 5: Create claim in Firebase
-      const eventId = `${profile?.city}_${new Date().toDateString()}_rain`;
+      // Step 4: Add Claim
+      const eventId = `${profile?.city || "City"}_${Date.now()}_rain`;
       
       await addDoc(collection(db, "claims"), {
-        worker_id: user?.uid,
-        userId: user?.uid,
+        worker_id: user.uid,
+        userId: user.uid,
         eventId: eventId,
         trigger_type: "SEVERE_RAIN",
         trigger_description: `Severe Rainfall (${severeRainfall}mm) Detected`,
@@ -137,7 +158,16 @@ export default function WorkerDashboard() {
         compensation: Math.round(compensation),
         status: "paid",
         decision: "APPROVED",
-        fraudChecks: fraudChecks,
+        fraudChecks: {
+          gpsValidation: "PASSED",
+          orderHistory: "PASSED",
+          deviceCheck: "PASSED",
+          duplicateCheck: "PASSED",
+          accountAge: "PASSED",
+          weatherIntelligence: "PASSED",
+          behaviorPattern: "PASSED",
+          networkAnalysis: "PASSED"
+        },
         trustScore: 95,
         processingTime: "2.3 seconds",
         weather: {
@@ -146,11 +176,31 @@ export default function WorkerDashboard() {
           city: profile?.city || "Chennai",
           source: "SIMULATED"
         },
-        created_at: serverTimestamp(),
         createdAt: serverTimestamp()
       });
+
+      // Step 5: Update User Profile (Non-destructive)
+      const simCount = (profile?.simulationCount || 0) + 1;
+      await updateDoc(doc(db, "users", user.uid), {
+        riskScore: newRisk,
+        simulationCount: simCount,
+        lastSimulation: Date.now()
+      });
+
+      // Step 6: Trigger Calculation logic safely
+      if (typeof calculateAndUpdateInsurance === "function") {
+        await calculateAndUpdateInsurance({ ...profile, riskScore: newRisk }, user.uid);
+      }
       
-      // Step 6: Show success notification
+      // Step 7: Update local state safely
+      setWeatherData(prev => ({
+        ...prev,
+        rainfall: severeRainfall,
+        description: "Severe Rainfall",
+        temperature: weatherPayload.main?.temp || 28
+      }));
+      setDisruptionRisk(newRisk);
+
       toast({
         title: "⚡ Simulation Success!",
         description: `Severe weather detected. ₹${Math.round(compensation)} PAID INSTANTLY!`
@@ -164,14 +214,8 @@ export default function WorkerDashboard() {
         processingTime: "2.3s",
         workerName: profile?.name?.split(' ')[0] || "Worker"
       });
-      
-      // Step 7: Update weather display
-      setWeatherData({
-        rainfall: severeRainfall,
-        description: "Severe Rainfall",
-        temperature: weatherPayload.main?.temp || 28
-      });
-      setDisruptionRisk(95);
+
+      console.log("After Simulation: Risk set to", newRisk);
       
     } catch (error) {
       console.error("Simulation error:", error);
@@ -240,7 +284,7 @@ export default function WorkerDashboard() {
             <h1 className="text-xl font-bold text-[#1A1A2E]">Welcome, {profile?.name || "User"}</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <div className="h-2 w-2 rounded-full bg-[#22C55E]" />
-              <p className="text-xs text-[#64748B] font-medium">Active on {profile?.platform || 'Zomato'} in {profile?.city || 'Chennai'}</p>
+              <p className="text-xs text-[#64748B] font-medium">Active on {profile?.platform || 'Delivery'} in {profile?.city || 'Chennai'}</p>
             </div>
           </div>
           <Button 
@@ -319,36 +363,6 @@ export default function WorkerDashboard() {
             ))}
           </div>
         </Card>
-
-        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
-        <section className="mb-5">
-          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2">
-              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
-              <Badge className="bg-[#6C47FF] text-white rounded-full px-2 py-1 font-bold border-none text-[10px] ml-auto">
-                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <div className="flex flex-col space-y-1">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
-                <p className="text-xl font-black text-[#EF4444]">₹{activeRate * 3}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4]">Calculated for 3 hour weather disruption</p>
-              </div>
-              <div className="flex flex-col space-y-1">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
-                <p className="text-xl font-black text-[#22C55E]">₹{profile?.coverage || profile?.maxPayout || 240}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4]">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
-              </div>
-              <div className="flex flex-col space-y-1">
-                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
-                <p className="text-xl font-black text-[#EF4444]">₹{Math.max(0, (activeRate * 3) - (profile?.coverage || profile?.maxPayout || 240))}</p>
-                <p className="text-[10px] text-[#64748B] leading-[1.4]">Net income gap after parametric payout</p>
-              </div>
-            </div>
-          </Card>
-        </section>
 
         {/* SECTION 1 — INCOME DNA PROFILE */}
         <section className="space-y-6">
@@ -430,6 +444,36 @@ export default function WorkerDashboard() {
               </div>
             </Card>
           </div>
+        </section>
+
+        {/* SECTION 2 — EARNINGS PROTECTION SUMMARY */}
+        <section className="mb-5">
+          <Card className="bg-white border border-[#E8E6FF] rounded-[24px] shadow-sm overflow-hidden p-4">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2 px-1">
+              <h2 className="text-base font-bold text-[#1A1A2E]">Earnings Protection Summary</h2>
+              <Badge className="bg-[#6C47FF] text-white rounded-full px-2.5 py-1.5 font-bold border-none text-[10px]">
+                DNA Rate: ₹{activeRate}/hr ({activeSlotName})
+              </Badge>
+            </div>
+
+            <div className="flex justify-between items-start gap-4 px-1">
+              <div className="flex flex-col space-y-[10px] flex-1">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
+                <p className="text-xl font-black text-[#EF4444] mb-1.5">₹{activeRate * 3}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Calculated for 3 hour weather disruption</p>
+              </div>
+              <div className="flex flex-col space-y-[10px] flex-1">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">INSURANCE COVERAGE</p>
+                <p className="text-xl font-black text-[#22C55E] mb-1.5">₹{profile?.coverage || profile?.maxPayout || 240}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Max payout limit for your {profile?.plan_id || 'Pro'} plan</p>
+              </div>
+              <div className="flex flex-col space-y-[10px] flex-1">
+                <p className="text-[11px] font-black text-[#64748B] uppercase tracking-widest">REMAINING RISK</p>
+                <p className="text-xl font-black text-[#EF4444] mb-1.5">₹{Math.max(0, (activeRate * 3) - (profile?.coverage || profile?.maxPayout || 240))}</p>
+                <p className="text-[10px] text-[#64748B] leading-[1.4] mt-1">Net income gap after parametric payout</p>
+              </div>
+            </div>
+          </Card>
         </section>
       </main>
 
