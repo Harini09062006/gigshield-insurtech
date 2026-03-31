@@ -127,6 +127,8 @@ export default function WorkerDashboard() {
     return calculatePremiumBreakdown(profile.city || "", weatherData.rainfall, baseVal);
   }, [profile, weatherData.rainfall]);
 
+  const premiumIncrease = breakdown.finalPremium - breakdown.basePremium;
+
   const metrics = React.useMemo(() => {
     if (!profile) return { incomeLoss: 0, coverage: 0, remainingRisk: 0, premium: 0, riskScore: 35 };
 
@@ -339,38 +341,54 @@ export default function WorkerDashboard() {
         {/* 2. TOP SECTION: 2 CARDS SIDE BY SIDE */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Card 1: Active Protection (Compact) */}
-          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-5 shadow-xl relative overflow-hidden flex flex-col justify-between">
-            <Shield className="absolute top-5 right-5 h-8 w-8 opacity-20" />
+          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-4 shadow-xl relative overflow-hidden flex flex-col gap-3">
+            <Shield className="absolute top-4 right-4 h-6 w-6 opacity-20" />
             <div className="relative z-10">
-              <div className="flex justify-between items-start mb-4">
+              <div className="flex justify-between items-start mb-2">
                 <div>
                   <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-0.5">Active Plan</p>
-                  <h2 className="text-base font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
+                  <h2 className="text-sm font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
                 </div>
                 <div className="text-right">
                   <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-0.5">Max Payout</p>
-                  <p className="text-xs font-bold">₹{metrics.coverage}</p>
+                  <p className="text-[10px] font-bold">₹{metrics.coverage}</p>
                 </div>
               </div>
 
-              <div className="text-center mb-4">
+              <div className="text-center mb-3">
                 <p className="text-4xl font-black mb-0.5">₹{breakdown.finalPremium}</p>
                 <div className="flex flex-col items-center gap-0.5">
                   <p className="text-[8px] font-bold uppercase tracking-[0.2em] opacity-60">AI Calculated</p>
-                  <p className="text-[8px] opacity-50">Based on location & weather</p>
+                  <p className="text-[8px] opacity-50 italic">Based on location & weather</p>
                 </div>
               </div>
 
-              <div className="space-y-1.5 bg-black/10 p-3 rounded-2xl border border-white/5">
-                <div className="flex justify-between text-[9px] font-medium">
+              {/* Before -> After & Status */}
+              <div className="text-center space-y-0.5 mb-3">
+                <p className="text-[9px] font-bold opacity-80">
+                  Base: ₹{breakdown.basePremium} → Now: ₹{breakdown.finalPremium}
+                </p>
+                {premiumIncrease > 0 ? (
+                  <p className="text-[8px] font-black text-[#FEE2E2] uppercase tracking-tighter">
+                    ⬆ +₹{premiumIncrease} due to weather & location risk
+                  </p>
+                ) : (
+                  <p className="text-[8px] font-black text-[#DCFCE7] uppercase tracking-tighter">
+                    ✓ Stable pricing (Low Risk)
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1 bg-black/10 p-3 rounded-xl border border-white/5">
+                <div className="flex justify-between text-[10px] font-medium">
                   <span className="opacity-70">Base</span>
                   <span>₹{breakdown.basePremium}</span>
                 </div>
-                <div className="flex justify-between text-[9px] font-medium">
+                <div className="flex justify-between text-[10px] font-medium">
                   <span className="opacity-70">Location</span>
                   <span>+₹{breakdown.locationCharge}</span>
                 </div>
-                <div className="flex justify-between text-[9px] font-medium">
+                <div className="flex justify-between text-[10px] font-medium">
                   <span className="opacity-70">Weather</span>
                   <span>+₹{breakdown.weatherCharge}</span>
                 </div>
@@ -383,18 +401,23 @@ export default function WorkerDashboard() {
           </Card>
 
           {/* Card 2: AI Risk Prediction (Balanced) */}
-          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-5 flex flex-col justify-between shadow-sm relative">
-            <Brain className="absolute top-5 right-5 h-6 w-6 text-[#6C47FF] opacity-20" />
+          <Card className="bg-white rounded-[24px] border border-[#E8E6FF] p-4 flex flex-col justify-between shadow-sm relative h-full">
+            <Brain className="absolute top-4 right-4 h-6 w-6 text-[#6C47FF] opacity-20" />
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <div>
                   <p className="text-[8px] font-black uppercase tracking-widest text-[#94A3B8] mb-0.5">AI Risk Prediction</p>
                   <p className="text-[8px] font-bold text-[#6C47FF] uppercase">Real-time Risk Analysis</p>
                 </div>
-                <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold py-0.5 px-2 rounded-lg text-[9px]">{weatherData.description}</Badge>
+                <Badge className={`${weatherData.rainfall > 50 ? 'bg-red-50 text-red-500' : 'bg-[#DCFCE7] text-[#22C55E]'} border-none font-bold py-0.5 px-2 rounded-lg text-[9px]`}>
+                  {weatherData.rainfall > 50 ? "High Risk Condition ⚠️" : "Safe Environment ✅"}
+                </Badge>
               </div>
               <div className="flex items-center gap-3">
                 <h2 className="text-4xl font-black text-[#1A1A2E]">{weatherData.rainfall}mm</h2>
+                {weatherData.rainfall > 50 && (
+                  <span className="text-xs font-bold text-red-500 uppercase tracking-tighter animate-pulse">Heavy Rain Detected 🌧</span>
+                )}
               </div>
             </div>
             
