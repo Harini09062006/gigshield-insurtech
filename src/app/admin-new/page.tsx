@@ -42,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { firebaseConfig } from "@/firebase/config";
 
 export default function AdminNewPage() {
   const db = useFirestore();
@@ -54,15 +55,30 @@ export default function AdminNewPage() {
 
   const isAuthReady = !isUserLoading && !!user;
 
-  // Diagnostic Firestore Connectivity Check
+  // 1. PROJECT & DB DIAGNOSTICS
   useEffect(() => {
-    if (!db) return;
-    console.log("[AdminPortal] Testing connectivity to collection 'chats'...");
+    console.log("🔥 ADMIN DASHBOARD LOADED");
+    console.log("🔥 PROJECT ID:", firebaseConfig.projectId);
+    
+    if (!db) {
+      console.error("❌ DB is undefined");
+      return;
+    }
+
     const unsubscribe = onSnapshot(collection(db, "chats"), (snapshot) => {
-      console.log("ADMIN DATA (Global Chat Count):", snapshot.docs.length);
+      console.log("🔥 CHATS SNAPSHOT SIZE:", snapshot.size);
+      
+      if (snapshot.empty) {
+        console.warn("⚠️ 'chats' collection is empty or unreachable.");
+      }
+
+      snapshot.forEach((doc) => {
+        console.log("📄 CHAT DOC:", doc.id, doc.data());
+      });
     }, (err) => {
-      console.error("ADMIN DATA (Global Listener Error):", err);
+      console.error("❌ FIRESTORE ERROR (chats):", err);
     });
+
     return () => unsubscribe();
   }, [db]);
 

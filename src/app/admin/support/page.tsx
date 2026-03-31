@@ -39,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { firebaseConfig } from "@/firebase/config";
 
 export default function AdminSupportPortal() {
   const { user, isUserLoading } = useUser();
@@ -54,36 +55,77 @@ export default function AdminSupportPortal() {
   const [messages, setMessages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. AUTH & ROLE CHECK
+  // 1. PROJECT & DB VERIFICATION
+  useEffect(() => {
+    console.log("🔥 ADMIN SUPPORT LOADED");
+    console.log("🔥 PROJECT ID:", firebaseConfig.projectId);
+    console.log("🔥 DB INSTANCE:", db);
+    
+    if (!db) {
+      console.error("❌ DB is undefined - Firestore connection failed");
+      return;
+    }
+
+    // RAW DATA LISTENER (DEBUG ONLY)
+    const unsubscribe = onSnapshot(collection(db, "chats"), (snapshot) => {
+      console.log("🔥 RAW SNAPSHOT SIZE (chats):", snapshot.size);
+      
+      if (snapshot.empty) {
+        console.warn("⚠️ No documents found in 'chats' collection. Check Project ID and Collection Name.");
+      }
+
+      snapshot.forEach((doc) => {
+        console.log("📄 RAW DOCUMENT FOUND:", doc.id, doc.data());
+      });
+    }, (error) => {
+      console.error("❌ FIRESTORE RAW LISTENER ERROR:", error);
+    });
+
+    return () => unsubscribe();
+  }, [db]);
+
+  // 2. AUTH & ROLE CHECK
   useEffect(() => {
     async function checkRole() {
       if (isUserLoading) return;
-      if (!user) { router.replace("/login"); return; }
+      if (!user) { 
+        console.warn("⚠️ No user found, redirecting to login");
+        router.replace("/login"); 
+        return; 
+      }
+      
       try {
+        console.log("🔍 Checking role for UID:", user.uid);
         const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists() && userDoc.data().role === "admin") setIsAdmin(true);
-        else router.replace("/dashboard");
-      } catch (error) { router.replace("/dashboard"); }
-      finally { setCheckingAdmin(false); }
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          console.log("👤 USER DATA:", data);
+          if (data.role === "admin") {
+            setIsAdmin(true);
+            console.log("✅ Admin access granted");
+          } else {
+            console.warn("🚫 Access denied: User is not an admin. Role:", data.role);
+            router.replace("/dashboard");
+          }
+        } else {
+          console.error("❌ User document not found in /users collection");
+          router.replace("/dashboard");
+        }
+      } catch (error) { 
+        console.error("❌ Role check failed:", error);
+        router.replace("/dashboard"); 
+      } finally { 
+        setCheckingAdmin(false); 
+      }
     }
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 2. DIAGNOSTIC RAW DATA LISTENER (DEBUG ONLY)
-  useEffect(() => {
-    if (!db || !isAdmin) return;
-    console.log("🔥 ADMIN SUPPORT: Testing raw connection to 'chats'...");
-    const unsubscribe = onSnapshot(collection(db, "chats"), (snapshot) => {
-      console.log("🔥 FIRESTORE RAW DATA (Total Chats):", snapshot.docs.length);
-    });
-    return () => unsubscribe();
-  }, [db, isAdmin]);
-
-  // 3. ADMIN REAL-TIME LISTENER (MANDATORY)
+  // 3. ADMIN FILTERED LISTENER
   useEffect(() => {
     if (!db || !isAdmin) return;
 
-    console.log("[SupportQueue] Starting filtered listener...");
+    console.log("📡 Starting priority queue listener (type: payment_issue, status: pending_admin)...");
     const q = query(
       collection(db, "chats"),
       where("type", "==", "payment_issue"),
@@ -91,18 +133,17 @@ export default function AdminSupportPortal() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log("📬 FILTERED QUEUE SIZE:", snapshot.size);
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       
-      console.log("ADMIN DATA (Escalated Count):", data.length);
-
-      // Deduplicate by userId to show unique conversations in the sidebar
+      // Deduplicate by userId
       const uniqueIssues = Array.from(new Map(data.map(item => [item.userId, item])).values());
       setIssues(uniqueIssues);
     }, (error) => {
-      console.error("[SupportQueue] Listener failed:", error);
+      console.error("❌ Filtered listener error:", error);
     });
 
     return () => unsubscribe();
@@ -139,7 +180,6 @@ export default function AdminSupportPortal() {
     setReplyText("");
 
     try {
-      // ADMIN REPLY WRITE (MANDATORY)
       await addDoc(collection(db, "chats"), {
         userId: selectedIssue.userId,
         userName: selectedIssue.userName || "Worker",
@@ -150,24 +190,18 @@ export default function AdminSupportPortal() {
         createdAt: serverTimestamp()
       });
 
-      // Proactively update all pending messages for this user to 'resolved'
       const pendingMessages = messages.filter(m => m.status === 'pending_admin');
       for (const msg of pendingMessages) {
         await updateDoc(doc(db, "chats", msg.id), { status: "resolved" });
       }
 
     } catch (e) {
-      console.error("Admin reply error:", e);
+      console.error("❌ Admin reply error:", e);
     }
   };
 
   const markResolved = async (issue: any) => {
-    try {
-      // Logic handled via handleSendReply but can be manual if needed
-      if (selectedIssue?.userId === issue.userId) setSelectedIssue(null);
-    } catch (e) {
-      console.error("Resolve error:", e);
-    }
+    if (selectedIssue?.userId === issue.userId) setSelectedIssue(null);
   };
 
   if (isUserLoading || checkingAdmin) return <div className="h-screen flex items-center justify-center bg-[#EEEEFF]"><Loader2 className="animate-spin text-[#6C47FF] h-12 w-12" /></div>;
