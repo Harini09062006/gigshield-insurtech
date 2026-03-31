@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -10,7 +11,9 @@ import {
   Brain, 
   Shield, 
   MessageSquare,
-  Headphones
+  Headphones,
+  CheckCircle2,
+  Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -27,11 +30,13 @@ import {
   addDoc, 
   serverTimestamp, 
   doc, 
-  limit 
+  limit,
+  updateDoc
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface AIAssistantProps {
   open: boolean;
@@ -39,8 +44,8 @@ interface AIAssistantProps {
 }
 
 /**
- * AI SUPPORT ASSISTANT - STABILIZED ASYNC FLOW
- * Fixed infinite loading with guaranteed resolution and debug logging.
+ * HYBRID AI SUPPORT ASSISTANT
+ * Detects payment issues and escalates to human admins in real-time.
  */
 export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const { user } = useUser();
@@ -49,11 +54,10 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Get user profile
   const profileRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // 2. REAL-TIME LISTENER: Syncs messages
+  // REAL-TIME SYNC: Listen to all support messages for this user
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     return query(
@@ -70,76 +74,89 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
     return [...rawMessages].sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
   }, [rawMessages]);
 
-  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
 
-  const handleSend = async () => {
-    const message = input.trim();
-    if (!message || !user || !db) return;
+  const isPaymentIssue = (msg: string) => {
+    const keywords = ["payment", "salary", "not paid", "money", "transaction", "upi", "refund", "earnings"];
+    return keywords.some(k => msg.toLowerCase().includes(k));
+  };
 
-    console.log("Sending message");
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || !user || !db) return;
+
     setInput("");
     
     try {
       setLoading(true);
 
-      // Save User Message
+      const isEscalation = isPaymentIssue(text);
+
+      // 1. Save User Message
       await addDoc(collection(db, "support_messages"), {
         userId: user.uid,
         userName: profile?.name || "Worker",
-        text: message,
+        text,
         sender: "user",
-        status: "open",
+        type: isEscalation ? "payment_issue" : "normal",
+        status: isEscalation ? "pending_admin" : "ai_handled",
         timestamp: serverTimestamp()
       });
 
-      console.log("Calling API");
-      // Fetch AI Response
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message })
-      });
+      // 2. Handle Escalation vs AI
+      if (isEscalation) {
+        // Create an admin ticket if it doesn't exist
+        await addDoc(collection(db, "support_tickets"), {
+          workerId: user.uid,
+          workerName: profile?.name || "Worker",
+          workerCity: profile?.city || "Unknown",
+          workerPlan: profile?.plan_id || "pro",
+          issue: text,
+          status: "open",
+          ticketId: `GS-${Math.floor(100000 + Math.random() * 900000)}`,
+          createdAt: serverTimestamp()
+        });
 
-      console.log("API responded");
+        // Bot responds about escalation
+        await addDoc(collection(db, "support_messages"), {
+          userId: user.uid,
+          userName: "GigShield Assistant",
+          text: "I've detected this is a payment-related issue. Your query has been forwarded to our Admin Support team for priority review. Please stay online.",
+          sender: "bot",
+          status: "escalated",
+          timestamp: serverTimestamp()
+        });
+      } else {
+        // Call standard AI API
+        const res = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text })
+        });
 
-      if (!res.ok) throw new Error("API failed");
+        if (!res.ok) throw new Error("API failed");
+        const data = await res.json();
 
-      const data = await res.json();
-      const reply = data?.reply || "AI working correctly now ✅";
-
-      // Save AI Reply
-      await addDoc(collection(db, "support_messages"), {
-        userId: user.uid,
-        userName: "GigShield Assistant",
-        text: reply,
-        sender: "bot",
-        status: "resolved",
-        timestamp: serverTimestamp()
-      });
+        await addDoc(collection(db, "support_messages"), {
+          userId: user.uid,
+          userName: "GigShield Assistant",
+          text: data?.reply || "I'm here to help!",
+          sender: "bot",
+          status: "resolved",
+          timestamp: serverTimestamp()
+        });
+      }
       
     } catch (err: any) {
-      console.error("AI error:", err);
-      
-      await addDoc(collection(db, "support_messages"), {
-        userId: user.uid,
-        userName: "GigShield Assistant",
-        text: "Server error. Please try again.",
-        sender: "bot",
-        status: "error",
-        timestamp: serverTimestamp()
-      });
+      console.error("Chat error:", err);
     } finally {
-      // ALWAYS STOP LOADING
       setLoading(false);
     }
   };
-
-  const isEscalated = messages?.some(m => m.sender === 'admin');
 
   if (!open) return null;
 
@@ -157,12 +174,10 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
               <Shield className="text-white h-6 w-6" />
             </div>
             <div className="flex-1">
-              <h1 className="text-lg font-bold text-[#1A1A2E] leading-none">AI Support Assistant</h1>
+              <h1 className="text-lg font-bold text-[#1A1A2E] leading-none">Support Center</h1>
               <div className="flex items-center gap-2 mt-0.5">
-                <div className={`h-1.5 w-1.5 rounded-full animate-pulse ${isEscalated ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                <p className="text-[9px] font-black uppercase tracking-widest text-[#64748B]">
-                  {isEscalated ? "Live Monitoring / Admin Connected" : "AI Assistant Ready"}
-                </p>
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#64748B]">Hybrid AI + Live Support Online</p>
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-10 w-10 rounded-full hover:bg-red-50 text-[#EF4444]">
@@ -172,21 +187,21 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
         </header>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 max-w-4xl mx-auto w-full custom-scrollbar">
-          {messages?.length === 0 ? (
+          {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40">
               <Brain size={48} className="text-[#6C47FF]" />
               <div className="space-y-1">
-                <h3 className="text-xl font-bold text-[#1A1A2E]">How can I help you today?</h3>
-                <p className="text-sm text-[#64748B] max-w-sm">Ask about claims, rain risk, or your Income DNA profile.</p>
+                <h3 className="text-xl font-bold text-[#1A1A2E]">How can we help you?</h3>
+                <p className="text-sm text-[#64748B] max-w-sm">Ask about claims, risk, or payment issues.</p>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              {messages?.map((m, i) => (
+              {messages.map((m, i) => (
                 <motion.div 
                   key={m.id || i}
-                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div className={`flex gap-3 max-w-[85%] ${m.sender === "user" ? "flex-row-reverse" : "flex-row"}`}>
@@ -197,12 +212,26 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
                     }`}>
                       {m.sender === "user" ? <User size={14} /> : (m.sender === 'admin' ? <Headphones size={14} /> : <Bot size={14} />)}
                     </div>
-                    <div className={`p-3 rounded-2xl shadow-card transition-all ${
+                    <div className={`p-3 rounded-2xl shadow-card transition-all relative ${
                       m.sender === "user" ? "bg-[#6C47FF] text-white rounded-tr-none" : "bg-white text-[#1A1A2E] rounded-tl-none border border-[#E8E6FF]"
                     }`}>
+                      {m.sender === 'admin' && (
+                        <Badge className="absolute -top-2 -left-2 bg-amber-500 text-white border-none text-[7px] font-black uppercase px-1.5 h-4 flex items-center gap-1 shadow-sm">
+                          <Shield size={8} /> Admin Support
+                        </Badge>
+                      )}
                       <p className="text-sm font-medium leading-relaxed">{m.text}</p>
-                      <div className={`text-[8px] mt-2 font-black uppercase tracking-widest opacity-60 flex items-center gap-2 ${m.sender === 'user' ? 'text-white' : 'text-[#64748B]'}`}>
-                        {m.sender} • {m.timestamp?.seconds ? format(new Date(m.timestamp.seconds * 1000), "HH:mm") : 'Syncing...'}
+                      
+                      <div className="flex items-center justify-between mt-2 gap-4">
+                        <div className={`text-[8px] font-black uppercase tracking-widest opacity-60 flex items-center gap-2 ${m.sender === 'user' ? 'text-white' : 'text-[#64748B]'}`}>
+                          {m.sender} • {m.timestamp?.seconds ? format(new Date(m.timestamp.seconds * 1000), "HH:mm") : 'Syncing...'}
+                        </div>
+                        {m.type === 'payment_issue' && (
+                          <div className={`text-[7px] font-black uppercase flex items-center gap-1 ${m.status === 'resolved' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                            {m.status === 'resolved' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                            {m.status?.replace('_', ' ')}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -211,8 +240,8 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
               {loading && (
                 <div className="flex gap-3 items-center animate-pulse">
                   <div className="h-8 w-8 rounded-lg bg-white border border-[#E8E6FF] flex items-center justify-center text-[#6C47FF]"><Bot size={14} /></div>
-                  <div className="bg-white border border-[#E8E6FF] p-3 rounded-2xl rounded-tl-none flex items-center gap-2">
-                    <Loader2 className="h-3 w-3 animate-spin text-[#6C47FF]" /><span className="text-[10px] font-bold text-[#64748B]">Thinking...</span>
+                  <div className="bg-white border border-[#E8E6FF] p-3 rounded-2xl rounded-tl-none flex items-center gap-2 shadow-sm">
+                    <Loader2 className="h-3 w-3 animate-spin text-[#6C47FF]" /><span className="text-[10px] font-bold text-[#64748B]">Processing...</span>
                   </div>
                 </div>
               )}
@@ -236,13 +265,6 @@ export function AIAssistant({ open, onOpenChange }: AIAssistantProps) {
             </div>
           </div>
         </div>
-
-        <style jsx global>{`
-          .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: #D4CCFF; border-radius: 10px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6C47FF; }
-        `}</style>
       </motion.div>
     </AnimatePresence>
   );

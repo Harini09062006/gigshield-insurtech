@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
@@ -18,7 +19,8 @@ import {
   getDoc, 
   addDoc, 
   limit, 
-  onSnapshot 
+  onSnapshot,
+  getDocs
 } from "firebase/firestore";
 import { 
   Shield, 
@@ -35,7 +37,8 @@ import {
   Search,
   ChevronRight,
   Clock,
-  Brain
+  Brain,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,7 +75,7 @@ export default function AdminSupportPortal() {
     checkRole();
   }, [user, isUserLoading, db, router]);
 
-  // 2. REAL-TIME TICKET QUEUE
+  // 2. REAL-TIME TICKET QUEUE (Focus on Open/Pending Admin)
   const ticketsQuery = useMemoFirebase(() => {
     if (!db || !isAdmin) return null;
     return query(
@@ -109,6 +112,7 @@ export default function AdminSupportPortal() {
     setReplyText("");
 
     try {
+      // 1. Add Admin Message
       await addDoc(collection(db, "support_messages"), {
         userId: selectedTicket.workerId,
         text,
@@ -118,6 +122,18 @@ export default function AdminSupportPortal() {
         timestamp: serverTimestamp()
       });
 
+      // 2. Mark existing escalated user messages as 'resolved' (or in_progress)
+      const escalatedMsgsQuery = query(
+        collection(db, "support_messages"),
+        where("userId", "==", selectedTicket.workerId),
+        where("status", "==", "pending_admin")
+      );
+      const escalatedMsgs = await getDocs(escalatedMsgsQuery);
+      escalatedMsgs.forEach(async (m) => {
+        await updateDoc(doc(db, "support_messages", m.id), { status: "resolved" });
+      });
+
+      // 3. Update Ticket
       const ticketRef = doc(db, "support_tickets", selectedTicket.id);
       await updateDoc(ticketRef, {
         status: "in_progress",
@@ -157,7 +173,7 @@ export default function AdminSupportPortal() {
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between text-xs font-bold text-[#64748B] uppercase tracking-widest">
-              <span>Support Queue</span>
+              <span>Active Escalations</span>
               <Badge className="bg-[#6C47FF] text-white border-none">{tickets?.length || 0}</Badge>
             </div>
             <div className="relative">
@@ -171,7 +187,7 @@ export default function AdminSupportPortal() {
           {isTicketsLoading ? (
             <div className="p-10 text-center"><Loader2 className="animate-spin mx-auto text-[#6C47FF] opacity-40" /></div>
           ) : tickets?.length === 0 ? (
-            <div className="p-10 text-center opacity-40"><MessageSquare size={48} className="mx-auto mb-2" /><p className="text-sm font-bold">No active tickets</p></div>
+            <div className="p-10 text-center opacity-40"><MessageSquare size={48} className="mx-auto mb-2" /><p className="text-sm font-bold">No active escalations</p></div>
           ) : (
             tickets?.map((t: any) => (
               <button 
@@ -185,7 +201,10 @@ export default function AdminSupportPortal() {
                   </Badge>
                   <span className="text-[10px] font-bold text-[#94A3B8]">{format(t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000) : new Date(), "HH:mm")}</span>
                 </div>
-                <h4 className="font-bold text-sm mb-1">#{t.ticketId}</h4>
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="font-bold text-sm">#{t.ticketId}</h4>
+                  {t.issue.toLowerCase().includes('payment') && <AlertTriangle size={12} className="text-amber-500" />}
+                </div>
                 <p className="text-xs font-medium text-[#64748B] truncate mb-3">{t.workerName} • {t.workerCity}</p>
                 <p className="text-[11px] italic text-[#64748B] line-clamp-1">"{t.issue}"</p>
               </button>
@@ -211,7 +230,7 @@ export default function AdminSupportPortal() {
                 <div>
                   <h3 className="text-lg font-bold">{selectedTicket.workerName}</h3>
                   <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-[#64748B]">
-                    <span className="flex items-center gap-1"><Clock size={12} /> Active Support Session</span>
+                    <span className="flex items-center gap-1"><Clock size={12} /> Active Escalation</span>
                     <span className="text-[#6C47FF]">•</span>
                     <span>Plan: {selectedTicket.workerPlan.toUpperCase()}</span>
                   </div>
@@ -227,12 +246,6 @@ export default function AdminSupportPortal() {
             </header>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-[#F8F9FF] custom-scrollbar" ref={scrollRef}>
-              <div className="flex justify-center mb-10">
-                <div className="bg-white px-4 py-2 rounded-full border border-[#E8E6FF] shadow-sm text-[10px] font-black uppercase tracking-[0.2em] text-[#94A3B8]">
-                  Issue Reported: {selectedTicket.issue}
-                </div>
-              </div>
-
               {messages.map((m, i) => (
                 <div key={m.id || i} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`flex gap-3 max-w-[70%] ${m.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -242,11 +255,12 @@ export default function AdminSupportPortal() {
                     }`}>
                       {m.sender === 'user' ? <User size={14} /> : (m.sender === 'admin' ? <Shield size={14} /> : <Brain size={14} />)}
                     </div>
-                    <div className={`p-4 rounded-2xl text-sm font-medium shadow-sm ${
+                    <div className={`p-4 rounded-2xl text-sm font-medium shadow-sm relative ${
                       m.sender === 'user' ? 'bg-[#6C47FF] text-white rounded-tr-none' : 
                       m.sender === 'admin' ? 'bg-[#4C35B5] text-white rounded-tl-none' : 'bg-white border border-[#E8E6FF] text-[#1A1A2E] rounded-tl-none'
                     }`}>
                       {m.sender === 'admin' && <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-1">🛡️ Support Agent (You)</p>}
+                      {m.status === 'pending_admin' && <Badge className="bg-red-500 text-white border-none text-[7px] mb-2 font-black uppercase">Escalated</Badge>}
                       <p className="leading-relaxed">{m.text}</p>
                       <div className="text-[9px] mt-2 font-black uppercase opacity-60">
                         {m.sender} • {m.timestamp?.seconds ? format(new Date(m.timestamp.seconds * 1000), "HH:mm") : 'Syncing...'}
@@ -275,8 +289,8 @@ export default function AdminSupportPortal() {
             <div className="h-24 w-24 bg-[#EDE9FF] rounded-[32px] flex items-center justify-center mb-6">
               <Headphones size={48} className="text-[#6C47FF]" />
             </div>
-            <h2 className="text-2xl font-black mb-2 uppercase tracking-widest">Support Queue Center</h2>
-            <p className="text-sm font-medium max-w-xs">Select a worker ticket from the sidebar to start live assistance.</p>
+            <h2 className="text-2xl font-black mb-2 uppercase tracking-widest">Escalation Queue</h2>
+            <p className="text-sm font-medium max-w-xs">Select a payment issue from the sidebar to provide priority assistance.</p>
           </div>
         )}
       </main>
