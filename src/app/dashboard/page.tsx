@@ -19,6 +19,7 @@ import {
   RefreshCcw,
   Calendar,
   Info,
+  MapPin
 } from "lucide-react";
 import { 
   AreaChart, 
@@ -42,7 +43,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
-// Helper function for Live Risk Score
+// Helper function for Weekly Risk Score
 const calculateRiskScore = (
   rainfall: number,
   city: string,
@@ -72,13 +73,16 @@ const calculateRiskScore = (
 }
 
 /**
- * Calculates the dynamic premium breakdown based on specific rules.
- * Now includes support for Safe Zone Discounts.
+ * Calculates the dynamic premium breakdown based on weekly risk rules.
  */
 const calculatePremiumBreakdown = (workerCity: string, rainfall: number, basePremium: number, riskScore: number) => {
+  // Weekly Location Surcharge
   const locationCharge = workerCity === "Chennai" ? 3 : 0;
+  
+  // Weekly Weather Risk Surcharge (Rainfall as weekly proxy)
   const weatherCharge = rainfall > 50 ? 2 : 0;
-  // Apply discount if risk score is low (< 40)
+  
+  // Weekly Safe Zone Discount (Low Risk < 40)
   const safeZoneDiscount = riskScore < 40 ? 3 : 0;
   
   return {
@@ -350,6 +354,10 @@ export default function WorkerDashboard() {
                 <div>
                   <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-0.5">Active Plan</p>
                   <h2 className="text-sm font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <MapPin className="h-3 w-3 opacity-70" />
+                    <span className="text-[9px] font-bold uppercase tracking-wider">Location: {profile?.city || 'Chennai'}</span>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-0.5">Max Payout</p>
@@ -361,7 +369,7 @@ export default function WorkerDashboard() {
                 <p className="text-4xl font-black mb-0.5">₹{breakdown.finalPremium}</p>
                 <div className="flex flex-col items-center gap-0.5">
                   <p className="text-[8px] font-bold uppercase tracking-[0.2em] opacity-60">📊 AI Calculated Premium</p>
-                  <p className="text-[8px] opacity-50 italic">Based on location & weather</p>
+                  <p className="text-[8px] opacity-50 italic">Based on weekly location & weather risk</p>
                 </div>
               </div>
 
@@ -372,7 +380,7 @@ export default function WorkerDashboard() {
                 </p>
                 {riskScore > 60 ? (
                   <p className="text-[8px] font-black text-[#FEE2E2] uppercase tracking-tighter">
-                    ⬆ Increased due to high risk
+                    ⬆ Increased due to weekly risk
                   </p>
                 ) : riskScore < 40 ? (
                   <p className="text-[8px] font-black text-[#DCFCE7] uppercase tracking-tighter">
@@ -392,7 +400,7 @@ export default function WorkerDashboard() {
                 </div>
                 {breakdown.locationCharge > 0 && (
                   <div className="flex justify-between text-[10px] font-medium">
-                    <span className="opacity-70">Location Risk (Chennai)</span>
+                    <span className="opacity-70">Location Risk ({profile?.city || 'Zone'})</span>
                     <span>+₹{breakdown.locationCharge}</span>
                   </div>
                 )}
