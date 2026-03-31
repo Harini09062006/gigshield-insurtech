@@ -1,9 +1,10 @@
+
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, Home, LogOut, Shield, Brain, User as UserIcon, MessageSquare, Clock, CheckCircle2 } from "lucide-react";
+import { Send, Loader2, Home, LogOut, Shield, Brain, User as UserIcon, Clock, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useUser,
@@ -24,7 +25,6 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
 
 export default function SupportPage() {
   const { user, isUserLoading } = useUser();
@@ -47,13 +47,8 @@ export default function SupportPage() {
   useEffect(() => {
     if (!db || !user?.uid) return;
 
-    console.log("🔥 CHATBOT: Testing raw connection to 'chats' for user:", user.uid);
+    console.log("🔥 CHATBOT: Testing connection to 'chats' for user:", user.uid);
     
-    // Diagnostic raw read
-    const unsubRaw = onSnapshot(collection(db, "chats"), (snap) => {
-      console.log("🔥 GLOBAL CHAT COUNT (RAW):", snap.docs.length);
-    });
-
     const q = query(
       collection(db, "chats"),
       where("userId", "==", user.uid)
@@ -67,12 +62,11 @@ export default function SupportPage() {
       
       console.log("CHATBOT: Messages found for user:", msgs.length);
       setMessages(msgs);
+    }, (err) => {
+      console.error("CHATBOT: Listener error:", err);
     });
 
-    return () => {
-      unsubscribe();
-      unsubRaw();
-    };
+    return () => unsubscribe();
   }, [db, user?.uid]);
 
   useEffect(() => {

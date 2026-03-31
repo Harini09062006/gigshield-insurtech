@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -162,17 +163,7 @@ export default function AdminSupportPortal() {
 
   const markResolved = async (issue: any) => {
     try {
-      // Create a query to find all pending messages for this user and resolve them
-      const q = query(
-        collection(db, "chats"),
-        where("userId", "==", issue.userId),
-        where("status", "==", "pending_admin")
-      );
-      
-      const snapshot = await getDoc(doc(db, "users", "dummy")); // placeholder to trigger rules
-      // Note: In real app we'd use a transaction or batch, here we simple resolve via onSnapshot if needed
-      // but standard approach is to resolve specifically the found docs
-      
+      // Logic handled via handleSendReply but can be manual if needed
       if (selectedIssue?.userId === issue.userId) setSelectedIssue(null);
     } catch (e) {
       console.error("Resolve error:", e);
