@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -210,6 +209,8 @@ export default function WorkerDashboard() {
       const newCount = currentCount + 1;
 
       const isFirst = newCount === 1;
+      const isSecond = newCount === 2;
+      const isThirdOrMore = newCount >= 3;
       
       const API_KEY = "be5f61ff6b261dedfa89e321d466a063";
       const realWeatherRes = await fetch(
@@ -218,7 +219,7 @@ export default function WorkerDashboard() {
       const realWeatherData = await realWeatherRes.json();
       
       const severeRainfall = 65;
-      const newRisk = isFirst ? 75 : 95;
+      const newRisk = isFirst ? 75 : isSecond ? 85 : 95;
 
       const hour = new Date().getHours();
       const timeSlot = 
@@ -241,31 +242,54 @@ export default function WorkerDashboard() {
       const maxPayout = profile?.plan_id === 'basic' ? 60 : profile?.plan_id === 'elite' ? 600 : 240;
       const compensation = Math.min(rawAmount, maxPayout);
       
-      const claimStatus = isFirst ? "paid" : "review";
-      const payoutStatus = isFirst ? "PAID" : "PENDING";
-      const decision = isFirst ? "APPROVED" : "REVIEW";
-      
-      const fraudResults = {
-        ...getAllPassedChecks(),
-        duplicateCheck: isFirst ? "PASSED" : "FAILED"
-      };
+      let claimStatus = "paid";
+      let payoutStatus = "PAID";
+      let decision = "APPROVED";
+      let trustScore = 95;
+      let findings = ["All checks passed"];
+      let fraudResults = getAllPassedChecks();
+      let triggerDesc = isFirst ? `Severe Rainfall (${severeRainfall}mm) Simulated` : `Simulation Trigger: State ${newCount}`;
+
+      if (isSecond) {
+        claimStatus = "review";
+        payoutStatus = "PENDING";
+        decision = "REVIEW";
+        trustScore = 60;
+        findings = ["Duplicate claim suspected", "Verification required"];
+        triggerDesc = `Duplicate Simulation Trigger (Anomaly Detected)`;
+        fraudResults = {
+          ...getAllPassedChecks(),
+          duplicateCheck: "SUSPICIOUS"
+        };
+      } else if (isThirdOrMore) {
+        claimStatus = "failed";
+        payoutStatus = "REJECTED";
+        decision = "BLOCKED";
+        trustScore = 45;
+        findings = ["Duplicate claim detected", "Behavior anomaly detected"];
+        triggerDesc = `Critical Risk Alert: Behavioral Anomaly`;
+        fraudResults = {
+          ...getAllPassedChecks(),
+          duplicateCheck: "FAILED",
+          behaviorPattern: "FAILED"
+        };
+      }
       
       // Create claim in Firebase
       await addDoc(collection(db, "claims"), {
         worker_id: user.uid,
         userId: user.uid,
         trigger_type: "SEVERE_RAIN",
-        trigger_description: isFirst 
-          ? `Severe Rainfall (${severeRainfall}mm) Simulated` 
-          : `Duplicate Simulation Trigger (${severeRainfall}mm)`,
+        trigger_description: triggerDesc,
         dna_time_slot: timeSlot,
         dna_hourly_rate: Math.round(baseRate * multiplier),
         compensation: Math.round(compensation),
         status: claimStatus,
         payoutStatus: payoutStatus,
-        decision: isFirst ? "APPROVED" : "REVIEW",
+        decision: decision,
         fraudChecks: fraudResults,
-        trustScore: isFirst ? 95 : 45,
+        trustScore: trustScore,
+        findings: findings,
         weather: {
           rainfall: severeRainfall,
           temperature: realWeatherData.main?.temp || 28,
@@ -278,17 +302,13 @@ export default function WorkerDashboard() {
       await updateDoc(userRef, {
         simulationCount: newCount,
         riskScore: newRisk,
-        fraudChecks: fraudResults,
-        claimStatus: claimStatus,
-        payoutStatus: payoutStatus,
-        decision: decision,
         lastSimulation: Date.now(),
         updatedAt: serverTimestamp()
       });
 
       setWeatherData({
         rainfall: severeRainfall,
-        description: isFirst ? "Severe Rainfall" : "Duplicate Detected",
+        description: isFirst ? "Severe Rainfall" : isSecond ? "Anomaly Detected" : "Simulation Blocked",
         temperature: realWeatherData.main?.temp || 28,
         aqi: isFirst ? 350 : 420,
         wind: isFirst ? 55 : 65,
@@ -296,11 +316,20 @@ export default function WorkerDashboard() {
       });
       setDisruptionRisk(newRisk);
 
+      let toastTitle = "⚡ Simulation Success!";
+      let toastDesc = `Severe weather detected. ₹${Math.round(compensation)} PAID INSTANTLY!`;
+
+      if (isSecond) {
+        toastTitle = "⚠️ Verification Required";
+        toastDesc = "Potential duplicate claim detected. Under manual review.";
+      } else if (isThirdOrMore) {
+        toastTitle = "❌ Claim Rejected";
+        toastDesc = "Fraudulent patterns detected. This event has been logged.";
+      }
+
       toast({
-        title: isFirst ? "⚡ Simulation Success!" : "⚠️ Verification Required",
-        description: isFirst 
-          ? `Severe weather detected. ₹${Math.round(compensation)} PAID INSTANTLY!` 
-          : "Potential duplicate claim detected. Under manual review."
+        title: toastTitle,
+        description: toastDesc
       });
 
     } catch (error) {
@@ -451,7 +480,7 @@ export default function WorkerDashboard() {
                   </div>
                   {breakdown.weatherCharge > 0 && (
                     <p className="text-[8px] opacity-50 italic text-right">
-                      Threshold: {">"}50mm rainfall triggers risk adjustment
+                      Threshold: {'>'}50mm rainfall triggers risk adjustment
                     </p>
                   )}
                 </div>

@@ -174,7 +174,7 @@ export default function WorkerClaims() {
                         <div className="flex justify-between"><span>Registered Rate</span><span className="font-bold">₹{claim.dna_hourly_rate || 60}/hr</span></div>
                         <div className="flex justify-between pt-1.5 border-t border-[#E8E6FF] text-base font-bold text-[#6C47FF]">
                           <span>Compensation</span>
-                          <span>{claim.status === 'review' || claim.decision === 'REVIEW' ? <span className="text-amber-600">IN REVIEW</span> : claim.decision === 'BLOCKED' ? <span className="text-red-500">DENIED</span> : `₹${claim.compensation}`}</span>
+                          <span>{claim.status === 'review' || claim.decision === 'REVIEW' ? <span className="text-amber-600">IN REVIEW</span> : (claim.decision === 'BLOCKED' || claim.status === 'failed') ? <span className="text-red-500">REJECTED</span> : `₹${claim.compensation}`}</span>
                         </div>
                         
                         {(claim.status === 'paid' || claim.status === 'approved') && (
@@ -192,9 +192,9 @@ export default function WorkerClaims() {
                       {claim.status === 'review' || claim.decision === 'REVIEW' ? (
                         <Badge className="bg-amber-100 text-amber-600 border-none font-bold uppercase text-[9px]">Review Required</Badge>
                       ) : (claim.status === 'paid' || claim.status === 'approved') ? (
-                        <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold text-[9px]">✓ PAID INSTANTLY</Badge>
+                        <Badge className="bg-[#DCFCE7] text-[#22C55E] border-none font-bold text-[9px]">✓ Approved</Badge>
                       ) : (
-                        <Badge className="bg-red-50 text-red-500 border-none font-bold uppercase text-[9px]">⚠ Blocked</Badge>
+                        <Badge className="bg-red-50 text-red-500 border-none font-bold uppercase text-[9px]">⚠ Rejected</Badge>
                       )}
                       
                       <div className="mt-2 bg-gray-50 border border-gray-100 rounded-xl p-2 text-center w-full">
@@ -230,6 +230,20 @@ export default function WorkerClaims() {
                         </div>
                       </div>
 
+                      {claim.findings && claim.findings.length > 0 && (
+                        <div className="mb-2 p-2 bg-[#F8F9FF] rounded-lg border border-[#E8E6FF]">
+                          {claim.findings.map((finding: string, idx: number) => (
+                            <p key={idx} className={`text-[9px] font-bold flex items-center gap-1 ${
+                              claim.decision === 'BLOCKED' ? 'text-red-500' : 
+                              claim.decision === 'REVIEW' ? 'text-amber-500' : 
+                              'text-emerald-500'
+                            }`}>
+                              {claim.decision === 'BLOCKED' ? '❌' : claim.decision === 'REVIEW' ? '⚠️' : '✅'} {finding}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                         {Object.entries(fraudLabels).map(([key, label]) => {
                           const status = (claim.fraudChecks?.[key]) || 'PASSED';
@@ -260,7 +274,7 @@ export default function WorkerClaims() {
                           claim.decision === 'REVIEW' ? 'bg-[#FEF3C7] text-[#F59E0B]' : 
                           'bg-[#FEE2E2] text-[#EF4444]'
                         }`}>
-                          Decision: {claim.decision || 'APPROVED'}
+                          Decision: {claim.decision === 'BLOCKED' ? 'REJECTED' : (claim.decision || 'APPROVED')}
                         </Badge>
                       </div>
                     </div>
