@@ -178,6 +178,15 @@ export default function WorkerDashboard() {
     };
   }, [profile, weatherData.rainfall, activeRate, breakdown.finalPremium]);
 
+  const renewalValue = React.useMemo(() => {
+    const start = profile?.plan_activated_at?.seconds 
+      ? new Date(profile.plan_activated_at.seconds * 1000) 
+      : new Date();
+    const renewal = new Date(start);
+    renewal.setDate(start.getDate() + 28); // 4 weeks
+    return format(renewal, "dd MMM");
+  }, [profile?.plan_activated_at]);
+
   const getRiskInfo = (env: any) => {
     const rainStatus = env.rainfall < 30 ? { label: "LOW", score: 0, color: "bg-emerald-50 text-emerald-600" } 
                      : env.rainfall <= 60 ? { label: "MEDIUM", score: 1, color: "bg-amber-50 text-amber-600" } 
@@ -622,7 +631,7 @@ export default function WorkerDashboard() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-center">
                 {[
                   { label: "ACTIVATION", value: profile?.plan_activated_at?.seconds ? format(new Date(profile.plan_activated_at.seconds * 1000), "dd MMM") : "Just now", icon: <Calendar className="h-4 w-4 text-[#6C47FF]" /> },
-                  { label: "RENEWAL", value: "25 Mar", icon: <RefreshCcw className="h-4 w-4 text-[#F59E0B]" /> },
+                  { label: "RENEWAL", value: renewalValue, icon: <RefreshCcw className="h-4 w-4 text-[#F59E0B]" /> },
                   { label: "PREMIUM", value: `₹${breakdown.finalPremium}`, icon: <IndianRupee className="h-4 w-4 text-[#22C55E]" /> },
                   { label: "COMMITMENT", value: "4 Weeks", icon: <Shield className="h-4 w-4 text-[#6C47FF]" /> }
                 ].map((item) => (
