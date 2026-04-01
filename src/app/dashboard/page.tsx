@@ -439,9 +439,20 @@ export default function WorkerDashboard() {
                     <span>+₹{breakdown.locationCharge}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-[10px] font-medium">
-                  <span className="opacity-70">Weather Risk (Rain)</span>
-                  <span>{breakdown.weatherCharge > 0 ? `+₹${breakdown.weatherCharge}` : "No extra cost (Low Risk)"}</span>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex justify-between text-[10px] font-medium">
+                    <span className="opacity-70">
+                      {breakdown.weatherCharge > 0 ? `Rain: ${weatherData.rainfall}mm (HIGH risk)` : "Weather Risk (Rain)"}
+                    </span>
+                    <span>
+                      {breakdown.weatherCharge > 0 ? `→ +₹${breakdown.weatherCharge}` : "No extra cost (Low Risk)"}
+                    </span>
+                  </div>
+                  {breakdown.weatherCharge > 0 && (
+                    <p className="text-[8px] opacity-50 italic text-right">
+                      Threshold: >50mm rainfall triggers risk adjustment
+                    </p>
+                  )}
                 </div>
                 {breakdown.safeZoneDiscount > 0 && (
                   <div className="flex justify-between text-[10px] font-medium">
