@@ -14,7 +14,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
-const PLATFORMS = ["Swiggy", "Zomato", "Uber Eats", "Ola", "Dunzo", "Blinkit", "Other"];
+const PLATFORMS = ["Swiggy", "Zomato"];
 const STATES = ["Maharashtra", "Karnataka", "Delhi", "Tamil Nadu", "Telangana", "Gujarat", "West Bengal"];
 const CITIES: Record<string, string[]> = {
   "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane"],
@@ -136,7 +136,8 @@ export default function SignupPage() {
                     <SelectContent>
                       {STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
-                  </div>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Navigation className="h-4 w-4 text-primary" /> City

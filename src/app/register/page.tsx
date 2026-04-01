@@ -16,7 +16,7 @@ import Link from "next/link";
 import { getUserLocation } from "@/services/locationService";
 import { CITIES_LIST } from "@/services/weatherService";
 
-const PLATFORMS = ["Swiggy", "Zomato", "Uber Eats", "Ola", "Dunzo", "Blinkit", "Other"];
+const PLATFORMS = ["Swiggy", "Zomato"];
 const STATES_CITIES = {
   "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane"],
   "Karnataka": ["Bangalore", "Mysore", "Hubli"],
