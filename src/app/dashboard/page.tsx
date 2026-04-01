@@ -77,16 +77,17 @@ export default function WorkerDashboard() {
 
   const [simulating, setSimulating] = useState(false);
   const [notif, setNotif] = useState<any>(null);
+  const [isPaid, setIsPaid] = useState(false);
   
   const [weatherData, setWeatherData] = useState({
-    rainfall: 12,
-    description: "Light Rain",
+    rainfall: 65,
+    description: "Severe Rainfall",
     temperature: 28,
-    aqi: 85,
-    wind: 15,
-    visibility: 800
+    aqi: 420,
+    wind: 65,
+    visibility: 150
   });
-  const [disruptionRisk, setDisruptionRisk] = useState(35);
+  const [disruptionRisk, setDisruptionRisk] = useState(75);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -470,6 +471,32 @@ export default function WorkerDashboard() {
                 </div>
               </div>
 
+              <p className="text-xs opacity-80 mt-2">
+                This premium is calculated at the start of the week based on predicted risk conditions.
+              </p>
+              <p className="text-[10px] opacity-60">
+                Locked for current week
+              </p>
+
+              {!isPaid && (
+                <button
+                  onClick={() => setIsPaid(true)}
+                  className="mt-4 w-full bg-white text-[#6C47FF] font-semibold py-2 rounded-xl"
+                >
+                  Pay for this week
+                </button>
+              )}
+              {isPaid && (
+                <>
+                  <p className="mt-4 text-green-300 text-sm font-semibold">
+                    ✅ Weekly plan activated
+                  </p>
+                  <p className="text-xs opacity-80">
+                    Coverage active for this week
+                  </p>
+                </>
+              )}
+
               {/* Before -> After & Status */}
               <div className="text-center space-y-0.5 mb-3">
                 <p className="text-[9px] font-bold opacity-80">
@@ -500,11 +527,11 @@ export default function WorkerDashboard() {
 
                 <div className="flex justify-between items-center py-1 border-t border-white/5">
                   <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">Risk Score:</span>
-                  <span className="text-[10px] font-black">{(breakdown.riskScore * 100).toFixed(0)}/100</span>
+                  <span className="text-10px font-black">{(breakdown.riskScore * 100).toFixed(0)}/100</span>
                 </div>
                 <div className="flex justify-between items-center pb-1">
                   <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">Confidence:</span>
-                  <span className="text-[10px] font-black">{(breakdown.riskScore * 100).toFixed(0)}%</span>
+                  <span className="text-10px font-black">{(breakdown.riskScore * 100).toFixed(0)}%</span>
                 </div>
 
                 <div className="pt-1 border-t border-white/5">
