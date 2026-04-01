@@ -125,6 +125,19 @@ export default function WorkerDashboard() {
   );
   const { data: profile } = useDoc(profileRef);
 
+  const baseRate = profile?.avg_hourly_earnings || 60;
+  const morningRate = Math.round(baseRate * 0.75);
+  const afternoonRate = Math.round(baseRate * 0.95);
+  const eveningRate = Math.round(baseRate * 1.30);
+  const nightRate = Math.round(baseRate * 0.85);
+
+  const currentHour = new Date().getHours();
+  let activeSlotName = "Night Shift";
+  let activeRate = nightRate;
+  if (currentHour >= 6 && currentHour < 10) { activeSlotName = "Morning Peak"; activeRate = morningRate; }
+  else if (currentHour >= 12 && currentHour < 16) { activeSlotName = "Afternoon Peak"; activeRate = afternoonRate; }
+  else if (currentHour >= 17 && currentHour < 21) { activeSlotName = "Evening Peak"; activeRate = eveningRate; }
+
   const riskScore = calculateRiskScore(
     weatherData?.rainfall || 0,
     profile?.city || "",
@@ -141,18 +154,29 @@ export default function WorkerDashboard() {
   const metrics = React.useMemo(() => {
     if (!profile) return { incomeLoss: 0, coverage: 0, remainingRisk: 0, premium: 0, riskScore: 35 };
 
-    const riskScoreValue = profile.riskScore ?? 35;
-    const plan = profile.plan_id ?? "pro";
-    
-    const baseRate = profile.avg_hourly_earnings ?? 60;
-    const incomeLoss = Math.round((baseRate * 1.3) * 3 * (riskScoreValue / 100));
-    const coverage = plan === "basic" ? 60 : plan === "pro" ? 240 : 600;
-    
-    const premium = breakdown.finalPremium;
-    const remainingRisk = Math.max(0, incomeLoss - coverage);
+    const rain = weatherData.rainfall;
+    let lostHours = 0;
+    if (rain > 80) lostHours = 6;
+    else if (rain > 50) lostHours = 4;
+    else lostHours = 0;
 
-    return { incomeLoss, coverage, remainingRisk, premium, riskScore: riskScoreValue };
-  }, [profile, breakdown.finalPremium]);
+    const incomeLoss = Math.round(activeRate * lostHours);
+    const plan = profile.plan_id ?? "pro";
+    const planPayout = plan === "basic" ? 60 : plan === "pro" ? 240 : 600;
+    
+    // Plural values update to ₹0 automatically if no rain/low risk
+    const coverage = lostHours > 0 ? planPayout : 0;
+    const remainingRisk = Math.max(0, incomeLoss - coverage);
+    const premium = breakdown.finalPremium;
+
+    return { 
+      incomeLoss, 
+      coverage, 
+      remainingRisk, 
+      premium, 
+      riskScore: profile.riskScore ?? 35 
+    };
+  }, [profile, weatherData.rainfall, activeRate, breakdown.finalPremium]);
 
   const getRiskInfo = (env: any) => {
     const rainStatus = env.rainfall < 30 ? { label: "LOW", score: 0, color: "bg-emerald-50 text-emerald-600" } 
@@ -344,19 +368,6 @@ export default function WorkerDashboard() {
     await auth.signOut();
     router.push("/");
   };
-
-  const baseRate = profile?.avg_hourly_earnings || 60;
-  const morningRate = Math.round(baseRate * 0.75);
-  const afternoonRate = Math.round(baseRate * 0.95);
-  const eveningRate = Math.round(baseRate * 1.30);
-  const nightRate = Math.round(baseRate * 0.85);
-
-  const currentHour = new Date().getHours();
-  let activeSlotName = "Night Shift";
-  let activeRate = nightRate;
-  if (currentHour >= 6 && currentHour < 10) { activeSlotName = "Morning Peak"; activeRate = morningRate; }
-  else if (currentHour >= 12 && currentHour < 16) { activeSlotName = "Afternoon Peak"; activeRate = afternoonRate; }
-  else if (currentHour >= 17 && currentHour < 21) { activeSlotName = "Evening Peak"; activeRate = eveningRate; }
 
   const chartData = [
     { time: "6 AM", evening: 20, lunch: 30, active: 60 },
