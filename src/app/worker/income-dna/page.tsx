@@ -1,13 +1,18 @@
 
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { 
   Sunrise, 
   Sun, 
   Sunset, 
   Moon, 
-  Activity
+  Activity,
+  Shield,
+  IndianRupee,
+  Zap,
+  Info,
+  AlertTriangle
 } from "lucide-react";
 import { 
   AreaChart, 
@@ -22,10 +27,11 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 /**
- * PIXEL-PERFECT INCOME DNA CLONE
- * Matches reference design exactly: lavender background, white cards, dual chart.
+ * ENHANCED PIXEL-PERFECT INCOME DNA
+ * Features: Dynamic hours input, Razorpay integration, and AI insights.
  */
 export default function IncomeDNAProfile() {
   const { user, isUserLoading } = useUser();
@@ -34,15 +40,84 @@ export default function IncomeDNAProfile() {
   const profileRef = useMemoFirebase(() => user ? doc(db, "users", user.uid) : null, [db, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // Constants matching the DNA Model
+  // CORE LOGIC CONSTANTS
+  const BASE_RATE = 60;
+  const MULTIPLIERS = {
+    morning: 0.75,
+    afternoon: 0.95,
+    evening: 1.3,
+    night: 0.85
+  };
+
+  // STATE FOR WORKING HOURS
+  const [hours, setHours] = useState({
+    morning: 4,
+    afternoon: 4,
+    evening: 4,
+    night: 3
+  });
+
+  const totalHours = hours.morning + hours.afternoon + hours.evening + hours.night;
+
+  // CALCULATION LOGIC
+  const calculateDailyEarnings = () => {
+    return (
+      (hours.morning * BASE_RATE * MULTIPLIERS.morning) +
+      (hours.afternoon * BASE_RATE * MULTIPLIERS.afternoon) +
+      (hours.evening * BASE_RATE * MULTIPLIERS.evening) +
+      (hours.night * BASE_RATE * MULTIPLIERS.night)
+    );
+  };
+
+  const weeklyEarnings = Math.round(calculateDailyEarnings() * 7);
+
+  // SMART INSIGHT MESSAGE
+  const getInsight = () => {
+    if (totalHours === 0) return null;
+    if (hours.evening > hours.morning && hours.evening > hours.afternoon) {
+      return "You are working in peak hours — maximizing earnings 🚀";
+    }
+    return "Tip: Shift more hours to Evening Peak (1.3x) to increase payouts.";
+  };
+
+  // RAZORPAY INTEGRATION
+  const handleRazorpay = () => {
+    if (totalHours === 0) return;
+
+    if (!(window as any).Razorpay) {
+      alert("Payment gateway loading... please try again in a moment.");
+      return;
+    }
+
+    const options = {
+      key: "rzp_test_SY9JJx7GKLL2Jm",
+      amount: weeklyEarnings * 100,
+      currency: "INR",
+      name: "GigShield Income DNA",
+      description: "Automated Worker Payout Simulation",
+      handler: function (response: any) {
+        alert(`Payment Successful ✅\nTransaction ID: ${response.razorpay_payment_id}`);
+      },
+      prefill: {
+        name: profile?.name || "Gig Worker",
+        contact: profile?.phone || "9999999999",
+      },
+      theme: {
+        color: "#6C47FF"
+      }
+    };
+
+    const rzp = new (window as any).Razorpay(options);
+    rzp.open();
+  };
+
   const slots = [
-    { title: "MORNING", range: "6-10 AM", rate: 45, mult: "0.75x multiplier", color: "#F59E0B", icon: Sunrise },
-    { title: "AFTERNOON", range: "12-4 PM", rate: 57, mult: "0.95x multiplier", color: "#3B82F6", icon: Sun },
-    { title: "EVENING", range: "5-9 PM", rate: 78, mult: "1.30x multiplier", color: "#6C47FF", icon: Sunset },
-    { title: "NIGHT", range: "9 PM-12 AM", rate: 51, mult: "0.85x multiplier", color: "#60A5FA", icon: Moon },
+    { id: "morning", title: "MORNING", range: "6-10 AM", rate: Math.round(BASE_RATE * MULTIPLIERS.morning), mult: `${MULTIPLIERS.morning}x multiplier`, color: "#F59E0B", icon: Sunrise },
+    { id: "afternoon", title: "AFTERNOON", range: "12-4 PM", rate: Math.round(BASE_RATE * MULTIPLIERS.afternoon), mult: `${MULTIPLIERS.afternoon}x multiplier`, color: "#3B82F6", icon: Sun },
+    { id: "evening", title: "EVENING", range: "5-9 PM", rate: Math.round(BASE_RATE * MULTIPLIERS.evening), mult: `${MULTIPLIERS.evening}x multiplier`, color: "#6C47FF", icon: Sunset },
+    { id: "night", title: "NIGHT", range: "9 PM-12 AM", rate: Math.round(BASE_RATE * MULTIPLIERS.night), mult: `${MULTIPLIERS.night}x multiplier`, color: "#60A5FA", icon: Moon },
   ];
 
-  // Dual-series data for the chart peaks
   const chartData = [
     { time: '6 AM', evening: 10, lunch: 5, active: 20 },
     { time: '8 AM', evening: 15, lunch: 10, active: 35 },
@@ -72,27 +147,40 @@ export default function IncomeDNAProfile() {
         <div className="space-y-6">
           <div className="flex justify-between items-center px-2">
             <h1 className="text-2xl font-bold text-[#1A1A2E]">Income DNA Profile</h1>
-            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Updated 17:25</p>
+            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Live Dynamic Audit</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {slots.map((slot, i) => (
-              <Card key={i} className="bg-white border-none rounded-[20px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-gray-50 rounded-lg">
-                    <slot.icon size={14} className="text-gray-400" />
+            {slots.map((slot) => (
+              <Card key={slot.id} className="bg-white border-none rounded-[20px] shadow-sm p-6 relative overflow-hidden flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-gray-50 rounded-lg">
+                      <slot.icon size={14} className="text-gray-400" />
+                    </div>
+                    <p className="text-[10px] font-bold text-gray-400 tracking-wider">{slot.title}</p>
                   </div>
-                  <p className="text-[10px] font-bold text-gray-400 tracking-wider">{slot.title}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-400 mb-1">{slot.range}</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-[#1A1A2E]">₹{slot.rate}</span>
-                    <span className="text-sm font-bold text-[#1A1A2E]">/hr</span>
+                  <div className="text-right">
+                    <p className="text-[10px] text-gray-400 mb-1">{slot.range}</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xl font-bold text-[#1A1A2E]">₹{slot.rate}</span>
+                      <span className="text-[10px] font-bold text-[#1A1A2E]">/hr</span>
+                    </div>
                   </div>
                 </div>
+                
+                <div className="mt-2 space-y-1">
+                  <p className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest">Hrs Worked/Day</p>
+                  <Input 
+                    type="number" 
+                    min="0"
+                    value={(hours as any)[slot.id.toLowerCase()]}
+                    onChange={(e) => setHours(prev => ({...prev, [slot.id.toLowerCase()]: Math.max(0, parseInt(e.target.value) || 0)}))}
+                    className="h-9 text-xs font-bold rounded-xl border-[#E8E6FF] bg-[#F8F9FF] focus:border-[#6C47FF]"
+                  />
+                </div>
+
                 <p className="text-[10px] font-bold text-[#6C47FF]/60">{slot.mult}</p>
-                {/* Thin colored bottom border */}
                 <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: slot.color }} />
               </Card>
             ))}
@@ -103,23 +191,56 @@ export default function IncomeDNAProfile() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
           {/* LEFT: EXPECTED EARNINGS */}
-          <Card className="bg-white border-none rounded-[20px] shadow-sm p-10 flex flex-col justify-between">
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
-              <div className="text-7xl font-bold text-[#6C47FF]">₹3360</div>
-              <p className="text-xs text-gray-400 leading-relaxed max-w-[280px] mt-4">
-                Derived from your Income DNA earning pattern across 40 projected working hours.
+          <Card className="bg-white border-none rounded-[20px] shadow-sm p-10 flex flex-col justify-between relative overflow-hidden">
+            <Shield className="absolute -top-10 -right-10 h-40 w-40 text-[#6C47FF] opacity-[0.03]" />
+            
+            <div className="space-y-6 relative z-10">
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">EXPECTED WEEKLY EARNINGS</p>
+                {totalHours === 0 ? (
+                  <div className="flex items-center gap-3 text-[#F59E0B]">
+                    <AlertTriangle size={32} />
+                    <p className="text-lg font-bold">Please enter working hours</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-7xl font-bold text-[#6C47FF]">₹{weeklyEarnings}</div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Smart AI Insight:</p>
+                      <p className="text-xs font-bold text-[#22C55E]">{getInsight()}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="space-y-1 border-l-2 border-[#6C47FF]/20 pl-4 py-1">
+                <p className="text-[9px] font-bold text-gray-400 uppercase">Calculation Formula</p>
+                <p className="text-[10px] text-gray-500 italic">Final Rate = Base Rate × Time Multiplier</p>
+                <p className="text-[10px] font-bold text-[#1A1A2E]">Standard Base Rate = ₹60/hr</p>
+              </div>
+
+              <p className="text-xs text-gray-400 leading-relaxed max-w-[320px]">
+                Derived from your Income DNA earning pattern across {totalHours * 7} projected working hours per week.
               </p>
             </div>
             
-            <div className="mt-12 pt-8 border-t border-gray-100 flex items-center justify-between">
+            <div className="mt-12 pt-8 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
               <div>
                 <p className="text-[9px] font-bold text-gray-300 uppercase tracking-tighter mb-1">RECOMMENDED PLAN</p>
                 <p className="text-xl font-bold text-[#F59E0B]">Pro Shield</p>
               </div>
-              <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl px-8 h-12 transition-all text-sm">
-                Upgrade Plan
-              </Button>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <Button 
+                  onClick={handleRazorpay}
+                  disabled={totalHours === 0}
+                  className="flex-1 bg-[#6C47FF] text-white font-bold rounded-xl px-8 h-12 transition-all text-sm shadow-btn hover:bg-[#5535E8]"
+                >
+                  View Payout <IndianRupee size={14} className="ml-2" />
+                </Button>
+                <Button variant="outline" className="border-2 border-[#6C47FF] text-[#6C47FF] font-bold hover:bg-[#6C47FF] hover:text-white rounded-xl px-8 h-12 transition-all text-sm">
+                  Upgrade Plan
+                </Button>
+              </div>
             </div>
           </Card>
 
@@ -179,7 +300,6 @@ export default function IncomeDNAProfile() {
               </ResponsiveContainer>
             </div>
             
-            {/* LEGEND MATCHING REFERENCE */}
             <div className="mt-8 flex justify-center gap-8">
               <div className="flex items-center gap-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-[#6C47FF]" />
