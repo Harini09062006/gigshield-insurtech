@@ -5,7 +5,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth, useDoc 
 import { collection, query, where, limit, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Calendar, Home, FileText, Map as MapIcon, LogOut, Shield, AlertCircle, Loader2, AlertTriangle, XCircle, CreditCard } from "lucide-react";
+import { CheckCircle2, Calendar, Home, FileText, Map as MapIcon, LogOut, Shield, AlertCircle, Loader2, AlertTriangle, XCircle, CreditCard, Zap } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
