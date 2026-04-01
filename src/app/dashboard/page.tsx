@@ -72,24 +72,38 @@ const calculateRiskScore = (
 }
 
 /**
- * Calculates the dynamic premium breakdown based on weekly risk rules.
+ * Calculates the dynamic premium breakdown based on multi-factor weekly risk rules.
  */
-const calculatePremiumBreakdown = (workerCity: string, rainfall: number, basePremium: number, riskScore: number) => {
+const calculatePremiumBreakdown = (
+  workerCity: string, 
+  rainfall: number, 
+  aqi: number, 
+  wind: number, 
+  basePremium: number, 
+  riskScore: number
+) => {
   // Weekly Location Surcharge
   const locationCharge = workerCity === "Chennai" ? 3 : 0;
   
-  // Weekly Weather Risk Surcharge (Rainfall as weekly proxy)
-  const weatherCharge = rainfall > 50 ? 2 : 0;
+  // Weekly Weather Risk Surcharges
+  const rainCharge = rainfall > 50 ? 2 : 0;
+  const aqiCharge = aqi > 300 ? 1 : 0;
+  const windCharge = wind > 60 ? 1 : 0;
   
   // Weekly Safe Zone Discount (Low Risk < 40)
   const safeZoneDiscount = riskScore < 40 ? 3 : 0;
   
+  const totalIncrease = locationCharge + rainCharge + aqiCharge + windCharge;
+  const finalPremium = Math.max(1, basePremium + totalIncrease - safeZoneDiscount);
+  
   return {
     basePremium,
     locationCharge,
-    weatherCharge,
+    rainCharge,
+    aqiCharge,
+    windCharge,
     safeZoneDiscount,
-    finalPremium: Math.max(1, basePremium + locationCharge + weatherCharge - safeZoneDiscount)
+    finalPremium
   };
 };
 
@@ -145,11 +159,18 @@ export default function WorkerDashboard() {
   );
 
   const breakdown = React.useMemo(() => {
-    if (!profile) return { basePremium: 25, locationCharge: 0, weatherCharge: 0, safeZoneDiscount: 0, finalPremium: 25 };
+    if (!profile) return { basePremium: 25, locationCharge: 0, rainCharge: 0, aqiCharge: 0, windCharge: 0, safeZoneDiscount: 0, finalPremium: 25 };
     const plan = profile.plan_id ?? "pro";
     const baseVal = plan === "basic" ? 10 : plan === "elite" ? 50 : 25;
-    return calculatePremiumBreakdown(profile.city || "", weatherData.rainfall, baseVal, riskScore);
-  }, [profile, weatherData.rainfall, riskScore]);
+    return calculatePremiumBreakdown(
+      profile.city || "", 
+      weatherData.rainfall, 
+      weatherData.aqi, 
+      weatherData.wind, 
+      baseVal, 
+      riskScore
+    );
+  }, [profile, weatherData.rainfall, weatherData.aqi, weatherData.wind, riskScore]);
 
   const metrics = React.useMemo(() => {
     if (!profile) return { incomeLoss: 0, coverage: 0, remainingRisk: 0, premium: 0, riskScore: 35 };
@@ -164,7 +185,6 @@ export default function WorkerDashboard() {
     const plan = profile.plan_id ?? "pro";
     const planPayout = plan === "basic" ? 60 : plan === "pro" ? 240 : 600;
     
-    // Plural values update to ₹0 automatically if no rain/low risk
     const coverage = lostHours > 0 ? planPayout : 0;
     const remainingRisk = Math.max(0, incomeLoss - coverage);
     const premium = breakdown.finalPremium;
@@ -343,8 +363,8 @@ export default function WorkerDashboard() {
         rainfall: severeRainfall,
         description: isFirst ? "Severe Rainfall" : isSecond ? "Anomaly Detected" : "Simulation Blocked",
         temperature: realWeatherData.main?.temp || 28,
-        aqi: isFirst ? 350 : 420,
-        wind: isFirst ? 55 : 65,
+        aqi: isFirst ? 420 : 420,
+        wind: isFirst ? 65 : 65,
         visibility: isFirst ? 150 : 80
       });
       setDisruptionRisk(newRisk);
@@ -492,15 +512,15 @@ export default function WorkerDashboard() {
                 <div className="flex flex-col gap-0.5">
                   <div className="flex justify-between text-[10px] font-medium">
                     <span className="opacity-70">
-                      {breakdown.weatherCharge > 0 ? `Rain: ${weatherData.rainfall}mm (HIGH risk)` : "Weather Risk (Rain)"}
+                      {breakdown.rainCharge + breakdown.aqiCharge + breakdown.windCharge > 0 ? `Weather Risk (Rain, AQI, Wind)` : "Weather Risk (Stable)"}
                     </span>
                     <span>
-                      {breakdown.weatherCharge > 0 ? `→ +₹${breakdown.weatherCharge}` : "No extra cost (Low Risk)"}
+                      {breakdown.rainCharge + breakdown.aqiCharge + breakdown.windCharge > 0 ? `→ +₹${breakdown.rainCharge + breakdown.aqiCharge + breakdown.windCharge}` : "Standard Rate"}
                     </span>
                   </div>
-                  {breakdown.weatherCharge > 0 && (
+                  {breakdown.rainCharge + breakdown.aqiCharge + breakdown.windCharge > 0 && (
                     <p className="text-[8px] opacity-50 italic text-right">
-                      Threshold: {'>'}50mm rainfall triggers risk adjustment
+                      Thresholds: 50mm Rain | 300 AQI | 60km/h Wind
                     </p>
                   )}
                 </div>
@@ -582,9 +602,9 @@ export default function WorkerDashboard() {
                 </p>
                 <div className="flex flex-col gap-0.5 mt-1 ml-[82px]">
                   <span className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest opacity-80">Premium Impact:</span>
-                  <p className="text-[9px] font-bold text-[#64748B]">Rain ({weatherData.rainfall}mm {riskInfo.rain.label}) → +₹{breakdown.weatherCharge}</p>
-                  <p className="text-[9px] font-bold text-[#64748B]">AQI ({weatherData.aqi} {riskInfo.aqi.label}) → +₹0</p>
-                  <p className="text-[9px] font-bold text-[#64748B]">Wind ({weatherData.wind} km/h {riskInfo.wind.label}) → +₹0</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">Rain ({weatherData.rainfall}mm {riskInfo.rain.label}) → +₹{breakdown.rainCharge}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">AQI ({weatherData.aqi} {riskInfo.aqi.label}) → +₹{breakdown.aqiCharge}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">Wind ({weatherData.wind} km/h {riskInfo.wind.label}) → +₹{breakdown.windCharge}</p>
                 </div>
               </div>
             </div>
@@ -753,7 +773,7 @@ export default function WorkerDashboard() {
                 <div className="space-y-2">
                   <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest">Expected Weekly Earnings</p>
                   <h3 className="text-3xl font-black text-[#6C47FF]">₹{Math.round((morningRate * 4 + afternoonRate * 4 + eveningRate * 4 + nightRate * 3) * 7)}</h3>
-                  <p className="text-[11px] text-[#64748B] leading-relaxed mt-4">Derived from your Income DNA earning pattern across projected working hours.</p>
+                  <p className="text-11px text-[#64748B] leading-relaxed mt-4">Derived from your Income DNA earning pattern across projected working hours.</p>
                 </div>
                 <div className="mt-8 pt-8 border-t border-[#E8E6FF] flex flex-col gap-4">
                   <div>
