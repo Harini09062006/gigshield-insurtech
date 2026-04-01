@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -450,7 +451,7 @@ export default function WorkerDashboard() {
                   </div>
                   {breakdown.weatherCharge > 0 && (
                     <p className="text-[8px] opacity-50 italic text-right">
-                      Threshold: &gt;50mm rainfall triggers risk adjustment
+                      Threshold: {">"}50mm rainfall triggers risk adjustment
                     </p>
                   )}
                 </div>
@@ -530,6 +531,12 @@ export default function WorkerDashboard() {
                 <p className="text-[9px] font-medium text-[#64748B] opacity-70 ml-[82px] -mt-0.5">
                   Automated verification enabled for all factors
                 </p>
+                <div className="flex flex-col gap-0.5 mt-1 ml-[82px]">
+                  <span className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest opacity-80">Premium Impact:</span>
+                  <p className="text-[9px] font-bold text-[#64748B]">Rain ({weatherData.rainfall}mm {riskInfo.rain.label}) → +₹{breakdown.weatherCharge}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">AQI ({weatherData.aqi} {riskInfo.aqi.label}) → +₹0</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">Wind ({weatherData.wind} km/h {riskInfo.wind.label}) → +₹0</p>
+                </div>
               </div>
             </div>
             
