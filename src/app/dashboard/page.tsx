@@ -68,35 +68,6 @@ const DEFAULT_RISK = {
   historicalRisk: 0.45
 };
 
-// Helper function for Weekly Risk Score
-const calculateRiskScore = (
-  rainfall: number,
-  city: string,
-  hour: number
-): number => {
-  let score = 0
-  
-  // Weather points (max 40)
-  if (rainfall > 50) score += 40
-  else if (rainfall > 30) score += 30
-  else if (rainfall > 10) score += 20
-  else score = 5
-  
-  // City risk (max 30)
-  const HIGH = [
-    'Chennai','Mumbai','Kolkata',
-    'Kochi','Howrah'
-  ]
-  score += HIGH.includes(city) ? 30 : 15
-  
-  // Time risk (max 30)
-  if (hour >= 17 && hour <= 21) score += 30
-  else if (hour >= 12 && hour <= 16) score += 20
-  else score += 10
-  
-  return Math.min(score, 100)
-}
-
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -176,12 +147,19 @@ export default function WorkerDashboard() {
     else if (riskScore > 0.5) adjustment = 2;
     else if (riskScore < 0.3) adjustment = -2;
 
+    const weatherCharge = currentData.rain > 50 ? 2 : 0;
+    const aqiCharge = currentData.aqi > 300 ? 1 : 0;
+    const windCharge = currentData.wind > 60 ? 1 : 0;
+
     return {
-      finalPremium: baseVal + adjustment,
+      finalPremium: baseVal + weatherCharge + aqiCharge + windCharge,
       basePremium: baseVal,
-      adjustment,
+      adjustment: weatherCharge + aqiCharge + windCharge,
       riskScore,
-      data: currentData
+      data: currentData,
+      weatherCharge,
+      aqiCharge,
+      windCharge
     };
   }, [profile, weatherData]);
 
@@ -209,6 +187,8 @@ export default function WorkerDashboard() {
       riskScore: profile.riskScore ?? 35 
     };
   }, [profile, weatherData.rainfall, activeRate, breakdown.finalPremium]);
+
+  const { incomeLoss, coverage, remainingRisk, premium, riskScore } = metrics;
 
   const renewalValue = React.useMemo(() => {
     const start = profile?.plan_activated_at?.seconds 
@@ -528,21 +508,28 @@ export default function WorkerDashboard() {
                 </div>
 
                 <div className="pt-1 border-t border-white/5">
-                  <p className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest opacity-80 mb-1">PREMIUM FACTORS:</p>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                    <div className="flex justify-between text-[9px]">
-                      <span className="opacity-60">Rain Impact</span>
-                      <span className="font-bold">{breakdown.data.rain > 50 ? "+₹2" : "Low"}</span>
+                  <p className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest opacity-80 mb-1">PREMIUM IMPACT:</p>
+                  <div className="grid grid-cols-1 gap-y-1">
+                    <div className="flex justify-between text-[9px] items-center">
+                      <span className="opacity-60">Rain ({weatherData.rainfall}mm HIGH)</span>
+                      <div className="text-right">
+                        <span className="font-bold">+{ IndianRupee && '₹' }{breakdown.weatherCharge}</span>
+                        {breakdown.weatherCharge > 0 && (
+                          <p className="text-[8px] opacity-50 italic">
+                            Threshold: {'>'}50mm rainfall triggers risk adjustment
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between text-[9px]">
-                      <span className="opacity-60">AQI Impact</span>
-                      <span className="font-bold">{breakdown.data.aqi > 300 ? "+₹1" : "Low"}</span>
+                      <span className="opacity-60">AQI ({weatherData.aqi} HIGH)</span>
+                      <span className="font-bold">+{ IndianRupee && '₹' }{breakdown.aqiCharge}</span>
                     </div>
                     <div className="flex justify-between text-[9px]">
-                      <span className="opacity-60">Wind Impact</span>
-                      <span className="font-bold">{breakdown.data.wind > 60 ? "+₹1" : "Low"}</span>
+                      <span className="opacity-60">Wind ({weatherData.wind} km/h HIGH)</span>
+                      <span className="font-bold">+{ IndianRupee && '₹' }{breakdown.windCharge}</span>
                     </div>
-                    <div className="flex justify-between text-[9px]">
+                    <div className="flex justify-between text-[9px] pt-1 border-t border-white/10 mt-1">
                       <span className="opacity-60">Historical Risk</span>
                       <span className="font-bold">{(breakdown.data.historicalRisk * 100).toFixed(0)}%</span>
                     </div>
@@ -611,7 +598,7 @@ export default function WorkerDashboard() {
               </div>
               <div className="flex flex-col gap-0.5 leading-tight">
                 <div className="flex items-start gap-1.5">
-                  <span className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest whitespace-nowrap pt-0.5">⚡ System Action:</span>
+                  <span className="text-[9px] font-black text-[#94A3B8] uppercase tracking-widest whitespace-nowrap pt-0.5">⚡ Action:</span>
                   <span className="text-[10px] font-bold text-[#6C47FF]">
                     {riskInfo.overall === 'HIGH' ? "Premium increased; High-alert status" : riskInfo.overall === 'MEDIUM' ? "Monitoring active; standard rates" : "Premium reduced; Safe Zone Active" }
                   </span>
@@ -621,9 +608,9 @@ export default function WorkerDashboard() {
                 </p>
                 <div className="flex flex-col gap-0.5 mt-1 ml-[82px]">
                   <span className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest opacity-80">Premium Impact:</span>
-                  <p className="text-[9px] font-bold text-[#64748B]">Rain ({weatherData.rainfall}mm {riskInfo.rain.label}) → +₹{breakdown.adjustment > 0 && weatherData.rainfall > 50 ? '2' : '0'}</p>
-                  <p className="text-[9px] font-bold text-[#64748B]">AQI ({weatherData.aqi} {riskInfo.aqi.label}) → +₹{breakdown.adjustment > 0 && weatherData.aqi > 300 ? '1' : '0'}</p>
-                  <p className="text-[9px] font-bold text-[#64748B]">Wind ({weatherData.wind} km/h {riskInfo.wind.label}) → +₹{breakdown.adjustment > 0 && weatherData.wind > 60 ? '1' : '0'}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">Rain ({weatherData.rainfall}mm HIGH) → +₹{breakdown.weatherCharge}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">AQI ({weatherData.aqi} HIGH) → +₹{breakdown.aqiCharge}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">Wind ({weatherData.wind} km/h HIGH) → +₹{breakdown.windCharge}</p>
                 </div>
               </div>
             </div>
@@ -704,15 +691,15 @@ export default function WorkerDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 px-1">
               <div className="flex flex-col space-y-1 p-4 bg-[#FEE2E2]/30 rounded-2xl">
                 <p className="text-[9px] font-black text-[#EF4444] uppercase tracking-widest">POTENTIAL INCOME LOSS</p>
-                <p className="text-2xl font-black text-[#EF4444]">₹{metrics.incomeLoss || 0}</p>
+                <p className="text-2xl font-black text-[#EF4444]">₹{incomeLoss || 0}</p>
               </div>
               <div className="flex flex-col space-y-1 p-4 bg-[#DCFCE7]/30 rounded-2xl">
                 <p className="text-[9px] font-black text-[#22C55E] uppercase tracking-widest">INSURANCE COVERAGE</p>
-                <p className="text-2xl font-black text-[#22C55E]">₹{metrics.coverage || 0}</p>
+                <p className="text-2xl font-black text-[#22C55E]">₹{coverage || 0}</p>
               </div>
               <div className="flex flex-col space-y-1 p-4 bg-[#F1F0FF] rounded-2xl">
                 <p className="text-[9px] font-black text-[#6C47FF] uppercase tracking-widest">REMAINING RISK</p>
-                <p className="text-2xl font-black text-[#6C47FF]">₹{metrics.remainingRisk || 0}</p>
+                <p className="text-2xl font-black text-[#6C47FF]">₹{remainingRisk || 0}</p>
               </div>
             </div>
           </Card>
