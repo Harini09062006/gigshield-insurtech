@@ -450,7 +450,7 @@ export default function WorkerDashboard() {
                   </div>
                   {breakdown.weatherCharge > 0 && (
                     <p className="text-[8px] opacity-50 italic text-right">
-                      Threshold: >50mm rainfall triggers risk adjustment
+                      Threshold: &gt;50mm rainfall triggers risk adjustment
                     </p>
                   )}
                 </div>
