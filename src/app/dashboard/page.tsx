@@ -76,6 +76,7 @@ export default function WorkerDashboard() {
   const { toast } = useToast();
 
   const [simulating, setSimulating] = useState(false);
+  const [isSimulated, setIsSimulated] = useState(false);
   const [notif, setNotif] = useState<any>(null);
   const [isPaid, setIsPaid] = useState(false);
   
@@ -88,6 +89,11 @@ export default function WorkerDashboard() {
     visibility: 150
   });
   const [disruptionRisk, setDisruptionRisk] = useState(75);
+
+  const displayRain = isSimulated ? 65 : 12;
+  const displayAqi = isSimulated ? 420 : 85;
+  const displayWind = isSimulated ? 65 : 15;
+  const displayFog = isSimulated ? 80 : 800;
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -167,7 +173,7 @@ export default function WorkerDashboard() {
   const metrics = React.useMemo(() => {
     if (!profile) return { incomeLoss: 0, coverage: 0, remainingRisk: 0, premium: 0, riskScore: 35 };
 
-    const rain = weatherData.rainfall;
+    const rain = displayRain; // UI metrics follow display values
     let lostHours = 0;
     if (rain > 80) lostHours = 6;
     else if (rain > 50) lostHours = 4;
@@ -185,9 +191,9 @@ export default function WorkerDashboard() {
       coverage, 
       remainingRisk, 
       premium: breakdown.finalPremium, 
-      riskScore: profile.riskScore ?? 35 
+      riskScore: isSimulated ? 75 : (profile.riskScore ?? 35)
     };
-  }, [profile, weatherData.rainfall, activeRate, breakdown.finalPremium]);
+  }, [profile, displayRain, activeRate, breakdown.finalPremium, isSimulated]);
 
   const { incomeLoss, coverage, remainingRisk, premium, riskScore } = metrics;
 
@@ -228,7 +234,13 @@ export default function WorkerDashboard() {
     return { rain: rainStatus, aqi: aqiStatus, temp: tempStatus, wind: windStatus, visibility: fogStatus, overall, overallColor };
   };
 
-  const riskInfo = getRiskInfo(weatherData);
+  const riskInfo = getRiskInfo({
+    rainfall: displayRain,
+    aqi: displayAqi,
+    wind: displayWind,
+    temperature: weatherData.temperature,
+    visibility: displayFog
+  });
 
   const getAllPassedChecks = () => ({
     gpsValidation: "PASSED",
@@ -241,10 +253,42 @@ export default function WorkerDashboard() {
     networkAnalysis: "PASSED"
   });
 
+  const handleRazorpayPayment = (amount: number, claimId: string) => {
+    if (typeof window === 'undefined') return;
+    if (!(window as any).Razorpay) {
+      toast({ variant: "destructive", title: "Error", description: "Razorpay SDK not loaded." });
+      return;
+    }
+
+    const options = {
+      key: "rzp_test_SY9JJx7GKLL2Jm",
+      amount: amount * 100,
+      currency: "INR",
+      name: "GigShield",
+      description: "Weekly Activation - " + claimId,
+      handler: function(response: any) {
+        setIsPaid(true);
+        toast({ title: "✅ Payment Successful!", description: `Plan activated for current week.` });
+      },
+      prefill: {
+        name: profile?.name || "Worker",
+        contact: profile?.phone || "",
+        email: user?.email || ""
+      },
+      theme: {
+        color: "#6366f1"
+      }
+    };
+    
+    const rzp = new (window as any).Razorpay(options);
+    rzp.open();
+  }
+
   const handleSimulateWeather = async () => {
     if (!user?.uid || !db) return;
     
     setSimulating(true);
+    setIsSimulated(true);
 
     try {
       const userRef = doc(db, "users", user.uid);
@@ -447,7 +491,7 @@ export default function WorkerDashboard() {
           {/* Card 1: AI Dynamic Protection */}
           <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-4 shadow-xl relative overflow-hidden flex flex-col gap-3">
             <Shield className="absolute top-4 right-4 h-6 w-6 opacity-20" />
-            <div className="relative z-10">
+            <div className="relative z-10 flex flex-col h-full">
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-0.5">AI DYNAMIC PREMIUM</p>
@@ -471,33 +515,6 @@ export default function WorkerDashboard() {
                 </div>
               </div>
 
-              <p className="text-xs opacity-80 mt-2">
-                This premium is calculated at the start of the week based on predicted risk conditions.
-              </p>
-              <p className="text-[10px] opacity-60">
-                Locked for current week
-              </p>
-
-              {!isPaid && (
-                <button
-                  onClick={() => setIsPaid(true)}
-                  className="mt-4 w-full bg-white text-[#6C47FF] font-semibold py-2 rounded-xl"
-                >
-                  Pay for this week
-                </button>
-              )}
-              {isPaid && (
-                <>
-                  <p className="mt-4 text-green-300 text-sm font-semibold">
-                    ✅ Weekly plan activated
-                  </p>
-                  <p className="text-xs opacity-80">
-                    Coverage active for this week
-                  </p>
-                </>
-              )}
-
-              {/* Before -> After & Status */}
               <div className="text-center space-y-0.5 mb-3">
                 <p className="text-[9px] font-bold opacity-80">
                   Base: ₹{breakdown.basePremium} → Now: ₹{breakdown.finalPremium}
@@ -568,6 +585,34 @@ export default function WorkerDashboard() {
                   <span className="text-[8px] font-black opacity-50 uppercase tracking-[0.2em]">Demo Mode: AI-simulated weekly forecast</span>
                 </div>
               </div>
+
+              <div className="mt-auto pt-4">
+                <p className="text-xs opacity-80">
+                  This premium is calculated at the start of the week based on predicted risk conditions.
+                </p>
+                <p className="text-[10px] opacity-60 mb-2">
+                  Locked for current week
+                </p>
+
+                {!isPaid && (
+                  <button
+                    onClick={() => handleRazorpayPayment(breakdown.finalPremium, profile?.id || "ACT_001")}
+                    className="w-full py-2 text-sm rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:scale-[1.02] transition"
+                  >
+                    Pay for this week
+                  </button>
+                )}
+                {isPaid && (
+                  <div className="bg-white/10 p-3 rounded-xl border border-white/20">
+                    <p className="text-green-300 text-sm font-semibold">
+                      ✅ Weekly plan activated
+                    </p>
+                    <p className="text-[10px] opacity-80">
+                      Coverage active for this week
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
 
@@ -588,11 +633,11 @@ export default function WorkerDashboard() {
               {/* Multi-Risk Rows */}
               <div className="space-y-1.5 mt-2">
                 {[
-                  { icon: "🌧️", label: "Rain", val: `${weatherData.rainfall}mm`, status: riskInfo.rain },
-                  { icon: "🌫️", label: "AQI", val: weatherData.aqi, status: riskInfo.aqi },
+                  { icon: "🌧️", label: "Rain", val: `${displayRain}mm`, status: { label: displayRain > 50 ? "HIGH" : "LOW", color: displayRain > 50 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600" } },
+                  { icon: "🌫️", label: "AQI", val: displayAqi, status: { label: displayAqi > 300 ? "HIGH" : "SAFE", color: displayAqi > 300 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600" } },
                   { icon: "🌡️", label: "Temp", val: `${weatherData.temperature}°C`, status: riskInfo.temp },
-                  { icon: "🌬️", label: "Wind", val: `${weatherData.wind} km/h`, status: riskInfo.wind },
-                  { icon: "🌁", label: "Fog", val: `${weatherData.visibility}m`, status: riskInfo.visibility },
+                  { icon: "🌬️", label: "Wind", val: `${displayWind} km/h`, status: { label: displayWind > 60 ? "HIGH" : "SAFE", color: displayWind > 60 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600" } },
+                  { icon: "🌁", label: "Fog", val: `${displayFog}m`, status: { label: displayFog < 100 ? "HIGH" : "CLEAR", color: displayFog < 100 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600" } },
                 ].map((row, idx) => (
                   <div key={idx} className="flex items-center justify-between py-1 border-b border-[#F5F3FF] last:border-none">
                     <div className="flex items-center gap-2">
@@ -635,9 +680,9 @@ export default function WorkerDashboard() {
                 </p>
                 <div className="flex flex-col gap-0.5 mt-1 ml-[82px]">
                   <span className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest opacity-80">Premium Impact:</span>
-                  <p className="text-[9px] font-bold text-[#64748B]">Rain ({weatherData.rainfall}mm HIGH) → +₹{breakdown.weatherCharge}</p>
-                  <p className="text-[9px] font-bold text-[#64748B]">AQI ({weatherData.aqi} HIGH) → +₹{breakdown.aqiCharge}</p>
-                  <p className="text-[9px] font-bold text-[#64748B]">Wind ({weatherData.wind} km/h HIGH) → +₹{breakdown.windCharge}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">Rain ({displayRain}mm {displayRain > 50 ? 'HIGH' : 'LOW'}) → +₹{breakdown.weatherCharge}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">AQI ({displayAqi} {displayAqi > 300 ? 'HIGH' : 'SAFE'}) → +₹{breakdown.aqiCharge}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">Wind ({displayWind} km/h {displayWind > 60 ? 'HIGH' : 'SAFE'}) → +₹{breakdown.windCharge}</p>
                 </div>
               </div>
             </div>
@@ -646,9 +691,9 @@ export default function WorkerDashboard() {
               <div className="space-y-1">
                 <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-wider">
                   <span className="text-[#64748B]">Disruption Risk</span>
-                  <span className="text-[#1A1A2E]">{disruptionRisk}%</span>
+                  <span className="text-[#1A1A2E]">{isSimulated ? 75 : 15}%</span>
                 </div>
-                <Progress value={disruptionRisk} className="h-1.5 bg-[#f0f2f9]" />
+                <Progress value={isSimulated ? 75 : 15} className="h-1.5 bg-[#f0f2f9]" />
               </div>
 
               <div className="space-y-1 pt-2 border-t border-[#f0f2f9]">
