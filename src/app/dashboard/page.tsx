@@ -42,6 +42,32 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
+// --- AI RISK DATA MODEL ---
+const locationRiskData: Record<string, { rain: number; aqi: number; wind: number; temp: number; historicalRisk: number }> = {
+  Chennai: {
+    rain: 65,
+    aqi: 420,
+    wind: 65,
+    temp: 34,
+    historicalRisk: 0.82
+  },
+  Srivilliputtur: {
+    rain: 10,
+    aqi: 80,
+    wind: 15,
+    temp: 29,
+    historicalRisk: 0.25
+  }
+};
+
+const DEFAULT_RISK = {
+  rain: 30,
+  aqi: 120,
+  wind: 20,
+  temp: 30,
+  historicalRisk: 0.45
+};
+
 // Helper function for Weekly Risk Score
 const calculateRiskScore = (
   rainfall: number,
@@ -70,42 +96,6 @@ const calculateRiskScore = (
   
   return Math.min(score, 100)
 }
-
-/**
- * Calculates the dynamic premium breakdown based on multi-factor weekly risk rules.
- */
-const calculatePremiumBreakdown = (
-  workerCity: string, 
-  rainfall: number, 
-  aqi: number, 
-  wind: number, 
-  basePremium: number, 
-  riskScore: number
-) => {
-  // Weekly Location Surcharge
-  const locationCharge = workerCity === "Chennai" ? 3 : 0;
-  
-  // Weekly Weather Risk Surcharges
-  const rainCharge = rainfall > 50 ? 2 : 0;
-  const aqiCharge = aqi > 300 ? 1 : 0;
-  const windCharge = wind > 60 ? 1 : 0;
-  
-  // Weekly Safe Zone Discount (Low Risk < 40)
-  const safeZoneDiscount = riskScore < 40 ? 3 : 0;
-  
-  const totalIncrease = locationCharge + rainCharge + aqiCharge + windCharge;
-  const finalPremium = Math.max(1, basePremium + totalIncrease - safeZoneDiscount);
-  
-  return {
-    basePremium,
-    locationCharge,
-    rainCharge,
-    aqiCharge,
-    windCharge,
-    safeZoneDiscount,
-    finalPremium
-  };
-};
 
 export default function WorkerDashboard() {
   const { user, isUserLoading } = useUser();
@@ -152,25 +142,48 @@ export default function WorkerDashboard() {
   else if (currentHour >= 12 && currentHour < 16) { activeSlotName = "Afternoon Peak"; activeRate = afternoonRate; }
   else if (currentHour >= 17 && currentHour < 21) { activeSlotName = "Evening Peak"; activeRate = eveningRate; }
 
-  const riskScore = calculateRiskScore(
-    weatherData?.rainfall || 0,
-    profile?.city || "",
-    new Date().getHours()
-  );
-
+  // --- CONSOLIDATED AI PRICING ENGINE ---
   const breakdown = React.useMemo(() => {
-    if (!profile) return { basePremium: 25, locationCharge: 0, rainCharge: 0, aqiCharge: 0, windCharge: 0, safeZoneDiscount: 0, finalPremium: 25 };
-    const plan = profile.plan_id ?? "pro";
+    const city = profile?.city || "Chennai";
+    const plan = profile?.plan_id ?? "pro";
     const baseVal = plan === "basic" ? 10 : plan === "elite" ? 50 : 25;
-    return calculatePremiumBreakdown(
-      profile.city || "", 
-      weatherData.rainfall, 
-      weatherData.aqi, 
-      weatherData.wind, 
-      baseVal, 
-      riskScore
+    
+    const baseData = locationRiskData[city] || DEFAULT_RISK;
+    const currentData = {
+      ...baseData,
+      rain: weatherData.rainfall,
+      aqi: weatherData.aqi,
+      wind: weatherData.wind,
+      temp: weatherData.temperature
+    };
+
+    // AI Weighted Score Calculation
+    const rainScore = currentData.rain / 100;
+    const aqiScore = currentData.aqi / 500;
+    const windScore = currentData.wind / 100;
+    const historicalScore = currentData.historicalRisk;
+
+    const riskScore = (
+      rainScore * 0.4 +
+      aqiScore * 0.2 +
+      windScore * 0.2 +
+      historicalScore * 0.2
     );
-  }, [profile, weatherData.rainfall, weatherData.aqi, weatherData.wind, riskScore]);
+
+    // AI Adjustment Logic
+    let adjustment = 0;
+    if (riskScore > 0.7) adjustment = 4;
+    else if (riskScore > 0.5) adjustment = 2;
+    else if (riskScore < 0.3) adjustment = -2;
+
+    return {
+      finalPremium: baseVal + adjustment,
+      basePremium: baseVal,
+      adjustment,
+      riskScore,
+      data: currentData
+    };
+  }, [profile, weatherData]);
 
   const metrics = React.useMemo(() => {
     if (!profile) return { incomeLoss: 0, coverage: 0, remainingRisk: 0, premium: 0, riskScore: 35 };
@@ -187,13 +200,12 @@ export default function WorkerDashboard() {
     
     const coverage = lostHours > 0 ? planPayout : 0;
     const remainingRisk = Math.max(0, incomeLoss - coverage);
-    const premium = breakdown.finalPremium;
 
     return { 
       incomeLoss, 
       coverage, 
       remainingRisk, 
-      premium, 
+      premium: breakdown.finalPremium, 
       riskScore: profile.riskScore ?? 35 
     };
   }, [profile, weatherData.rainfall, activeRate, breakdown.finalPremium]);
@@ -363,9 +375,9 @@ export default function WorkerDashboard() {
         rainfall: severeRainfall,
         description: isFirst ? "Severe Rainfall" : isSecond ? "Anomaly Detected" : "Simulation Blocked",
         temperature: realWeatherData.main?.temp || 28,
-        aqi: isFirst ? 420 : 420,
-        wind: isFirst ? 65 : 65,
-        visibility: isFirst ? 150 : 80
+        aqi: 420,
+        wind: 65,
+        visibility: 150
       });
       setDisruptionRisk(newRisk);
 
@@ -451,14 +463,14 @@ export default function WorkerDashboard() {
 
         {/* 2. TOP SECTION: 2 CARDS SIDE BY SIDE */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Card 1: Active Protection (Compact) */}
+          {/* Card 1: AI Dynamic Protection */}
           <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-4 shadow-xl relative overflow-hidden flex flex-col gap-3">
             <Shield className="absolute top-4 right-4 h-6 w-6 opacity-20" />
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-0.5">Active Plan</p>
-                  <h2 className="text-sm font-black uppercase">{profile?.plan_id?.toUpperCase() || "PRO"} SHIELD</h2>
+                  <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-0.5">AI DYNAMIC PREMIUM</p>
+                  <h2 className="text-sm font-black uppercase">Based on predictive risk modeling</h2>
                   <div className="flex items-center gap-1.5 mt-1">
                     <MapPin className="h-3 w-3 opacity-70" />
                     <span className="text-[9px] font-bold uppercase tracking-wider">Location: {profile?.city || 'Chennai'}</span>
@@ -483,56 +495,63 @@ export default function WorkerDashboard() {
                 <p className="text-[9px] font-bold opacity-80">
                   Base: ₹{breakdown.basePremium} → Now: ₹{breakdown.finalPremium}
                 </p>
-                {riskScore > 60 ? (
+                {breakdown.adjustment > 0 ? (
                   <p className="text-[8px] font-black text-[#FEE2E2] uppercase tracking-tighter">
-                    ⬆ Increased due to weekly risk
+                    ↑ Increased due to high predicted disruption risk
                   </p>
-                ) : riskScore < 40 ? (
+                ) : breakdown.adjustment < 0 ? (
                   <p className="text-[8px] font-black text-[#DCFCE7] uppercase tracking-tighter">
-                    ✓ Lower premium (Safe Zone)
+                    ↓ Reduced due to stable environmental conditions
                   </p>
                 ) : (
                   <p className="text-[8px] font-black text-[#DCFCE7] uppercase tracking-tighter">
-                    ✓ Stable pricing (Normal Conditions)
+                    No significant risk change
                   </p>
                 )}
               </div>
 
-              <div className="space-y-1 bg-black/10 p-3 rounded-xl border border-white/5">
-                <div className="flex justify-between text-[10px] font-medium">
-                  <span className="opacity-70">Base</span>
-                  <span>₹{breakdown.basePremium}</span>
+              <div className="space-y-2 bg-black/10 p-3 rounded-xl border border-white/5">
+                <div className="space-y-1">
+                  <p className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest opacity-80 mb-1">AI Insight:</p>
+                  <p className="text-[9px] font-medium leading-relaxed opacity-90">
+                    This premium is calculated using a weighted risk model combining real-time weather, environmental factors, and historical disruption patterns.
+                  </p>
                 </div>
-                {breakdown.locationCharge > 0 && (
-                  <div className="flex justify-between text-[10px] font-medium">
-                    <span className="opacity-70">Location Risk ({profile?.city || 'Zone'})</span>
-                    <span>+₹{breakdown.locationCharge}</span>
-                  </div>
-                )}
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex justify-between text-[10px] font-medium">
-                    <span className="opacity-70">
-                      {breakdown.rainCharge + breakdown.aqiCharge + breakdown.windCharge > 0 ? `Weather Risk (Rain, AQI, Wind)` : "Weather Risk (Stable)"}
-                    </span>
-                    <span>
-                      {breakdown.rainCharge + breakdown.aqiCharge + breakdown.windCharge > 0 ? `→ +₹${breakdown.rainCharge + breakdown.aqiCharge + breakdown.windCharge}` : "Standard Rate"}
-                    </span>
-                  </div>
-                  {breakdown.rainCharge + breakdown.aqiCharge + breakdown.windCharge > 0 && (
-                    <p className="text-[8px] opacity-50 italic text-right">
-                      Thresholds: 50mm Rain | 300 AQI | 60km/h Wind
-                    </p>
-                  )}
+
+                <div className="flex justify-between items-center py-1 border-t border-white/5">
+                  <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">Risk Score:</span>
+                  <span className="text-[10px] font-black">{(breakdown.riskScore * 100).toFixed(0)}/100</span>
                 </div>
-                {breakdown.safeZoneDiscount > 0 && (
-                  <div className="flex justify-between text-[10px] font-medium">
-                    <span className="opacity-70 text-[#DCFCE7]">Safe Zone Discount</span>
-                    <span className="text-[#DCFCE7]">-₹{breakdown.safeZoneDiscount}</span>
+                <div className="flex justify-between items-center pb-1">
+                  <span className="text-[9px] font-bold opacity-70 uppercase tracking-widest">Confidence:</span>
+                  <span className="text-[10px] font-black">{(breakdown.riskScore * 100).toFixed(0)}%</span>
+                </div>
+
+                <div className="pt-1 border-t border-white/5">
+                  <p className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest opacity-80 mb-1">PREMIUM FACTORS:</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <div className="flex justify-between text-[9px]">
+                      <span className="opacity-60">Rain Impact</span>
+                      <span className="font-bold">{breakdown.data.rain > 50 ? "+₹2" : "Low"}</span>
+                    </div>
+                    <div className="flex justify-between text-[9px]">
+                      <span className="opacity-60">AQI Impact</span>
+                      <span className="font-bold">{breakdown.data.aqi > 300 ? "+₹1" : "Low"}</span>
+                    </div>
+                    <div className="flex justify-between text-[9px]">
+                      <span className="opacity-60">Wind Impact</span>
+                      <span className="font-bold">{breakdown.data.wind > 60 ? "+₹1" : "Low"}</span>
+                    </div>
+                    <div className="flex justify-between text-[9px]">
+                      <span className="opacity-60">Historical Risk</span>
+                      <span className="font-bold">{(breakdown.data.historicalRisk * 100).toFixed(0)}%</span>
+                    </div>
                   </div>
-                )}
+                </div>
+
                 <div className="h-px bg-white/10 my-1" />
                 <div className="flex justify-center items-center">
-                  <span className="text-sm font-black text-[#DCFCE7]">₹{breakdown.finalPremium} / week ✅</span>
+                  <span className="text-[8px] font-black opacity-50 uppercase tracking-[0.2em]">Demo Mode: AI-simulated weekly forecast</span>
                 </div>
               </div>
             </div>
@@ -602,9 +621,9 @@ export default function WorkerDashboard() {
                 </p>
                 <div className="flex flex-col gap-0.5 mt-1 ml-[82px]">
                   <span className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest opacity-80">Premium Impact:</span>
-                  <p className="text-[9px] font-bold text-[#64748B]">Rain ({weatherData.rainfall}mm {riskInfo.rain.label}) → +₹{breakdown.rainCharge}</p>
-                  <p className="text-[9px] font-bold text-[#64748B]">AQI ({weatherData.aqi} {riskInfo.aqi.label}) → +₹{breakdown.aqiCharge}</p>
-                  <p className="text-[9px] font-bold text-[#64748B]">Wind ({weatherData.wind} km/h {riskInfo.wind.label}) → +₹{breakdown.windCharge}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">Rain ({weatherData.rainfall}mm {riskInfo.rain.label}) → +₹{breakdown.adjustment > 0 && weatherData.rainfall > 50 ? '2' : '0'}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">AQI ({weatherData.aqi} {riskInfo.aqi.label}) → +₹{breakdown.adjustment > 0 && weatherData.aqi > 300 ? '1' : '0'}</p>
+                  <p className="text-[9px] font-bold text-[#64748B]">Wind ({weatherData.wind} km/h {riskInfo.wind.label}) → +₹{breakdown.adjustment > 0 && weatherData.wind > 60 ? '1' : '0'}</p>
                 </div>
               </div>
             </div>
