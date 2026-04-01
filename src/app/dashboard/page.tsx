@@ -489,13 +489,13 @@ export default function WorkerDashboard() {
         {/* 2. TOP SECTION: 2 CARDS SIDE BY SIDE */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Card 1: AI Dynamic Protection */}
-          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-4 shadow-xl relative overflow-hidden flex flex-col gap-3">
+          <Card className="bg-[#6C47FF] text-white rounded-[24px] border-none p-3 shadow-xl relative overflow-hidden flex flex-col gap-2">
             <Shield className="absolute top-4 right-4 h-6 w-6 opacity-20" />
             <div className="relative z-10 flex flex-col h-full">
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <p className="text-[8px] font-black uppercase tracking-widest opacity-70 mb-0.5">AI DYNAMIC PREMIUM</p>
-                  <h2 className="text-sm font-black uppercase">Based on predictive risk modeling</h2>
+                  <h2 className="text-xs font-black uppercase">Based on predictive risk modeling</h2>
                   <div className="flex items-center gap-1.5 mt-1">
                     <MapPin className="h-3 w-3 opacity-70" />
                     <span className="text-[9px] font-bold uppercase tracking-wider">Location: {profile?.city || 'Chennai'}</span>
@@ -507,15 +507,15 @@ export default function WorkerDashboard() {
                 </div>
               </div>
 
-              <div className="text-center mb-3">
-                <p className="text-4xl font-black mb-0.5">₹{breakdown.finalPremium}</p>
+              <div className="text-center mb-2">
+                <p className="text-3xl font-black mb-0.5">₹{breakdown.finalPremium}</p>
                 <div className="flex flex-col items-center gap-0.5">
                   <p className="text-[8px] font-bold uppercase tracking-[0.2em] opacity-60">📊 AI Calculated Premium</p>
                   <p className="text-[8px] opacity-50 italic">Based on weekly location & weather risk</p>
                 </div>
               </div>
 
-              <div className="text-center space-y-0.5 mb-3">
+              <div className="text-center space-y-0.5 mb-2">
                 <p className="text-[9px] font-bold opacity-80">
                   Base: ₹{breakdown.basePremium} → Now: ₹{breakdown.finalPremium}
                 </p>
@@ -534,7 +534,7 @@ export default function WorkerDashboard() {
                 )}
               </div>
 
-              <div className="space-y-2 bg-black/10 p-3 rounded-xl border border-white/5">
+              <div className="space-y-1.5 bg-black/10 p-2.5 rounded-xl border border-white/5">
                 <div className="space-y-1">
                   <p className="text-[8px] font-black text-[#94A3B8] uppercase tracking-widest opacity-80 mb-1">AI Insight:</p>
                   <p className="text-[9px] font-medium leading-relaxed opacity-90">
@@ -586,7 +586,7 @@ export default function WorkerDashboard() {
                 </div>
               </div>
 
-              <div className="mt-auto pt-4">
+              <div className="mt-auto pt-3">
                 <p className="text-xs opacity-80">
                   This premium is calculated at the start of the week based on predicted risk conditions.
                 </p>
@@ -597,7 +597,7 @@ export default function WorkerDashboard() {
                 {!isPaid && (
                   <button
                     onClick={() => handleRazorpayPayment(breakdown.finalPremium, profile?.id || "ACT_001")}
-                    className="w-full py-2 text-sm rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:scale-[1.02] transition"
+                    className="w-full py-1.5 text-xs rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md hover:scale-[1.02] transition"
                   >
                     Pay for this week
                   </button>
