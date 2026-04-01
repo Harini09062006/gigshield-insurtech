@@ -52,6 +52,32 @@ export default function WorkerClaims() {
     });
   }, [rawClaims]);
 
+  function handleRazorpayPayment(amount: number, claimId: string) {
+    var options = {
+        key: "rzp_test_SY9JJx7GKLL2Jm",
+        amount: amount * 100,
+        currency: "INR",
+        name: "GigShield",
+        description: "Claim Payout - " + claimId,
+        handler: function(response: any) {
+            console.log("Payment Success!");
+            console.log("Payment ID: " + response.razorpay_payment_id);
+            alert("✅ Payment Successful!\n\nTransaction ID: " + response.razorpay_payment_id + "\n\nAmount: ₹" + amount);
+        },
+        prefill: {
+            name: "Harini R",
+            contact: "9456342765",
+            email: "harini@example.com"
+        },
+        theme: {
+            color: "#6366f1"
+        }
+    };
+    
+    var rzp = new (window as any).Razorpay(options);
+    rzp.open();
+  }
+
   const initiateRazorpayPayout = (
     amount: number,
     workerName: string,
@@ -204,7 +230,7 @@ export default function WorkerClaims() {
                         {(claim.status === 'paid' || claim.status === 'approved') && (
                           <div className="mt-2 space-y-1.5">
                             <Button 
-                              onClick={() => initiateRazorpayPayout(claim.compensation, profile?.name || "Worker", claim.id)}
+                              onClick={() => handleRazorpayPayment(claim.compensation, claim.id)}
                               className="w-full h-7 text-[9px] font-bold bg-[#6C47FF] hover:bg-[#5535E8] text-white rounded-lg gap-1 shadow-sm"
                             >
                               <CreditCard size={10} /> View Payout
