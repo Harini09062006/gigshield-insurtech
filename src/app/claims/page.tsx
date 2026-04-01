@@ -176,6 +176,14 @@ export default function WorkerClaims() {
                           <span>Compensation</span>
                           <span>{claim.status === 'review' || claim.decision === 'REVIEW' ? <span className="text-amber-600">IN REVIEW</span> : claim.decision === 'BLOCKED' ? <span className="text-red-500">DENIED</span> : `₹${claim.compensation}`}</span>
                         </div>
+                        
+                        {(claim.status === 'paid' || claim.status === 'approved') && (
+                          <div className="pt-2 mt-2 border-t border-dashed border-[#E8E6FF] space-y-0.5">
+                            <p className="text-[8px] font-black text-[#64748B] uppercase tracking-wider">Why payout triggered:</p>
+                            <p className="text-[9px] text-[#1A1A2E]">Rain exceeded threshold ({claim.weather?.rainfall || 50}mm &gt; 50mm)</p>
+                            <p className="text-[9px] font-bold text-[#6C47FF]">Estimated income loss covered → ₹{claim.compensation}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="p-4 border-l border-[#E8E6FF]/50 flex flex-col items-center justify-center bg-white text-center">
