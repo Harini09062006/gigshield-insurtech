@@ -1,374 +1,289 @@
-# 🛡️ GigShield Protection — Phase 2: Automation & Protection
+# 🛡️ GigShield InsurTech — Phase 3: Scale & Optimize
 
 <div align="center">
 
-### *When the storm hits — we pay. Automatically.*
+<img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf" width="80%" />
 
-**AI-Powered Parametric Insurance for India's 15 Crore Gig Delivery Workers**
+### *When disruption happens — income is protected instantly.*
 
-[![Status](https://img.shields.io/badge/Phase-2%20Complete-27AE60?style=for-the-badge&logoColor=white)](#)
-[![Deployment](https://img.shields.io/badge/Deployed-Vercel%20%26%20Firebase-4A90E2?style=for-the-badge&logo=vercel&logoColor=white)](https://gigshield-insurtech.vercel.app)
-[![Tech Stack](https://img.shields.io/badge/React-TypeScript-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://reactjs.org/)
-[![Backend](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
-[![Payments](https://img.shields.io/badge/Razorpay-Integration-1F51B6?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.com/)
-[![Hackathon](https://img.shields.io/badge/Guidewire-DEVTrails%202026-0057A8?style=for-the-badge&logoColor=white)](https://www.guidewire.com/)
+**AI-Powered Parametric Insurance for India’s Gig Workforce**
 
-<br/>
-
-> 💬 **"A Swiggy rider in Chennai loses ₹800 every time it floods. GigShield pays him back — before the rain stops. Automatically."**
+![Status](https://img.shields.io/badge/Phase-3%20Complete-27AE60?style=for-the-badge)
+![Deployment](https://img.shields.io/badge/Deployed-Vercel%20%26%20Firebase-4A90E2?style=for-the-badge)
+![Tech](https://img.shields.io/badge/React-TypeScript-61DAFB?style=for-the-badge)
 
 <br/>
 
-**Live Demo:** [https://gigshield-insurtech.vercel.app](https://gigshield-insurtech.vercel.app) ✅  
-**GitHub:** [Harini09062006/gigshield-insurtech](https://github.com/Harini09062006/gigshield-insurtech)
+💬 *"A delivery partner shouldn’t lose income because of rain. GigShield ensures they don’t."*
 
 <br/>
+
+**🔗 Live Demo:** https://gigshield-insurtech.vercel.app
+**💻 GitHub:** https://github.com/Harini09062006/gigshield-insurtech
 
 </div>
 
 ---
 
-## 🎯 Phase 2: What We Built
+# 🎯 Phase 3 Overview
 
-### **Theme: "Protect Your Worker"**
+### Theme: **Scale & Optimize**
 
-Phase 2 transforms GigShield into a **production-ready automated insurance platform** with real-time claim processing, advanced fraud detection, and instant payouts.
+Phase 3 focuses on making GigShield a **complete, scalable, and intelligent system** with:
 
-**Status:** ✅ **PHASE 2 COMPLETE** — All deliverables implemented, tested, and deployed.
-
----
-
-## ✨ Phase 2 Features
-
-### **1. Registration Process**
-- Name, Phone, Platform (Swiggy/Zomato), Location, GPS verification
-- Account creation in Firebase Firestore
-- User authentication enabled
-
-### **2. Insurance Policy Management**
-- Three-tier plans: Basic ₹10, Pro ₹25, Elite ₹50 per week
-- Weekly auto-renewal system
-- Plan activation/deactivation
-- Coverage limit management
-
-### **3. Dynamic Premium Calculation**
-- Base premium + AI-powered risk adjustments
-- Real-time zone-based pricing
-- Weather forecast integration
-- Visible breakdown to workers
-
-### **4. Claims Management**
-- Auto-trigger on parametric events
-- Three claim states: Approved ✅ / Rejected ❌ / Under Review ⏳
-- Income DNA verification per claim
-- Claim history with full details
-
-### **5. 3-5 Automated Triggers**
-- 🌧️ Heavy Rainfall (>50mm in 3 hours)
-- 🌊 Flood Alerts (Government advisory)
-- 🌫️ Air Pollution (AQI >300)
-- 🌡️ Extreme Temperature (>45°C for 4+ hours)
-- 💨 High Wind Speed (>45 km/h)
-
-### **6. Zero-Touch UX**
-- No manual claim submission required
-- Instant automatic approval (< 30 seconds)
-- Clear payout explanation to worker
-- One-click View Payout button
-
-### **7. 8-Layer Fraud Detection**
-- GPS Validation
-- Device Fingerprint Analysis
-- Account Age Verification
-- Behavior Pattern Detection
-- Order History Cross-Reference
-- Duplicate Claim Prevention
-- Weather Data Verification
-- Network Fraud Ring Detection
-
-### **8. Razorpay Payment Integration**
-- Live payment processing
-- Test mode active
-- Multiple payment methods (UPI, Bank, Wallet)
-- Transaction receipts
-- Instant success notifications
+* Advanced fraud detection
+* Real-time dashboards
+* Optimized AI predictions
+* Seamless payout simulation
 
 ---
 
-## 🚀 How It Works
+# 🚨 Problem Statement
 
-### **Parametric Claim Triggering**
+<img src="https://images.unsplash.com/photo-1593642532400-2682810df593" width="70%" />
 
-```
-Weather Event Detected (Rain > 50mm)
-    ↓
-Worker Location Verified (GPS validation)
-    ↓
-Income DNA Calculated (₹78/hr × 1.30x multiplier × 3 hours lost)
-    ↓
-Fraud Analysis Complete (8-layer security check)
-    ↓
-INSTANT PAYOUT: ₹234 sent to bank
-    ↓
-Worker notified with claim details
-
-Total Processing Time: < 30 seconds
-```
+* Gig workers lose **20–30% income** due to disruptions
+* No protection for **income loss**
+* Manual insurance is slow and complex
 
 ---
 
-## 💡 Income DNA Engine
+# 💡 Our Solution
 
-**Hyper-personalized earning pattern analysis:**
+<img src="https://images.unsplash.com/photo-1556740738-b6a63e27c4df" width="70%" />
 
-```
-Worker: "renin" (Srivilliputtur, Swiggy partner)
+GigShield is an **AI-powered parametric insurance platform** that:
 
-🌅 Morning (6-10 AM): ₹45/hr × 0.75x = ₹33.75/hr
-☀️ Afternoon (12-4 PM): ₹57/hr × 0.95x = ₹54.15/hr
-🌆 Evening (5-9 PM): ₹78/hr × 1.30x = ₹101.40/hr ← PEAK
-🌙 Night (9 PM-12 AM): ₹51/hr × 0.85x = ₹43.35/hr
-
-Expected Weekly Earnings: ₹6,111
-
-Example Payout:
-Event: Rain at 7 PM (Evening Peak)
-Loss: 3 hours × ₹78/hr × 1.30x = ₹304
-Coverage Limit: ₹240
-Final Payout: ₹240 PAID INSTANTLY
-```
+✔ Detects disruptions automatically
+✔ Calculates loss using AI
+✔ Triggers instant payouts
+✔ Requires zero manual claims
 
 ---
 
-## 🔒 8-Layer Fraud Detection
+# ⚙️ Key Features
 
-```
-         📥 Claim Received
-              ↓
-    LAYER 1: GPS VALIDATION
-    LAYER 2: DEVICE FINGERPRINT
-    LAYER 3: ACCOUNT AGE
-    LAYER 4: BEHAVIOR PATTERN
-    LAYER 5: ORDER HISTORY
-    LAYER 6: DUPLICATE DETECTION
-    LAYER 7: WEATHER CROSS-REFERENCE
-    LAYER 8: NETWORK ANALYSIS
-              ↓
-        TRUST SCORE CALCULATED
-              ↓
-    > 70/100  →  ✅ INSTANT APPROVAL
-   40-70/100  →  ⚠️  24HR REVIEW + OTP
-    < 40/100  →  🚫 BLOCKED (Admin review)
-```
-
-### Real Claims Processed
-
-```
-CLAIM #MR5WDC: ✅ APPROVED
-  Trust Score: 95/100
-  Payout: ₹171 PAID
-
-CLAIM #HFTEF9: ❌ REJECTED
-  Trust Score: 45/100
-  Reason: Duplicate + behavior anomaly detected
-
-CLAIM #BUKBPR: ⏳ UNDER REVIEW
-  Trust Score: 65/100
-  Action: OTP verification requested
-```
+* AI Risk Assessment
+* Weekly Premium Model
+* 8-Layer Fraud Detection
+* Parametric Triggers
+* Instant Payout System
+* Hybrid Chatbot Support
+* Heatmap Risk Visualization
 
 ---
 
-## 💳 Premium Model
+# 🧠 Innovation DNA
 
-| Plan | Weekly Cost | Max Payout | Coverage |
-|------|-------------|------------|----------|
-| 🟢 **Basic Shield** | ₹10 | ₹60 | Rain, AQI |
-| 🔵 **Pro Shield** ⭐ | ₹25 | ₹240 | Rain, Floods, AQI, Wind |
-| 🟣 **Elite Shield** | ₹50 | ₹600 | All hazards |
+<img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b" width="70%" />
+
+* Hyper-local risk prediction
+* Real-time heatmap tracking
+* AI-based pricing
+* Zero-touch claim automation
+* Smart fraud detection
 
 ---
 
-## 💰 Razorpay Integration
+# 🤖 Hybrid Chatbot
 
-```
-Approved Claim
-    ↓
-Worker clicks "View Payout"
-    ↓
-Razorpay Gateway Opens
-    ↓
-Select Payment Method:
-  • UPI (30 seconds)
-  • Bank Transfer (2-4 hours)
-  • Digital Wallet (1 minute)
-    ↓
-Payment Processed
-    ↓
-✅ Transaction Confirmed
-✅ Receipt Generated
-✅ Notification Sent
+<img src="https://images.unsplash.com/photo-1581090700227-1e8e6b91f9a5" width="70%" />
+
+* Policy explanation
+* Claim tracking
+* User support
+* Voice + multilingual
+* Smart escalation
+
+---
+
+# 🗺️ Heatmap Risk System
+
+<img src="https://images.unsplash.com/photo-1502920917128-1aa500764ce7" width="70%" />
+
+**Risk Zones:**
+
+* 🔴 High Risk
+* 🟠 Medium Risk
+* 🟢 Safe
+
+**Based on:**
+
+* Weather
+* Traffic
+* Pollution
+
+---
+
+# 🔒 8-Layer Fraud Detection
+
+<img src="https://images.unsplash.com/photo-1555949963-aa79dcee981c" width="70%" />
+
+1. GPS Validation
+2. Device Fingerprinting
+3. Account Verification
+4. Behavior Analysis
+5. Order History Check
+6. Duplicate Detection
+7. Weather Cross-check
+8. AI Anomaly Detection
+
+✔ Real-time trust scoring
+✔ Prevents fake claims
+
+---
+
+# ⚡ Instant Payout System
+
+<img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d" width="70%" />
+
+* Razorpay Integration (Test Mode)
+* UPI / Bank / Wallet
+* Instant payout simulation
+* Secure transactions
+
+---
+
+# 📊 Intelligent Dashboard
+
+<img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71" width="70%" />
+
+### 👤 Worker Dashboard
+
+* Active policy
+* Earnings protected
+* Claim history
+
+### 🧑‍💼 Admin Dashboard
+
+* Fraud analytics
+* Loss ratio
+* Predictive insights
+
+---
+
+# 🔄 System Workflow
+
+```text
+User Registers
+   ↓
+Select Weekly Plan
+   ↓
+AI Calculates Premium
+   ↓
+System Monitors Risk
+   ↓
+Disruption Detected
+   ↓
+Fraud Detection (8 Layers)
+   ↓
+Claim Approved
+   ↓
+Instant Payout
 ```
 
 ---
 
-## 📊 Real-Time Risk Analytics
+# 💰 Business Model
 
-```
-Current Conditions:
-  🌧️ Rain: 12mm (LOW)
-  💨 Wind: 15 km/h (SAFE)
-  ☁️ Fog: 800m (CLEAR)
-  🔴 AQI: 85 (SAFE)
+| Plan  | Cost | Coverage |
+| ----- | ---- | -------- |
+| Basic | ₹10  | Limited  |
+| Pro   | ₹25  | Standard |
+| Elite | ₹50  | Full     |
 
-OVERALL RISK: LOW
-DISRUPTION RISK: 35%
-LIVE RISK SCORE: 65/100
-SYSTEM ACTION: Premium reduced; Safe Zone Active
-```
+✔ Affordable
+✔ Weekly pricing
+✔ Scalable
 
 ---
 
-## 🛠️ Tech Stack
+# 🛠️ Tech Stack
 
-```
+```text
 Frontend:
-  • React 18 + TypeScript
-  • Tailwind CSS
-  • Lucide React (icons)
-  • Recharts (charts)
+  React + TypeScript
+  Tailwind CSS
 
 Backend:
-  • Firebase Firestore (NoSQL database)
-  • Firebase Authentication
-  • Firebase Hosting
+  Firebase Firestore
+  Authentication
 
-Payment:
-  • Razorpay (live integration)
+AI/ML:
+  Risk Prediction
+  Fraud Detection
+
+Payments:
+  Razorpay (Test Mode)
 
 Deployment:
-  • Vercel (frontend)
-  • Firebase (backend)
-  • GitHub (version control)
+  Vercel + Firebase
 ```
 
 ---
 
-## ⚙️ Setup Instructions
+# 🔐 Security
 
-**1. Clone Repository**
-```bash
-git clone https://github.com/Harini09062006/gigshield-insurtech.git
-cd gigshield-insurtech
-```
-
-**2. Install Dependencies**
-```bash
-npm install
-```
-
-**3. Configure Firebase (.env)**
-```
-VITE_FIREBASE_API_KEY=your_key
-VITE_FIREBASE_AUTH_DOMAIN=your_domain
-VITE_FIREBASE_PROJECT_ID=your_project
-VITE_FIREBASE_STORAGE_BUCKET=your_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_id
-VITE_FIREBASE_APP_ID=your_app_id
-VITE_RAZORPAY_KEY=rzp_test_SY9JJx7GKLL2Jm
-```
-
-**4. Run Development Server**
-```bash
-npm run dev
-```
-
-**5. Build for Production**
-```bash
-npm run build
-```
-
-**6. Deploy**
-```bash
-vercel deploy
-```
+* Multi-layer fraud detection
+* Secure payments
+* Firebase authentication
+* Data protection
 
 ---
 
-## 🚀 Live Demo
+# 📈 Impact
 
-**URL:** https://gigshield-insurtech.vercel.app
+<img src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d" width="70%" />
 
-**Test Flow:**
-1. Register with any name & phone
-2. Select Pro Shield plan (₹25/week)
-3. Click "Simulate Severe Weather"
-4. Watch auto-claim trigger
-5. Click "View Payout" for Razorpay payment
+* Protects gig worker income
+* Reduces financial uncertainty
+* Supports families
+* Enables financial stability
 
 ---
 
-## 🔒 Security Features
+# 🛣️ Roadmap
 
-✅ Data Encryption (Firebase Firestore)  
-✅ API Security (Firebase security rules)  
-✅ Payment Security (PCI-DSS via Razorpay)  
-✅ GPS Spoofing Prevention (Multi-layer validation)  
-✅ Device Fingerprinting (Hardware authentication)  
-✅ Rate Limiting (API throttling)  
-✅ OTP Verification (Two-factor authentication)  
+### Phase 1 — Deployment
 
----
+Pilot testing and validation
 
-## 📈 Performance Metrics
+### Phase 2 — Expansion
 
-- Page Load Time: 1.2 seconds
-- Claim Processing: < 30 seconds
-- API Response Time: 200ms average
-- Payment Processing: 45-60 seconds
-- Fraud Detection: 8 seconds per claim
-- Payment Success Rate: 100%
-- Fraud Detection Accuracy: 99.5%
+Scaling to multiple cities
+
+### Phase 3 — Growth
+
+Expansion to all gig sectors
 
 ---
 
-## 👨‍💻 Team
+# 👨‍💻 Team Innovatrix
 
-| Name | Role |
-|------|------|
-| Harini R | Full Stack Developer |
-| Priya R | Database Engineer |
-| Vaishnavi | AI/ML Developer |
-| Revathi M | Frontend Developer |
+* Harini R — Full Stack Developer
+* Priya R — Database Engineer
+* Vaishnavi — AI/ML Developer
+* Revathi M — Frontend Developer
 
 ---
 
-## 📄 License
+# 🚀 Final Outcome
 
-MIT License
+GigShield demonstrates:
+
+✔ AI-driven insurance
+✔ Automated claims
+✔ Fraud-resistant system
+✔ Real-time payouts
 
 ---
 
 <div align="center">
 
-<br/>
+## 🌟 GigShield — Built for Real-World Impact
 
-## **GigShield Phase 2 — Production Ready**
+*Because one bad day shouldn’t cost a week’s income.*
 
-*Automating income protection for India's gig workers.*
-
-<br/>
-
-**[Live Demo](https://gigshield-insurtech.vercel.app)** · **[GitHub](https://github.com/Harini09062006/gigshield-insurtech)**
-
-<br/>
-
-⭐ **Star us if you believe gig workers deserve protection!**
-
-<br/>
-
-**Status:** ✅ Phase 2 Complete  
-**Last Updated:** April 3, 2026  
-**Deployment:** Vercel + Firebase
+⭐ Star this project if you support gig workers!
 
 </div>
