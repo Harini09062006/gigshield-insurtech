@@ -1,181 +1,224 @@
-# 🛡️ GigShield InsurTech — Phase 3: Scale & Optimize
+# 🛡️ GigShield InsurTech — DEVTrails 2026 Phase 3
 
 <div align="center">
 
-<img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf" width="80%" />
+<img src="https://images.unsplash.com/photo-1581090700227-1e8e6b91f9a5" width="80%" />
 
-### *When disruption happens — income is protected instantly.*
+### *AI-Powered Parametric Insurance for Gig Delivery Workers*
 
-**AI-Powered Parametric Insurance for India’s Gig Workforce**
+**Guidewire DEVTrails 2026 | Phase 3 Final Submission**
 
 ![Status](https://img.shields.io/badge/Phase-3%20Complete-27AE60?style=for-the-badge)
-![Deployment](https://img.shields.io/badge/Deployed-Vercel%20%26%20Firebase-4A90E2?style=for-the-badge)
 ![Tech](https://img.shields.io/badge/React-TypeScript-61DAFB?style=for-the-badge)
+![Backend](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=for-the-badge)
+![AI](https://img.shields.io/badge/TensorFlow.js-ML-orange?style=for-the-badge)
+![Payments](https://img.shields.io/badge/Razorpay-Integrated-blue?style=for-the-badge)
 
 <br/>
 
-💬 *"A delivery partner shouldn’t lose income because of rain. GigShield ensures they don’t."*
+🌐 **Live:** https://gigshield-insurtech.vercel.app
 
-<br/>
-
-**🔗 Live Demo:** https://gigshield-insurtech.vercel.app
-**💻 GitHub:** https://github.com/Harini09062006/gigshield-insurtech
+👨‍💻 **Team:** Hari • Priya R • Vaishnavi • Revathi M
 
 </div>
 
 ---
 
-# 🎯 Phase 3 Overview
-
-### Theme: **Scale & Optimize**
-
-Phase 3 focuses on making GigShield a **complete, scalable, and intelligent system** with:
-
-* Advanced fraud detection
-* Real-time dashboards
-* Optimized AI predictions
-* Seamless payout simulation
-
----
-
-# 🚨 Problem Statement
-
-<img src="https://images.unsplash.com/photo-1593642532400-2682810df593" width="70%" />
-
-* Gig workers lose **20–30% income** due to disruptions
-* No protection for **income loss**
-* Manual insurance is slow and complex
-
----
-
-# 💡 Our Solution
+# 🚀 Project Overview
 
 <img src="https://images.unsplash.com/photo-1556740738-b6a63e27c4df" width="70%" />
 
-GigShield is an **AI-powered parametric insurance platform** that:
+GigShield is a **production-grade parametric insurance platform** built for gig delivery workers who face income loss due to disruptions like rain, traffic, or pollution.
 
-✔ Detects disruptions automatically
-✔ Calculates loss using AI
-✔ Triggers instant payouts
-✔ Requires zero manual claims
+Unlike traditional insurance:
+
+* ❌ No paperwork
+* ❌ No delays
+* ❌ No manual claims
+
+✔ AI detects disruption
+✔ Automatically triggers payout
+✔ Instant financial protection
 
 ---
 
-# ⚙️ Key Features
+# 🔄 Phase 3 Upgrade Summary
 
-* AI Risk Assessment
-* Weekly Premium Model
-* 8-Layer Fraud Detection
-* Parametric Triggers
-* Instant Payout System
-* Hybrid Chatbot Support
-* Heatmap Risk Visualization
+| Phase 2              | Phase 3                        |
+| -------------------- | ------------------------------ |
+| Rule-based logic     | Real ML (TensorFlow.js)        |
+| Hardcoded thresholds | Dynamic probability scoring    |
+| No explainability    | XAI (Explainable AI)           |
+| Mock APIs            | Live APIs (Weather, Maps, AQI) |
+| Static UI            | Interactive heatmap            |
+| No chatbot           | Hybrid AI chatbot              |
 
 ---
 
 # 🧠 Innovation DNA
 
-<img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b" width="70%" />
+## 1. Train-Once ML Model
 
-* Hyper-local risk prediction
-* Real-time heatmap tracking
-* AI-based pricing
-* Zero-touch claim automation
-* Smart fraud detection
+* TensorFlow.js neural network
+* 5 input features
+* Persistent model (IndexedDB)
+* Real probability output
+
+## 2. Explainable AI (XAI)
+
+* Feature contribution visualization
+* Confidence intervals
+* Plain-language explanations
+* Stored audit logs
+
+## 3. Live API Integration
+
+* OpenWeatherMap
+* Google Maps
+* WAQI (Air Quality)
+* Firebase
+
+## 4. Hybrid AI Chatbot (GigAssist)
+
+* FAQ + LLM fallback
+* English + Tamil support
+* Context-aware responses
+* Claim guidance
 
 ---
 
-# 🤖 Hybrid Chatbot
+# 🤖 Hybrid Chatbot — GigAssist
 
-<img src="https://images.unsplash.com/photo-1581090700227-1e8e6b91f9a5" width="70%" />
+<img src="https://images.unsplash.com/photo-1531746790731-6c087fecd65a" width="70%" />
 
 * Policy explanation
-* Claim tracking
-* User support
-* Voice + multilingual
-* Smart escalation
+* Claim assistance
+* Multilingual (English + Tamil)
+* Context-based responses
+* Smart fallback to LLM
 
 ---
 
-# 🗺️ Heatmap Risk System
+# 🗺️ Real-Time Risk Heatmap
 
 <img src="https://images.unsplash.com/photo-1502920917128-1aa500764ce7" width="70%" />
 
-**Risk Zones:**
+* Leaflet.js interactive map
 
-* 🔴 High Risk
-* 🟠 Medium Risk
-* 🟢 Safe
+* Real-time risk zones
 
-**Based on:**
+* Color coding:
 
-* Weather
-* Traffic
-* Pollution
+  * 🔴 High Risk
+  * 🟠 Medium
+  * 🟢 Safe
 
----
+* Updates every 5 minutes
 
-# 🔒 8-Layer Fraud Detection
-
-<img src="https://images.unsplash.com/photo-1555949963-aa79dcee981c" width="70%" />
-
-1. GPS Validation
-2. Device Fingerprinting
-3. Account Verification
-4. Behavior Analysis
-5. Order History Check
-6. Duplicate Detection
-7. Weather Cross-check
-8. AI Anomaly Detection
-
-✔ Real-time trust scoring
-✔ Prevents fake claims
+* Click zones for AI explanation
 
 ---
 
-# ⚡ Instant Payout System
+# 🔒 AI Fraud Detection System
 
-<img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d" width="70%" />
+* GPS spoofing detection
+* Weather verification
+* Behavior analysis
+* Duplicate claim prevention
+* Network fraud detection
+* AI anomaly scoring
 
-* Razorpay Integration (Test Mode)
-* UPI / Bank / Wallet
-* Instant payout simulation
-* Secure transactions
+✔ Real-time trust score
+✔ Fraud-resistant system
 
 ---
 
-# 📊 Intelligent Dashboard
+# ⚙️ System Architecture
 
-<img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71" width="70%" />
+```text
+API Data (Weather + Traffic + AQI + GPS + History)
+        ↓
+Feature Normalization
+        ↓
+TensorFlow.js ML Model
+        ↓
+Risk Probability Score
+        ↓
+XAI Explanation Generated
+        ↓
+Claim Decision
+        ↓
+Instant Payout (Razorpay)
+```
 
-### 👤 Worker Dashboard
+---
 
-* Active policy
-* Earnings protected
-* Claim history
+# 📊 Features
 
-### 🧑‍💼 Admin Dashboard
+## 👤 Worker Dashboard
 
+* Earnings protection tracking
+* AI premium calculator
+* One-tap claim system
+* XAI explanation panel
+* Heatmap view
+* Chatbot support
+
+## 🧑‍💼 Admin Dashboard
+
+* Loss ratio monitoring
 * Fraud analytics
-* Loss ratio
 * Predictive insights
+* Zone-based risk tracking
 
 ---
 
-# 🔄 System Workflow
+# 🛠️ Tech Stack
+
+```text
+Frontend:
+  React + TypeScript + Tailwind CSS
+
+AI/ML:
+  TensorFlow.js (Neural Network)
+  Explainable AI Engine
+
+Backend:
+  Firebase Firestore
+  Firebase Auth
+  Cloud Functions
+
+Maps:
+  Leaflet.js + OpenStreetMap
+
+APIs:
+  OpenWeatherMap
+  Google Maps
+  WAQI
+
+Payments:
+  Razorpay (Test Mode)
+
+Deployment:
+  Vercel + GitHub Actions
+```
+
+---
+
+# 📈 How It Works
 
 ```text
 User Registers
    ↓
 Select Weekly Plan
    ↓
-AI Calculates Premium
+AI Calculates Risk
    ↓
-System Monitors Risk
+System Monitors Environment
    ↓
 Disruption Detected
    ↓
-Fraud Detection (8 Layers)
+Fraud Detection Check
    ↓
 Claim Approved
    ↓
@@ -192,98 +235,61 @@ Instant Payout
 | Pro   | ₹25  | Standard |
 | Elite | ₹50  | Full     |
 
-✔ Affordable
-✔ Weekly pricing
-✔ Scalable
-
----
-
-# 🛠️ Tech Stack
-
-```text
-Frontend:
-  React + TypeScript
-  Tailwind CSS
-
-Backend:
-  Firebase Firestore
-  Authentication
-
-AI/ML:
-  Risk Prediction
-  Fraud Detection
-
-Payments:
-  Razorpay (Test Mode)
-
-Deployment:
-  Vercel + Firebase
-```
-
 ---
 
 # 🔐 Security
 
 * Multi-layer fraud detection
-* Secure payments
-* Firebase authentication
-* Data protection
+* Secure authentication
+* Encrypted data storage
+* Safe payment gateway
 
 ---
 
-# 📈 Impact
+# 🌍 Impact
 
 <img src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d" width="70%" />
 
 * Protects gig worker income
-* Reduces financial uncertainty
+* Reduces financial risk
 * Supports families
-* Enables financial stability
+* Builds economic stability
 
 ---
 
-# 🛣️ Roadmap
+# 🚀 Live Demo
 
-### Phase 1 — Deployment
+🌐 https://gigshield-insurtech.vercel.app
 
-Pilot testing and validation
+**Test Flow:**
 
-### Phase 2 — Expansion
-
-Scaling to multiple cities
-
-### Phase 3 — Growth
-
-Expansion to all gig sectors
+1. Register
+2. Select plan
+3. Simulate disruption
+4. View automatic claim
+5. Check payout
 
 ---
 
 # 👨‍💻 Team Innovatrix
 
-* Harini R — Full Stack Developer
-* Priya R — Database Engineer
-* Vaishnavi — AI/ML Developer
-* Revathi M — Frontend Developer
+* Hari — Lead Engineer
+* Priya R — Frontend
+* Vaishnavi — Backend / AI
+* Revathi M — QA / Product
 
 ---
 
-# 🚀 Final Outcome
+# ⭐ Final Note
 
-GigShield demonstrates:
+**GigShield is built to solve a real-world problem using real AI — not just concepts.**
 
-✔ AI-driven insurance
-✔ Automated claims
-✔ Fraud-resistant system
-✔ Real-time payouts
+> *Because one bad day shouldn’t cost a week’s income.*
 
 ---
 
 <div align="center">
 
-## 🌟 GigShield — Built for Real-World Impact
-
-*Because one bad day shouldn’t cost a week’s income.*
-
-⭐ Star this project if you support gig workers!
+### 🚀 Built for Impact | DEVTrails 2026
 
 </div>
