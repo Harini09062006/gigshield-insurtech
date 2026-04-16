@@ -8,312 +8,262 @@
 
 ## 🌐 Live Deployment
 
-* Application: https://gigshield-insurtech.vercel.app
+* **Application:** https://gigshield-insurtech.vercel.app
+
+---
+
+## 📊 Pitch Deck
+
+The complete presentation for GigShield is available below:
+
+🔗 **Pitch Deck Link:**
+https://drive.google.com/file/d/1VM0al0ryGnHAaeZrRb8cJ5Pqr_JsnuyN/view?usp=sharing
 
 ---
 
 ## 👨‍💻 Team Innovatrix
 
-* Hari — Lead Engineer (AI/ML, Architecture, Integrations)
-* Priya R — Frontend Developer (UI, Dashboard, Chatbot Interface)
-* Vaishnavi — Backend & Data Engineer (Firestore, APIs, Fraud Detection)
-* Revathi M — Product & QA (Testing, Demo Flow, Documentation)
+* **Hari** — Lead Engineer (AI/ML, Architecture, Integrations)
+* **Priya R** — Frontend Engineer (UI/UX, Dashboard, Chatbot)
+* **Vaishnavi** — Backend & Data Engineer (Firestore, APIs, Fraud Detection)
+* **Revathi M** — Product & QA (Testing, Demo Flow, Documentation)
 
 ---
 
 # 📌 1. Project Overview
 
-GigShield is a production-grade AI-powered parametric insurance platform designed specifically for gig delivery workers in India.
+GigShield is a **production-grade AI-powered parametric insurance platform** designed to protect gig delivery workers from income loss caused by external disruptions.
 
-Gig workers operate in highly unpredictable environments where external disruptions such as heavy rainfall, extreme heat, pollution spikes, or traffic congestion can directly impact their ability to work. Unlike salaried employees, they have no fallback income when such disruptions occur.
+Gig workers rely entirely on daily earnings and operate in unpredictable environments. Events such as heavy rainfall, extreme heat, pollution spikes, and traffic restrictions directly impact their ability to work and earn.
 
-GigShield addresses this gap by introducing an automated insurance system that protects worker income in real time.
+GigShield solves this problem by introducing a **fully automated income protection system** that:
 
-Unlike traditional insurance systems that rely on manual claim filing and verification, GigShield uses:
+* Monitors real-world conditions using live data
+* Uses machine learning to assess disruption risk
+* Automatically triggers payouts when conditions are met
 
-* Real-time environmental data
-* AI-based risk prediction
-* Automated parametric triggers
+Unlike traditional insurance, GigShield eliminates:
 
-to detect disruptions and trigger payouts instantly.
+* Manual claim filing
+* Processing delays
+* Complex verification
 
-This removes delays, reduces friction, and ensures that workers receive compensation when they need it the most.
-
----
-
-# 🚀 2. Phase 3 Objective — Scale & Optimize
-
-Phase 3 focuses on transforming GigShield from a functional prototype into a scalable, intelligent, and production-ready platform.
-
-Key goals achieved in this phase:
-
-* Transition from rule-based logic to true machine learning
-* Introduce Explainable AI for transparency
-* Replace all mock data with live API integrations
-* Build an interactive risk heatmap
-* Develop a hybrid AI chatbot for user support
-* Strengthen fraud detection with multi-layer validation
-* Improve system performance, scalability, and reliability
+and replaces them with **instant, transparent, and automated payouts**.
 
 ---
 
-# 🔄 3. Phase 2 → Phase 3 Transformation
+# 🚨 2. Problem Statement
 
-| Phase 2 (Automation) | Phase 3 (Optimization)                  |
-| -------------------- | --------------------------------------- |
-| Rule-based triggers  | ML-based decision engine                |
-| Static thresholds    | Dynamic probability scoring             |
-| No explainability    | Explainable AI (XAI)                    |
-| Mock data            | Live API data                           |
-| Basic UI             | Advanced analytics dashboards           |
-| No chatbot           | Hybrid AI chatbot                       |
-| Limited fraud checks | Multi-layer intelligent fraud detection |
+* Gig workers lose **20–30% of income** due to disruptions
+* No financial safety net
+* No paid leave or downtime protection
+* Traditional insurance does NOT cover income loss
 
 ---
 
-# 🧠 4. Innovation DNA
+# 👤 3. Target Users
 
-GigShield’s core innovation is built around four tightly integrated components:
+GigShield is designed for:
 
----
+* Delivery partners (Zomato, Swiggy, Amazon, Blinkit)
+* Workers earning ₹800–₹1500/day
+* Individuals with high mobile usage and low financial buffer
 
-## 4.1 Train-Once Machine Learning Model
+### Key Disruptions:
 
-GigShield uses a TensorFlow.js-based neural network model that is trained once and reused across sessions.
-
-### Key Characteristics:
-
-* Input Features:
-
-  * Weather severity
-  * Traffic congestion
-  * Air quality index
-  * Geographic zone risk
-  * Historical claim rate
-
-* Model Architecture:
-
-  * Dense Layer (16 neurons)
-  * Dense Layer (8 neurons)
-  * Sigmoid Output Layer
-
-* Output:
-
-  * Risk probability (0 to 1)
-
-### Unique Implementation:
-
-* Model is stored in IndexedDB after training
-* No retraining on page reload
-* Ensures production-like consistency
-* No rule-based fallback — all decisions use ML
+* Rain / Floods
+* Extreme Heat
+* Traffic / Curfews
+* Air Pollution
 
 ---
 
-## 4.2 Explainable AI (XAI)
+# 💡 4. Solution — GigShield Platform
 
-To address transparency, GigShield includes an Explainable AI module.
+GigShield is an **AI-powered parametric insurance system**.
 
-### Features:
+### Core Workflow:
 
-* Feature contribution analysis (SHAP-style)
-* Confidence intervals for predictions
-* Human-readable explanations
-* Persistent audit logs stored in Firestore
+Subscribe → AI Monitors → Disruption Detected → Auto Claim → Instant Payout
 
-### Example Explanation:
+### Key Benefits:
 
-"Heavy rainfall contributed 42% to the risk score, making it the primary factor in claim approval."
-
-This ensures both workers and insurers understand how decisions are made.
+* No paperwork
+* No delays
+* No manual claims
+* Instant payouts
 
 ---
 
-## 4.3 Real-Time External API Integration
+# 🚀 5. Phase 3 Objective — Scale & Optimize
 
-All system decisions are powered by live data.
+Phase 3 focuses on transforming GigShield into a **scalable and intelligent platform**.
 
-### Integrated APIs:
+### Key Enhancements:
 
-* OpenWeatherMap → Weather conditions
-* Google Maps → Traffic and congestion
-* WAQI → Air quality index
-* Firebase → Historical claims data
-
-### Impact:
-
-* Eliminates mock data
-* Ensures real-world reliability
-* Enables dynamic risk scoring
+* ML-based decision engine
+* Explainable AI (XAI)
+* Real-time API integration
+* Risk heatmap
+* Hybrid chatbot
+* Advanced fraud detection
+* Performance optimization
 
 ---
 
-## 4.4 Hybrid AI Chatbot — GigAssist
+# 🔄 6. Phase Evolution
 
-GigAssist is designed to support workers who may not be familiar with insurance systems.
+| Phase 2           | Phase 3                |
+| ----------------- | ---------------------- |
+| Rule-based        | ML-based               |
+| Static thresholds | Dynamic scoring        |
+| No explainability | Explainable AI         |
+| Mock data         | Live APIs              |
+| Basic UI          | Intelligent dashboards |
+| No chatbot        | Hybrid chatbot         |
 
-### Architecture:
+---
 
-Layer 1: FAQ Engine
+# 🧠 7. Innovation DNA
 
-* Keyword matching
-* Predefined responses
-* Fast and efficient
+## AI-Driven Pricing
 
-Layer 2: LLM Fallback
+Personalized premium calculation using real-time risk.
 
-* Handles complex queries
+## Hyper-Local Risk Prediction
+
+Zone-level risk using live environmental data.
+
+## Heatmap Intelligence
+
+Real-time visualization of risk zones.
+
+## Zero-Touch Claims
+
+Fully automated claim process.
+
+---
+
+# 🤖 8. Hybrid AI Chatbot (GigAssist)
+
+* FAQ + LLM hybrid system
+* Multilingual support
 * Context-aware responses
-* Personalized interactions
-
-### Features:
-
-* Bilingual support (English + Tamil)
-* Context injection (policy, claims, risk score)
-* Claim assistance workflow
-* Chat history persistence
-* Controlled responses (no hallucination)
+* Claim assistance
 
 ---
 
-# 🗺️ 5. Real-Time Risk Heatmap
+# 🗺️ 9. Risk Heatmap
 
-GigShield includes an interactive heatmap that visualizes risk across geographic zones.
-
-### Key Concepts:
-
-* Zones created using H3 geospatial indexing
-* Each zone assigned an ML-based risk score
-* Updated dynamically using live API data
-
-### Color Coding:
-
-* Green → Low Risk
-* Orange → Medium Risk
-* Red → High Risk
-
-### Functionalities:
-
+* Zone-based risk visualization
 * Real-time updates
-* Zone-level insights
-* Historical claim overlays
-* Click-to-view detailed risk breakdown
+* Color coding:
 
-### Dual Usage:
-
-Worker View:
-
-* Helps workers avoid high-risk areas
-
-Admin View:
-
-* Identifies claim concentration
-* Enables policy adjustments
+  * Green → Low
+  * Orange → Medium
+  * Red → High
 
 ---
 
-# 🔒 6. Fraud Detection System
+# 🔒 10. Fraud Detection System
 
-GigShield implements a multi-layer fraud detection system.
+8-layer validation:
 
-### Detection Layers:
-
-1. GPS location validation
-2. Device fingerprinting
-3. Account age verification
-4. Behavioral pattern analysis
-5. Order history validation
-6. Duplicate claim detection
-7. Weather verification
-8. Network fraud detection
-
-### Additional Techniques:
-
-* Velocity checks
-* Anomaly detection models
-* Historical comparison
-
-### Outcome:
-
-* High fraud detection accuracy
-* Reduced false positives
-* Reliable claim validation
+1. GPS verification
+2. Activity validation
+3. Duplicate detection
+4. Behavioral analysis
+5. Weather validation
+6. Device fingerprinting
+7. AI anomaly detection
+8. Historical validation
 
 ---
 
-# ⚙️ 7. System Architecture
+# ⚙️ 11. System Architecture
 
-## ML Risk Pipeline
-
-1. Data collection from APIs
-2. Feature normalization
-3. ML model inference
-4. XAI explanation generation
-5. Decision making
-6. Payout execution
-7. Data logging
+```text id="arch001"
+User → Frontend → Backend → APIs → ML Model → Decision Engine → Payout
+```
 
 ---
 
-## Design Principles
+# 🔄 12. End-to-End Workflow
 
-* Zero mock data policy
-* No fallback logic
-* Additive architecture (Phase 2 untouched)
-* Real-time processing
-* High reliability
+```text id="flow001"
+Register
+   ↓
+Select Plan
+   ↓
+AI Risk Calculation
+   ↓
+System Monitoring
+   ↓
+Disruption Detected
+   ↓
+Fraud Detection
+   ↓
+Claim Approved
+   ↓
+Instant Payout
+```
 
 ---
 
-# 📊 8. Feature Overview
+# 🧠 13. AI Risk & Pricing Model
+
+* Location risk
+* Weather prediction
+* Work pattern analysis
+
+### Example:
+
+* Safe zone → lower premium
+* High-risk zone → higher premium
+
+---
+
+# 📊 14. Features
 
 ## Worker Dashboard
 
-* Earnings protection tracking
-* AI premium calculation
-* Automated claim triggering
-* XAI explanation panel
-* Heatmap visualization
-* Chatbot assistance
-* Claim history
-
----
+* Earnings tracking
+* Premium calculation
+* Claim automation
+* Chatbot
+* Heatmap
 
 ## Admin Dashboard
 
-* Loss ratio monitoring
 * Fraud analytics
+* Loss ratio
 * Predictive insights
-* Risk zone management
-* XAI audit logs
 
 ---
 
-# 🛠️ 9. Technology Stack
+# 🛠️ 15. Technology Stack
 
 ## Frontend
 
 * React
 * TypeScript
 * Tailwind CSS
-* Next.js
 
 ## Backend
 
 * Firebase Firestore
-* Firebase Authentication
-* Cloud Functions
+* Authentication
 
 ## AI/ML
 
 * TensorFlow.js
-* Explainable AI engine
+* XAI Engine
 
 ## APIs
 
-* OpenWeatherMap
-* Google Maps
-* WAQI
+* Weather
+* Maps
+* Pollution
 
 ## Payments
 
@@ -322,13 +272,10 @@ GigShield implements a multi-layer fraud detection system.
 ## Deployment
 
 * Vercel
-* GitHub Actions
 
 ---
 
-# 💰 10. Business Model
-
-GigShield uses a weekly subscription-based pricing model.
+# 💰 16. Business Model
 
 | Plan  | Cost | Coverage |
 | ----- | ---- | -------- |
@@ -338,57 +285,85 @@ GigShield uses a weekly subscription-based pricing model.
 
 ---
 
-# 📈 11. Impact
+# 📈 17. Impact
 
-GigShield creates real-world impact by:
-
-* Protecting gig worker income
-* Reducing financial instability
-* Supporting families
-* Promoting financial inclusion
+* Income protection
+* Financial stability
+* Support for families
+* Economic inclusion
 
 ---
 
-# 🧪 12. Demo Instructions
+# 🧪 18. Demo Instructions
 
-1. Open application
-2. Register as a worker
-3. Select a plan
-4. Simulate disruption
-5. Observe automatic claim
-6. View payout
-
----
-
-# 🎯 13. Key Achievements
-
-* Fully functional AI insurance system
-* Real-time automated claims
-* Explainable AI integration
-* Multi-layer fraud detection
-* Live data-driven decision making
-* Scalable architecture
+1. Register
+2. Select plan
+3. Simulate disruption
+4. Observe claim
+5. View payout
 
 ---
 
-# 🔮 14. Future Scope
+# 📊 19. Pitch Deck Summary
 
-* Expansion to additional gig sectors
-* Improved ML model accuracy
-* Deeper platform integrations
-* Regulatory alignment
-* Advanced predictive analytics
+## Problem
+
+Gig workers face income loss with no protection.
+
+## Solution
+
+AI-powered automated insurance.
+
+## Features
+
+* AI pricing
+* Heatmap
+* Chatbot
+* Fraud detection
+
+## Innovation
+
+* ML + XAI
+* Real-time APIs
+* Zero-touch claims
+
+## Business Model
+
+Weekly subscription.
+
+## Impact
+
+Financial protection at scale.
 
 ---
 
-# 🏁 15. Conclusion
+# 🎯 20. Key Achievements
 
-GigShield demonstrates how AI can be applied to solve real-world financial problems in a practical and scalable way.
-
-By combining machine learning, real-time data, and automation, the platform provides a reliable safety net for gig workers.
-
-The system is designed not just as a prototype, but as a foundation for a real-world product capable of making a meaningful impact.
+* AI-based insurance system
+* Automated claim processing
+* Explainable AI
+* Fraud-resistant architecture
+* Real-time data integration
 
 ---
+
+# 🔮 21. Future Scope
+
+* Expand to all gig sectors
+* Improve ML accuracy
+* Platform integrations
+* Regulatory compliance
+
+---
+
+# 🏁 22. Conclusion
+
+GigShield demonstrates how AI can be applied to solve real-world financial challenges in the gig economy.
+
+By combining machine learning, automation, and real-time data, the platform provides a scalable and impactful solution for income protection.
+
+---
+
+## ⭐ Final Note
 
 **GigShield — Because one bad day shouldn’t cost a week’s income.**
